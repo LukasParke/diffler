@@ -1,0 +1,29 @@
+name: Diffler Profile README + Remotion
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update profile README and remotion config
+        uses: LukasParke/diffler@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          remotion-output: remotion-input.json
+          commit-message: "🤖 Auto-update profile README and remotion config"
+
+      - name: Upload remotion config
+        if: steps.update-readme.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: remotion-input
+          path: remotion-input.json

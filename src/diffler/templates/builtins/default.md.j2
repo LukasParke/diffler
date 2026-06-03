@@ -1,0 +1,60 @@
+<div align="center">
+
+# Hi, I'm {{ github.user.name }} 👋
+
+{% if github.user.bio %}
+*{{ github.user.bio }}*
+{% endif %}
+
+{{ typing_svg("Welcome to my GitHub profile") }}
+
+<br>
+
+{{ github_stats_card(github.user.login) }}
+
+{{ top_langs(github.user.login) }}
+
+</div>
+
+## 🛠️ Tech Stack
+
+{{ skill_icons(["python", "rust", "typescript", "go", "docker", "aws", "linux"]) }}
+
+## 📌 Pinned Repositories
+
+{% if github.user.pinned_repositories %}
+{{ pinned_repos_grid(github.user.pinned_repositories) }}
+{% else %}
+_No pinned repositories yet._
+{% endif %}
+
+## 📂 All Projects
+
+{% set all_repos = filter_repos(github.user.repositories, exclude_forks=true, exclude_archived=true, sort_by="stars", limit=20) %}
+{% if all_repos %}
+{{ repo_list(all_repos) }}
+{% else %}
+_No public repositories yet._
+{% endif %}
+
+## 📊 Stats
+
+{{ streak_stats(github.user.login) }}
+
+{% if github.user.contributions.total > 0 %}
+{{ contribution_badge(github.user.contributions.total) }}
+{% endif %}
+
+## 📫 Connect
+
+{% if github.user.location %}
+📍 {{ github.user.location }}
+{% endif %}
+{% if github.user.company %}
+🏢 {{ github.user.company }}
+{% endif %}
+{% if github.user.website_url %}
+🌐 [Website]({{ github.user.website_url }})
+{% endif %}
+
+Feel free to reach out!

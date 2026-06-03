@@ -1,0 +1,13 @@
+version: "1"
+
+github:
+  username: "octocat"
+  token: "${GITHUB_TOKEN}"
+
+templates:
+  main: "profile.md.j2"
+  directory: "."
+
+cache:
+  enabled: true
+  ttl: 3600

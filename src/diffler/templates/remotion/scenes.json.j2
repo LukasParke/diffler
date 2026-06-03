@@ -1,0 +1,40 @@
+{# Remotion scene manifest template.
+
+   Available variables:
+   - stats.profileContributions.totalContributions
+   - stats.profileContributions.stats.currentStreak
+   - stats.profileContributions.stats.longestStreak
+   - stats.repoMetrics.topLanguages
+   - stats.repoMetrics.starCount
+   - stats.activity.repositoriesContributedTo
+   - stats.computedStats.yearOverYearGrowth
+   - stats.cards
+   - stats.highlights
+
+   Each scene has: id, durationInFrames, enabled
+#}
+{% set scenes = [
+  {"id": "readme", "durationInFrames": 192, "enabled": true},
+  {"id": "stats", "durationInFrames": 192, "enabled": true}
+] %}
+{% if stats.repoMetrics.topLanguages | length >= 3 %}
+{% set _ = scenes.append({"id": "languages", "durationInFrames": 240, "enabled": true}) %}
+{% set _ = scenes.append({"id": "top-languages", "durationInFrames": 240, "enabled": true}) %}
+{% endif %}
+{% if stats.profileContributions.stats.currentStreak > 7 %}
+{% set _ = scenes.append({"id": "commit-streak", "durationInFrames": 240, "enabled": true}) %}
+{% endif %}
+{% if stats.activity.repositoriesContributedTo > 0 %}
+{% set _ = scenes.append({"id": "repo-impact", "durationInFrames": 192, "enabled": true}) %}
+{% endif %}
+{% set _ = scenes.append({"id": "activity-overview", "durationInFrames": 192, "enabled": true}) %}
+{% if stats.computedStats.yearOverYearGrowth > 0 %}
+{% set _ = scenes.append({"id": "code-metrics", "durationInFrames": 192, "enabled": true}) %}
+{% endif %}
+{{ {
+  "scenes": scenes,
+  "theme": {
+    "primaryColor": config.helpers.primary_color | default('#3b82f6'),
+    "backgroundGradient": ["#0f172a", "#1e293b"]
+  }
+} | tojson(indent=2) }}

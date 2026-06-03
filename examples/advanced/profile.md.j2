@@ -1,0 +1,67 @@
+<div align="center">
+   <img src="https://raw.githubusercontent.com/LukasParke/github-stats-remotion/main/out/readme.gif">
+</div>
+
+<div align="center">
+
+<br/>
+
+I'm a Software Engineer based in Austin, Texas.
+
+I love Open Source, Developer Tooling, API Design, and all things Svelte.
+
+[LinkedIn](https://www.linkedin.com/in/LukeParke/) | [Dev.to](https://dev.to/LukeParke) | [The OpenAPI Guy Blog](https://openapiguy.dev)
+
+<hr/>
+
+</div>
+
+## Some things I've built:
+
+### Svelte
+{% set svelte_repos = filter_repos(github.user.repositories, search="svelte", exclude_forks=true, exclude_archived=true, sort_by="stars", limit=5) -%}
+{% for repo in svelte_repos -%}
+- [{{ repo.name }}]({{ repo.url }}){% if repo.description %} - {{ repo.description }}{% endif %}
+{% endfor %}
+
+### GitHub
+{% set gh_repos = filter_repos(github.user.repositories, search="stats", exclude_forks=true, exclude_archived=true, sort_by="stars", limit=5) -%}
+{% for repo in gh_repos -%}
+- [{{ repo.name }}]({{ repo.url }}){% if repo.description %} - {{ repo.description }}{% endif %}
+{% endfor %}
+
+### OpenAPI
+{% set openapi_repos = filter_repos(github.user.repositories, search="openapi", exclude_forks=true, exclude_archived=true, sort_by="stars", limit=10) -%}
+{% for repo in openapi_repos -%}
+- [{{ repo.name }}]({{ repo.url }}){% if repo.description %} - {{ repo.description }}{% endif %}
+{% endfor %}
+
+### Plex
+{% set plex_repos = filter_repos(github.user.repositories, search="plex", exclude_forks=true, exclude_archived=true, sort_by="stars", limit=15) -%}
+{% for repo in plex_repos -%}
+- [{{ repo.name }}]({{ repo.url }}){% if repo.description %} - {{ repo.description }}{% endif %}
+{% endfor %}
+
+### 🔭 Recent Releases
+{% set recent_rels = releases(github.user.login, config.github.token, limit=5) -%}
+{% for rel in recent_rels -%}
+- [{{ rel.repo }} {{ rel.tag }}]({{ rel.url }}) — {{ rel.name }} ({{ humanize(rel.published_at) }})
+{% endfor %}
+
+### ⭐ Recent Stars
+{% set starred = recent_stars(github.user.login, config.github.token, limit=5) -%}
+{% for star in starred -%}
+- [{{ star.full_name }}]({{ star.url }}){% if star.description %} — {{ star.description }}{% endif %}
+{% endfor %}
+
+### 📜 My Recent Dev.to Posts
+{% set posts = devto_posts("lukeparke", limit=5) -%}
+{% for post in posts -%}
+- [{{ post.title }}]({{ post.url }}) ({{ humanize(post.published_at) }})
+{% endfor %}
+
+#### 👯 My Recent followers
+{% set followers = recent_followers(github.user.login, config.github.token, limit=20) -%}
+{% for follower in followers -%}
+- [{{ follower.login }}]({{ follower.url }})
+{% endfor -%}
