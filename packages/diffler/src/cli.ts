@@ -2,10 +2,12 @@
 import { writeFileSync, mkdirSync, existsSync, unlinkSync } from "node:fs";
 import { resolve } from "node:path";
 import { Command } from "commander";
-import { loadConfig, getProfiles } from "./config.js";
+import { loadConfig, getProfiles, buildStatsActionConfig } from "./config.js";
+import { GitHubClient } from "./github/client.js";
 import { Engine } from "./core/engine.js";
 import { Renderer } from "./core/renderer.js";
 import { remotionInput, remotionSceneManifest } from "./helpers/remotion.js";
+import { runStatsCollection } from "./stats/index.js";
 
 const program = new Command();
 
@@ -83,6 +85,42 @@ program
     }
 
     console.log("Diffler project initialized! Run `diffler render` to preview.");
+  });
+
+program
+  .command("collect")
+  .description("Collect GitHub stats and write JSON output (stats-action mode)")
+  .option("-c, --config <path>", "Config file path")
+  .option("--output-path <path>", "Path for the generated stats JSON")
+  .option("--cache-path <path>", "Path for committed stable cache state")
+  .option("--volatile-cache-path <path>", "Path for volatile API metadata cache")
+  .option("--backfill-mode <mode>", "Backfill mode: resume, refresh, or off")
+  .option("--include-private", "Include private repository details")
+  .action(async (options) => {
+    const token = process.env.GITHUB_TOKEN;
+    if (!token) {
+      console.error("GITHUB_TOKEN is required");
+      process.exit(1);
+    }
+
+    const config = loadConfig(options.config);
+    const statsConfig = buildStatsActionConfig(config);
+
+    if (options.outputPath) statsConfig.outputPath = options.outputPath;
+    if (options.cachePath) statsConfig.cachePath = options.cachePath;
+    if (options.volatileCachePath) statsConfig.volatileCachePath = options.volatileCachePath;
+    if (options.backfillMode) {
+      if (["resume", "refresh", "off"].includes(options.backfillMode)) {
+        statsConfig.backfillMode = options.backfillMode;
+      }
+    }
+    if (options.includePrivate) {
+      statsConfig.includePrivateRepositoryDetails = true;
+      statsConfig.includePrivateCacheDetails = true;
+    }
+
+    const client = new GitHubClient(config.github);
+    await runStatsCollection(statsConfig, client);
   });
 
 program

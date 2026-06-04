@@ -19,11 +19,14 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install diffler
-        run: npm install -g diffler
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build diffler
+        run: npm run build -w packages/diffler
 
       - name: Update profile README
-        uses: LukasParke/diffler@main
+        uses: ./packages/diffler
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "🤖 Auto-update profile README"

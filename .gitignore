@@ -1,32 +1,26 @@
-# Environment
-.env
-
-# Node
+# Dependencies
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
+.pnpm-store/
 
-# Build output
+# Build outputs
 dist/
+build/
 *.tsbuildinfo
 
-# Testing
-.coverage
-htmlcov/
-coverage/
+# Environment
+.env
+.env.local
 
-# Diffler cache
-.github-profile-stats/
+# OS
+.DS_Store
 
 # IDE
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
 
-# OS
-.DS_Store
-Thumbs.db
+# Cache
+.github-profile-stats/
+*.log
+
+# Package manager
+yarn-error.log

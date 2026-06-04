@@ -1,0 +1,87 @@
+name: Render Profile Assets
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+    inputs:
+      stats-json-url:
+        description: "Public stats JSON URL"
+        required: false
+        default: "https://raw.githubusercontent.com/LukasParke/stats/main/github-user-stats.json"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    name: Render and publish assets
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build remotion package
+        run: npm run build -w packages/remotion
+
+      - name: Restore Remotion render cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules/.remotion
+            node_modules/.cache/webpack
+          key: ${{ runner.os }}-remotion-${{ hashFiles('package-lock.json', 'packages/remotion/package.json', 'packages/remotion/remotion.config.ts', 'packages/remotion/tailwind.config.js', 'packages/remotion/src/**') }}
+          restore-keys: |
+            ${{ runner.os }}-remotion-
+
+      - name: Prepare stats input
+        working-directory: packages/remotion
+        run: npx remotion render --help || true && node scripts/prepare-stats.mjs
+        env:
+          STATS_JSON_URL: ${{ inputs['stats-json-url'] || 'https://raw.githubusercontent.com/LukasParke/stats/main/github-user-stats.json' }}
+
+      - name: Render WebP and GIF assets
+        working-directory: packages/remotion
+        run: node scripts/render-assets.mjs --formats=webp,gif
+        env:
+          RENDER_CARD_CONCURRENCY: 2
+          REMOTION_CONCURRENCY: 4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: packages/remotion/pages
+
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

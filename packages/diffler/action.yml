@@ -1,0 +1,155 @@
+name: Diffler
+description: Render GitHub profile README with live data, optional remotion config, and stats collection
+author: LukasParke
+
+branding:
+  icon: file-text
+  color: blue
+
+inputs:
+  github-token:
+    description: GitHub token with repo and user read scopes
+    required: true
+  username:
+    description: GitHub username to fetch data for
+    required: false
+    default: ${{ github.repository_owner }}
+  template-dir:
+    description: Directory containing Jinja2/Nunjucks templates
+    required: false
+    default: .github/diffler
+  config:
+    description: Path to diffler.yml config file
+    required: false
+    default: .github/diffler.yml
+  output:
+    description: Output path for rendered README
+    required: false
+    default: README.md
+  commit-message:
+    description: Commit message for README updates
+    required: false
+    default: "🤖 Auto-update profile README"
+  remotion-output:
+    description: Path to write remotion input.json (disabled if empty)
+    required: false
+    default: ""
+  dry-run:
+    description: Render without committing changes
+    required: false
+    default: "false"
+  # Stats-action inputs
+  stats-output-path:
+    description: Path for the generated stats JSON
+    required: false
+    default: "github-user-stats.json"
+  stats-cache-path:
+    description: Path for committed stable cache state
+    required: false
+    default: ".github-profile-stats/cache.json"
+  stats-volatile-cache-path:
+    description: Path for Actions-cache-backed volatile API metadata
+    required: false
+    default: ".github-profile-stats/volatile-cache.json"
+  stats-backfill-mode:
+    description: Backfill mode for optional REST metrics
+    required: false
+    default: "resume"
+  stats-include-private:
+    description: Include private repository details in output
+    required: false
+    default: "false"
+  collect-stats:
+    description: Also run stats collection before rendering
+    required: false
+    default: "false"
+
+outputs:
+  changed:
+    description: Whether the README was changed
+    value: ${{ steps.render.outputs.changed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+
+    - name: Install diffler
+      shell: bash
+      run: |
+        if [ -f "package.json" ] && grep -q '"workspaces"' package.json; then
+          echo "Monorepo detected — using local workspace diffler"
+          npm install --legacy-peer-deps
+          npm run build -w packages/diffler
+          echo "DIFFLER_BIN=npx -w packages/diffler diffler" >> "$GITHUB_ENV"
+        else
+          npm install -g diffler
+          echo "DIFFLER_BIN=diffler" >> "$GITHUB_ENV"
+        fi
+
+    - name: Collect stats (optional)
+      id: collect
+      if: inputs.collect-stats == 'true'
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        if [ -n "${{ inputs.username }}" ]; then
+          export DIFFLER_GITHUB_USERNAME="${{ inputs.username }}"
+        fi
+
+        $DIFFLER_BIN collect \
+          --config "${{ inputs.config }}" \
+          --output-path "${{ inputs.stats-output-path }}" \
+          --cache-path "${{ inputs.stats-cache-path }}" \
+          --volatile-cache-path "${{ inputs.stats-volatile-cache-path }}" \
+          --backfill-mode "${{ inputs.stats-backfill-mode }}" \
+          ${{ inputs.stats-include-private == 'true' && '--include-private' || '' }}
+
+    - name: Render profile README
+      id: render
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        if [ -n "${{ inputs.username }}" ]; then
+          export DIFFLER_GITHUB_USERNAME="${{ inputs.username }}"
+        fi
+
+        $DIFFLER_BIN render --config "${{ inputs.config }}" --output "${{ inputs.output }}"
+
+        if [ -n "${{ inputs.remotion-output }}" ]; then
+          echo "Generating remotion config..."
+          $DIFFLER_BIN export-remotion --config "${{ inputs.config }}" --output "${{ inputs.remotion-output }}"
+        fi
+
+        if [ "${{ inputs.dry-run }}" = "true" ]; then
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        git add "${{ inputs.output }}"
+        if [ -n "${{ inputs.remotion-output }}" ]; then
+          git add "${{ inputs.remotion-output }}"
+        fi
+        git add .github-profile-stats/cache.json 2>/dev/null || true
+        if [ "${{ inputs.collect-stats }}" = "true" ]; then
+          git add "${{ inputs.stats-output-path }}" 2>/dev/null || true
+          git add "${{ inputs.stats-cache-path }}" 2>/dev/null || true
+        fi
+
+        if git diff --cached --quiet; then
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+          echo "No changes to commit."
+        else
+          git commit -m "${{ inputs.commit-message }}"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Push changes
+      if: steps.render.outputs.changed == 'true' && inputs.dry-run != 'true'
+      shell: bash
+      run: git push

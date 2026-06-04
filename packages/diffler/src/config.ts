@@ -69,11 +69,30 @@ export const CacheConfigSchema = z.object({
 
 export type CacheConfig = z.infer<typeof CacheConfigSchema>;
 
+export const StatsActionConfigSchema = z.object({
+  outputPath: z.string().default("github-user-stats.json"),
+  cachePath: z.string().default(".github-profile-stats/cache.json"),
+  volatileCachePath: z.string().default(".github-profile-stats/volatile-cache.json"),
+  maxRuntimeSeconds: z.number().int().default(480),
+  graphqlConcurrency: z.number().int().default(2),
+  restConcurrency: z.number().int().default(4),
+  minGraphqlRemaining: z.number().int().default(500),
+  minRestRemaining: z.number().int().default(750),
+  includeTraffic: z.boolean().default(true),
+  includeRestRepoStats: z.boolean().default(true),
+  includePrivateRepositoryDetails: z.boolean().default(false),
+  includePrivateCacheDetails: z.boolean().default(false),
+  backfillMode: z.enum(["resume", "refresh", "off"]).default("resume"),
+});
+
+export type StatsActionConfig = z.infer<typeof StatsActionConfigSchema>;
+
 export const DifflerConfigSchema = z.object({
   version: z.string().default("1"),
   github: GitHubConfigSchema.default({}),
   templates: TemplateConfigSchema.default({}),
   cache: CacheConfigSchema.default({}),
+  statsAction: StatsActionConfigSchema.default({}),
   helpers: z.record(z.unknown()).default({}),
   plugins: z.array(z.string()).default([]),
 });
@@ -97,6 +116,54 @@ export function getProfiles(github: GitHubConfig): GitHubProfileConfig[] {
     return usernames.map((u) => ({ username: u, token: github.token }));
   }
   return [];
+}
+
+// Build StatsActionConfig with environment variable overrides (STATS_* prefix)
+export function buildStatsActionConfig(config: DifflerConfig): StatsActionConfig {
+  const base = { ...config.statsAction };
+
+  function env(name: string, defaultValue: string): string {
+    const envName = `STATS_${name.toUpperCase().replace(/-/g, "_")}`;
+    return process.env[envName]?.trim() || defaultValue;
+  }
+
+  function envBool(name: string, defaultValue: boolean): boolean {
+    const val = env(name, "");
+    if (!val) return defaultValue;
+    return ["1", "true", "yes", "on"].includes(val.toLowerCase());
+  }
+
+  function envNum(name: string, defaultValue: number): number {
+    const val = env(name, "");
+    if (!val) return defaultValue;
+    const parsed = Number(val);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultValue;
+  }
+
+  base.outputPath = env("output-path", base.outputPath);
+  base.cachePath = env("cache-path", base.cachePath);
+  base.volatileCachePath = env("volatile-cache-path", base.volatileCachePath);
+  base.maxRuntimeSeconds = envNum("max-runtime-seconds", base.maxRuntimeSeconds);
+  base.graphqlConcurrency = envNum("graphql-concurrency", base.graphqlConcurrency);
+  base.restConcurrency = envNum("rest-concurrency", base.restConcurrency);
+  base.minGraphqlRemaining = envNum("min-graphql-remaining", base.minGraphqlRemaining);
+  base.minRestRemaining = envNum("min-rest-remaining", base.minRestRemaining);
+  base.includeTraffic = envBool("include-traffic", base.includeTraffic);
+  base.includeRestRepoStats = envBool("include-rest-repo-stats", base.includeRestRepoStats);
+  base.includePrivateRepositoryDetails = envBool(
+    "include-private-repository-details",
+    base.includePrivateRepositoryDetails
+  );
+  base.includePrivateCacheDetails = envBool(
+    "include-private-cache-details",
+    base.includePrivateCacheDetails
+  );
+  const backfillMode = env("backfill-mode", base.backfillMode);
+  if (backfillMode === "resume" || backfillMode === "refresh" || backfillMode === "off") {
+    base.backfillMode = backfillMode;
+  }
+
+  return base;
 }
 
 // ---------------------------------------------------------------------------

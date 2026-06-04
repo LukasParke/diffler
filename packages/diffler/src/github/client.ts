@@ -51,6 +51,12 @@ async function retryFetch(
   throw lastError ?? new Error("Retry exhausted");
 }
 
+export type RestResponse<T = unknown> = {
+  data: T;
+  headers: Record<string, string | number | undefined>;
+  status: number;
+};
+
 export class GitHubClient {
   private config: GitHubConfig;
 
@@ -59,6 +65,15 @@ export class GitHubClient {
   }
 
   async restGet(path: string, params?: Record<string, string | number>): Promise<unknown> {
+    const response = await this.restGetRaw(path, params);
+    return response.data;
+  }
+
+  async restGetRaw(
+    path: string,
+    params?: Record<string, string | number>,
+    extraHeaders?: Record<string, string>
+  ): Promise<RestResponse> {
     const url = new URL(path, this.config.apiUrl);
     if (params) {
       for (const [key, value] of Object.entries(params)) {
@@ -70,6 +85,7 @@ export class GitHubClient {
       ...authHeaders(this.config.token),
       Accept: "application/vnd.github+json",
       "X-GitHub-Api-Version": "2022-11-28",
+      ...extraHeaders,
     };
 
     const response = await retryFetch(url.toString(), {
@@ -77,11 +93,23 @@ export class GitHubClient {
       headers,
     });
 
-    if (!response.ok) {
+    const responseHeaders: Record<string, string | number | undefined> = {};
+    response.headers.forEach((value, key) => {
+      responseHeaders[key] = value;
+    });
+
+    let data: unknown;
+    if (response.status === 304) {
+      data = null;
+    } else if (response.status === 202) {
+      data = null;
+    } else if (!response.ok) {
       throw new Error(`GitHub REST error: ${response.status} ${response.statusText}`);
+    } else {
+      data = await response.json();
     }
 
-    return response.json();
+    return { data, headers: responseHeaders, status: response.status };
   }
 
   async graphqlQuery(query: string, variables?: Record<string, unknown>): Promise<unknown> {

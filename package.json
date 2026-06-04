@@ -1,45 +1,24 @@
 {
-  "name": "diffler",
+  "name": "diffler-monorepo",
   "version": "0.1.0",
-  "description": "A powerful, extensible engine for generating and managing GitHub profile READMEs",
+  "private": true,
+  "description": "Monorepo for diffler CLI, stats-action engine, and remotion renderer",
   "type": "module",
-  "main": "dist/index.js",
-  "bin": {
-    "diffler": "dist/cli.js"
-  },
-  "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "lint": "tsc --noEmit",
-    "diffler": "node dist/cli.js"
-  },
-  "keywords": [
-    "github",
-    "profile",
-    "readme",
-    "automation",
-    "generator",
-    "markdown",
-    "template",
-    "nunjucks"
+  "workspaces": [
+    "packages/*"
   ],
-  "license": "MIT",
-  "engines": {
-    "node": ">=18.0.0"
-  },
-  "dependencies": {
-    "commander": "^13.0.0",
-    "dotenv": "^16.4.0",
-    "nunjucks": "^3.2.4",
-    "yaml": "^2.7.0",
-    "zod": "^3.24.0"
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm test --workspaces",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "diffler": "npm run diffler -w packages/diffler",
+    "render": "npm run render -w packages/remotion --if-present"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "@types/nunjucks": "^3.2.6",
-    "typescript": "^5.7.0",
-    "vitest": "^3.0.0"
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }

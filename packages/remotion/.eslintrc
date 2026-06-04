@@ -1,0 +1,11 @@
+{
+	"extends": "@remotion",
+	"env": {
+		"node": true
+	},
+	"rules": {
+		"prefer-destructuring": "off",
+		"react/boolean-prop-naming": "off",
+		"react/prefer-read-only-props": "off"
+	}
+}
