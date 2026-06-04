@@ -39,6 +39,7 @@ class GitHubConfig(BaseModel):
     """GitHub authentication and user settings."""
 
     username: str | None = None
+    usernames: list[str] = Field(default_factory=list)
     token: str = Field(default="${GITHUB_TOKEN}")
     api_url: str = "https://api.github.com"
     graphql_url: str = "https://api.github.com/graphql"
@@ -53,6 +54,18 @@ class GitHubConfig(BaseModel):
         self.api_url = _resolve_env(self.api_url)
         self.graphql_url = _resolve_env(self.graphql_url)
         return self
+
+    def get_usernames(self) -> list[str]:
+        """Return all usernames to collect data for.
+
+        If ``usernames`` is set, returns that list. Otherwise returns
+        a singleton list with ``username`` (if set).
+        """
+        if self.usernames:
+            return self.usernames
+        if self.username:
+            return [self.username]
+        return []
 
 
 class TemplateConfig(BaseModel):

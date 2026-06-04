@@ -349,12 +349,18 @@ def export_remotion_input(
     stats = context.get("stats", {})
     username = stats.get("username") or config.github.username or "unknown"
 
-    output = {
+    usernames = config.github.get_usernames()
+    output: dict[str, Any] = {
         "username": username,
         "stats": stats,
         "allowPrivateRepositoryDetails": allow_private,
     }
 
+    if len(usernames) > 1:
+        output["usernames"] = usernames
+
     target.write_text(json.dumps(output, indent=2, default=str), encoding="utf-8")
     console.print(f"[green]Remotion input written to[/green] {target}")
+    if len(usernames) > 1:
+        console.print(f"[dim]Multi-profile: {', '.join(usernames)}[/dim]")
     console.print(f"[dim]Scenes available: {len(stats.get('presentation', {}).get('remotion', {}).get('topLanguages', []))} languages[/dim]")

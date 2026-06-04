@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from diffler.collectors.aggregate import aggregate_results
 from diffler.collectors.base import CollectorContext
 from diffler.collectors.cache import StatsCache
 from diffler.collectors.computed import ComputedStatsCollector, RepoStatsCollector
@@ -88,10 +89,73 @@ class ContextBuilder:
         return self._build_legacy()
 
     def _build_with_collectors(self, template_source: str) -> dict[str, Any]:
-        """Run only the collectors needed by the template."""
-        ctx = CollectorContext(self.config, cache=self.cache)
-        needed = self.registry.discover_needed(template_source)
+        """Run only the collectors needed by the template.
 
+        Supports multi-profile aggregation when ``github.usernames`` is set.
+        """
+        usernames = self.config.github.get_usernames()
+        if not usernames:
+            logger.warning("No GitHub usernames configured; using stub data.")
+            return self._build_single_user(template_source, stub=True)
+
+        if len(usernames) == 1:
+            return self._build_single_user(template_source)
+
+        # Multi-profile mode: collect for each user, then aggregate
+        return self._build_multi_user(template_source, usernames)
+
+    def _build_single_user(
+        self, template_source: str, *, stub: bool = False
+    ) -> dict[str, Any]:
+        """Collect and build context for a single user."""
+        ctx = CollectorContext(self.config, cache=self.cache)
+
+        if stub:
+            return self._build_context_from_results(ctx.results)
+
+        needed = self.registry.discover_needed(template_source)
+        self._run_collectors(needed, ctx)
+
+        if self.config.cache.enabled:
+            self.cache.save()
+
+        return self._build_context_from_results(ctx.results)
+
+    def _build_multi_user(
+        self, template_source: str, usernames: list[str]
+    ) -> dict[str, Any]:
+        """Collect data for multiple users and aggregate."""
+        results_by_user: dict[str, dict[str, Any]] = {}
+
+        for username in usernames:
+            logger.info("Collecting data for %s", username)
+            # Temporarily override username in config
+            original_username = self.config.github.username
+            self.config.github.username = username
+
+            try:
+                ctx = CollectorContext(self.config, cache=self.cache)
+                needed = self.registry.discover_needed(template_source)
+                self._run_collectors(needed, ctx)
+                results_by_user[username] = dict(ctx.results)
+            except Exception:
+                logger.exception("Failed to collect data for %s", username)
+                results_by_user[username] = {}
+            finally:
+                self.config.github.username = original_username
+
+        if self.config.cache.enabled:
+            self.cache.save()
+
+        aggregated = aggregate_results(results_by_user)
+        return self._build_context_from_results(aggregated, multi_profile=True)
+
+    def _run_collectors(self, needed: list[str], ctx: CollectorContext) -> None:
+        """Execute collectors and store collection status."""
+        if not needed:
+            return
+
+        statuses = self.registry.run(needed, ctx)
         collection_status: dict[str, Any] = {
             "complete": True,
             "coreComplete": True,
@@ -103,41 +167,38 @@ class ContextBuilder:
             "timestamp": "",
         }
 
-        if needed:
-            statuses = self.registry.run(needed, ctx)
-            success = sum(1 for s in statuses.values() if s == "success")
-            failed = sum(1 for s in statuses.values() if s == "failed")
-            skipped = sum(1 for s in statuses.values() if s == "skipped")
-            collection_status["backfillCompletedThisRun"] = success
-            collection_status["backfillFailedThisRun"] = failed
-            collection_status["backfillPending"] = skipped
-            for name, status in statuses.items():
-                if status == "failed":
-                    collection_status["errors"].append(f"Collector {name} failed")
-                elif status == "skipped":
-                    collection_status["warnings"].append(f"Collector {name} skipped (rate limit)")
-            collection_status["complete"] = failed == 0
-            collection_status["coreComplete"] = all(
-                statuses.get(n) == "success"
-                for n in ("profile", "contributions")
-                if n in statuses
-            )
+        success = sum(1 for s in statuses.values() if s == "success")
+        failed = sum(1 for s in statuses.values() if s == "failed")
+        skipped = sum(1 for s in statuses.values() if s == "skipped")
+        collection_status["backfillCompletedThisRun"] = success
+        collection_status["backfillFailedThisRun"] = failed
+        collection_status["backfillPending"] = skipped
+        for name, status in statuses.items():
+            if status == "failed":
+                collection_status["errors"].append(f"Collector {name} failed")
+            elif status == "skipped":
+                collection_status["warnings"].append(f"Collector {name} skipped (rate limit)")
+        collection_status["complete"] = failed == 0
+        collection_status["coreComplete"] = all(
+            statuses.get(n) == "success"
+            for n in ("profile", "contributions")
+            if n in statuses
+        )
 
         ctx.results["_collection_status"] = collection_status
 
-        # Save stable cache after collection
-        if self.config.cache.enabled:
-            self.cache.save()
+    def _build_context_from_results(
+        self, results: dict[str, Any], *, multi_profile: bool = False
+    ) -> dict[str, Any]:
+        """Build the template context from collector results."""
+        stats = build_v2_output(results)
 
-        # Build v2-style output for backward compatibility
-        stats = build_v2_output(ctx.results)
+        profile = results.get("profile", {})
+        contributions = results.get("contributions", {})
+        repos = results.get("repositories", [])
+        profiles = results.get("profiles", [])
 
-        # Merge everything into the template context
-        profile = ctx.results.get("profile", {})
-        contributions = ctx.results.get("contributions", {})
-        repos = ctx.results.get("repositories", [])
-
-        return {
+        ctx: dict[str, Any] = {
             "config": self.config,
             "github": {
                 "user": {
@@ -154,7 +215,7 @@ class ContextBuilder:
                     "following": profile.get("following", 0),
                     "starred_repositories": profile.get("starredRepositories", 0),
                     "repositories": repos,
-                    "pinned_repositories": [],  # Could be populated from repos
+                    "pinned_repositories": [],
                     "contributions": {
                         "total": contributions.get("totalContributions", 0),
                         "commits": contributions.get("totalCommitContributions", 0),
@@ -167,19 +228,23 @@ class ContextBuilder:
             },
             "stats": stats,
             "profile": profile,
+            "profiles": profiles,
             "contributions": contributions,
             "repositories": repos,
-            "gists": ctx.results.get("gists", []),
-            "traffic": ctx.results.get("traffic", {}),
-            "contributor_stats": ctx.results.get("contributor_stats", []),
-            "activity": ctx.results.get("activity", {}),
-            "discussions": ctx.results.get("discussions", {}),
-            "stars_given": ctx.results.get("stars_given", []),
-            "repo_contributions": ctx.results.get("repo_contributions", {}),
-            "repo_stats": ctx.results.get("repo_stats", {}),
-            "computed_stats": ctx.results.get("computed_stats", {}),
-            "collection_status": collection_status,
+            "gists": results.get("gists", []),
+            "traffic": results.get("traffic", {}),
+            "contributor_stats": results.get("contributor_stats", []),
+            "activity": results.get("activity", {}),
+            "discussions": results.get("discussions", {}),
+            "stars_given": results.get("stars_given", []),
+            "repo_contributions": results.get("repo_contributions", {}),
+            "repo_stats": results.get("repo_stats", {}),
+            "computed_stats": results.get("computed_stats", {}),
+            "collection_status": results.get("_collection_status", {}),
+            "multi_profile": multi_profile,
         }
+
+        return ctx
 
     def _build_legacy(self) -> dict[str, Any]:
         """Fallback: fetch user data via the original live API path."""
