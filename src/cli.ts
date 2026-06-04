@@ -1,0 +1,224 @@
+#!/usr/bin/env node
+import { writeFileSync, mkdirSync, existsSync, unlinkSync } from "node:fs";
+import { resolve } from "node:path";
+import { Command } from "commander";
+import { loadConfig, getProfiles } from "./config.js";
+import { Engine } from "./core/engine.js";
+import { Renderer } from "./core/renderer.js";
+import { remotionInput, remotionSceneManifest } from "./helpers/remotion.js";
+
+const program = new Command();
+
+program
+  .name("diffler")
+  .description("A powerful engine for generating GitHub profile READMEs")
+  .version("0.1.0");
+
+program
+  .command("init")
+  .description("Scaffold a new Diffler project")
+  .option("-d, --dir <directory>", "Template directory", ".github/diffler")
+  .option("-c, --config <path>", "Config file path", ".github/diffler.yml")
+  .action((options) => {
+    const dir = resolve(options.dir);
+    mkdirSync(dir, { recursive: true });
+
+    const configPath = resolve(options.config);
+    mkdirSync(resolve(configPath, ".."), { recursive: true });
+
+    if (!existsSync(configPath)) {
+      writeFileSync(
+        configPath,
+        'version: "1"\n\n' +
+          "github:\n" +
+          '  username: "your-username"\n' +
+          '  token: "${GITHUB_TOKEN}"\n' +
+          "  # For multi-profile aggregation with separate tokens:\n" +
+          "  # profiles:\n" +
+          "  #   - username: \"personal\"\n" +
+          "  #     token: \"${GITHUB_TOKEN_PERSONAL}\"\n" +
+          "  #   - username: \"work\"\n" +
+          "  #     token: \"${GITHUB_TOKEN_WORK}\"\n\n" +
+          "templates:\n" +
+          '  main: "profile.md.j2"\n' +
+          '  directory: ".github/diffler"\n\n' +
+          "cache:\n" +
+          "  enabled: true\n" +
+          "  ttl: 3600\n",
+        "utf-8"
+      );
+      console.log(`Created ${configPath}`);
+    } else {
+      console.log(`Skipped ${configPath} (already exists)`);
+    }
+
+    const mainTemplate = resolve(dir, "profile.md.j2");
+    if (!existsSync(mainTemplate)) {
+      writeFileSync(
+        mainTemplate,
+        '<div align="center">\n\n' +
+          "# Hi, I'm {{ github.user.name }} 👋\n\n" +
+          '{% if github.user.bio %}\n' +
+          "*{{ github.user.bio }}*\n" +
+          "{% endif %}\n\n" +
+          '## 📊 GitHub Stats\n\n' +
+          '<div align="center">\n\n' +
+          '{{ github_stats_card(github.user.login) }}\n\n' +
+          '{{ top_langs(github.user.login) }}\n\n' +
+          '</div>\n\n' +
+          '## 🛠️ Tech Stack\n\n' +
+          '{{ skill_icons(["python", "javascript", "docker", "git"]) }}\n\n' +
+          '## 📂 All Projects\n\n' +
+          '{% set all_repos = filter_repos(github.user.repositories, exclude_forks=true, exclude_archived=true, sort_by="stars", limit=20) -%}\n' +
+          '{% for repo in all_repos -%}\n' +
+          '- [{{ repo.name }}]({{ repo.url }}){% if repo.description %} - {{ repo.description }}{% endif %}\n' +
+          '{% endfor %}\n\n' +
+          '## 📫 Connect\n\n' +
+          "Feel free to reach out!\n",
+        "utf-8"
+      );
+      console.log(`Created ${mainTemplate}`);
+    } else {
+      console.log(`Skipped ${mainTemplate} (already exists)`);
+    }
+
+    console.log("Diffler project initialized! Run `diffler render` to preview.");
+  });
+
+program
+  .command("render")
+  .description("Render the profile README")
+  .option("-c, --config <path>", "Config file path")
+  .option("-o, --output <path>", "Output file (default: stdout)")
+  .action(async (options) => {
+    const config = loadConfig(options.config);
+    const renderer = new Renderer(config);
+    const engine = new Engine(config, renderer);
+    const result = await engine.render();
+
+    if (options.output) {
+      writeFileSync(options.output, result, "utf-8");
+      console.log(`Rendered to ${options.output}`);
+    } else {
+      console.log(result);
+    }
+  });
+
+program
+  .command("validate")
+  .description("Validate configuration and templates")
+  .option("-c, --config <path>", "Config file path")
+  .action(async (options) => {
+    const config = loadConfig(options.config);
+    const renderer = new Renderer(config);
+    const engine = new Engine(config, renderer);
+    await engine.validate();
+    console.log("Validation passed!");
+  });
+
+program
+  .command("update")
+  .description("Render and commit the updated profile README")
+  .option("-c, --config <path>", "Config file path")
+  .option("-n, --dry-run", "Render without committing", false)
+  .option("-m, --message <msg>", "Commit message", "🤖 Auto-update profile README")
+  .action(async (options) => {
+    const config = loadConfig(options.config);
+    const renderer = new Renderer(config);
+    const engine = new Engine(config, renderer);
+    await engine.update({ dryRun: options.dryRun, message: options.message });
+    if (options.dryRun) {
+      console.log("Dry run complete. No changes committed.");
+    } else {
+      console.log("Profile README updated successfully!");
+    }
+  });
+
+program
+  .command("cache-clear")
+  .description("Clear the local API response cache")
+  .action(() => {
+    const paths = [".github-profile-stats/cache.json"];
+    let removed = 0;
+    for (const path of paths) {
+      if (existsSync(path)) {
+        unlinkSync(path);
+        removed++;
+        console.log(`Removed ${path}`);
+      }
+    }
+    if (removed === 0) {
+      console.log("No cache files found.");
+    } else {
+      console.log(`Cache cleared (${removed} files).`);
+    }
+  });
+
+program
+  .command("export-remotion")
+  .description("Generate remotion input.json")
+  .option("-c, --config <path>", "Config file path")
+  .option("-o, --output <path>", "Output path", "remotion-input.json")
+  .action(async (options) => {
+    const config = loadConfig(options.config);
+    const renderer = new Renderer(config);
+    const engine = new Engine(config, renderer);
+    const templateSource = renderer.readTemplateSource();
+    const context = await engine.contextBuilder.build(templateSource);
+    const stats = (context.stats as Record<string, unknown>) || {};
+    const remotion = remotionInput(stats);
+    writeFileSync(options.output, JSON.stringify(remotion, null, 2), "utf-8");
+    console.log(`Remotion config written to ${options.output}`);
+  });
+
+program
+  .command("export-remotion-scenes")
+  .description("Generate remotion scene manifest")
+  .option("-c, --config <path>", "Config file path")
+  .option("-o, --output <path>", "Output path", "remotion-scenes.json")
+  .action(async (options) => {
+    const config = loadConfig(options.config);
+    const renderer = new Renderer(config);
+    const engine = new Engine(config, renderer);
+    const templateSource = renderer.readTemplateSource();
+    const context = await engine.contextBuilder.build(templateSource);
+    const stats = (context.stats as Record<string, unknown>) || {};
+    const manifest = remotionSceneManifest(stats);
+    writeFileSync(options.output, JSON.stringify(manifest, null, 2), "utf-8");
+    console.log(`Remotion scene manifest written to ${options.output}`);
+  });
+
+program
+  .command("export-remotion-input")
+  .description("Generate remotion input.json with inline stats for local dev")
+  .option("-c, --config <path>", "Config file path")
+  .option("-t, --target <path>", "Output path", "../github-stats-remotion/input.json")
+  .option("--allow-private", "Include private repository details", false)
+  .action(async (options) => {
+    const config = loadConfig(options.config);
+    const renderer = new Renderer(config);
+    const engine = new Engine(config, renderer);
+    const templateSource = renderer.readTemplateSource();
+    const context = await engine.contextBuilder.build(templateSource);
+    const stats = (context.stats as Record<string, unknown>) || {};
+    const username = (stats.username as string) || config.github.username || "unknown";
+
+    const profiles = getProfiles(config.github);
+    const output: Record<string, unknown> = {
+      username,
+      stats,
+      allowPrivateRepositoryDetails: options.allowPrivate,
+    };
+
+    if (profiles.length > 1) {
+      output.usernames = profiles.map((p) => p.username);
+    }
+
+    writeFileSync(options.target, JSON.stringify(output, null, 2), "utf-8");
+    console.log(`Remotion input written to ${options.target}`);
+    if (profiles.length > 1) {
+      console.log(`Multi-profile: ${profiles.map((p) => p.username).join(", ")}`);
+    }
+  });
+
+program.parse();

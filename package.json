@@ -1,0 +1,45 @@
+{
+  "name": "diffler",
+  "version": "0.1.0",
+  "description": "A powerful, extensible engine for generating and managing GitHub profile READMEs",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "diffler": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "diffler": "node dist/cli.js"
+  },
+  "keywords": [
+    "github",
+    "profile",
+    "readme",
+    "automation",
+    "generator",
+    "markdown",
+    "template",
+    "nunjucks"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "commander": "^13.0.0",
+    "dotenv": "^16.4.0",
+    "nunjucks": "^3.2.4",
+    "yaml": "^2.7.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/nunjucks": "^3.2.6",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

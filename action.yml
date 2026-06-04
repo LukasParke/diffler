@@ -15,7 +15,7 @@ inputs:
     required: false
     default: ${{ github.repository_owner }}
   template-dir:
-    description: Directory containing Jinja2 templates
+    description: Directory containing Jinja2/Nunjucks templates
     required: false
     default: .github/diffler
   config:
@@ -47,15 +47,15 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
       with:
-        python-version: "3.12"
+        node-version: "20"
 
     - name: Install diffler
       shell: bash
       run: |
-        pip install diffler
+        npm install -g diffler
 
     - name: Render profile README
       id: render
