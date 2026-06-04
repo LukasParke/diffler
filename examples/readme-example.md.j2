@@ -1,0 +1,31 @@
+{# Example template for the README — rendered live with real data. #}
+<div align="center">
+
+# {{ profile.name }}
+
+*{{ profile.bio }}*
+
+</div>
+
+## 📊 Stats
+
+| Metric | Value |
+|--------|-------|
+| Contributions | {{ contributions.totalContributions }} |
+| Current Streak | {{ contributions.currentStreak }} days |
+| Repositories | {{ repositories | length }} |
+| Stars Earned | {{ stats.repoMetrics.starCount }} |
+| PRs | {{ activity.totalPullRequests }} |
+| Issues Closed | {{ activity.closedIssues }} |
+
+## 🏆 Top Languages
+
+{% for lang in stats.repoMetrics.topLanguages[:5] -%}
+- **{{ lang.languageName }}** — {{ lang.percentage }}%
+{% endfor %}
+
+## 🎯 Highlights
+
+{% for h in stats.highlights[:3] -%}
+- {{ h.label }}: {{ h.value }}
+{% endfor %}

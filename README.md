@@ -61,24 +61,79 @@ diffler update
 {# .github/diffler/profile.md.j2 #}
 <div align="center">
 
-{{ typing_svg("Hi, I'm " + github.user.name + " ✨") }}
+# {{ profile.name }}
 
-{{ github_stats_card(github.user.login) }}
+*{{ profile.bio }}*
 
 </div>
 
-## 🛠️ Tech Stack
+## 📊 Stats
 
-{{ skill_icons(["python", "rust", "typescript", "go", "docker", "aws"]) }}
+| Metric | Value |
+|--------|-------|
+| Contributions | {{ contributions.totalContributions }} |
+| Current Streak | {{ contributions.currentStreak }} days |
+| Repositories | {{ repositories | length }} |
+| Stars Earned | {{ stats.repoMetrics.starCount }} |
+| PRs | {{ activity.totalPullRequests }} |
+| Issues Closed | {{ activity.closedIssues }} |
 
-## 📊 Weekly Stats
+## 🏆 Top Languages
 
-{{ wakatime_stats() }}
+{% for lang in stats.repoMetrics.topLanguages[:5] -%}
+- **{{ lang.languageName }}** — {{ lang.percentage }}%
+{% endfor %}
 
-## 🔥 Recent Activity
+## 🎯 Highlights
 
-{{ details("Click to expand", recent_activity_list(github.events)) }}
+{% for h in stats.highlights[:3] -%}
+- {{ h.label }}: {{ h.value }}
+{% endfor %}
 ```
+
+### 📋 Rendered Output
+
+<!-- DIFFLER-EXAMPLE-START -->
+
+<div align="center">
+
+# Luke Parke
+
+*Hi 👋  I'm a Software Engineer, passionate about Identity and Developer Experience. 
+
+I love Svelte, Tailwind, TypeScript, and GO*
+
+</div>
+
+## 📊 Stats
+
+| Metric | Value |
+|--------|-------|
+| Contributions | 2039 |
+| Current Streak | 0 days |
+| Repositories | 134 |
+| Stars Earned | 498 |
+| PRs | 145 |
+| Issues Closed | 26 |
+
+## 🏆 Top Languages
+
+- **Python** — 50.71%
+- **Java** — 20.47%
+- **TypeScript** — 14.65%
+- **Go** — 5.87%
+- **C#** — 4.57%
+
+
+## 🎯 Highlights
+
+- ⭐ Popular: 498 stars
+- 🌐 Contributor: 20 repos
+- 📈 Growth: +12.3%
+
+<!-- DIFFLER-EXAMPLE-END -->
+
+*This example is auto-generated from live GitHub data and updated daily.*
 
 ---
 
