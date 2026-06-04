@@ -176,7 +176,12 @@ program
   .command("cache-clear")
   .description("Clear the local API response cache")
   .action(() => {
-    const paths = [".github-profile-stats/cache.json"];
+    const paths = [
+      ".diffler/cache-stable.json",
+      ".diffler/cache-volatile.json",
+      ".diffler/backfill.json",
+      ".diffler/stats.json",
+    ];
     let removed = 0;
     for (const path of paths) {
       if (existsSync(path)) {

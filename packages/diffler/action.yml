@@ -42,15 +42,15 @@ inputs:
   stats-output-path:
     description: Path for the generated stats JSON
     required: false
-    default: "github-user-stats.json"
+    default: ".diffler/stats.json"
   stats-cache-path:
     description: Path for committed stable cache state
     required: false
-    default: ".github-profile-stats/cache.json"
+    default: ".diffler/cache-stable.json"
   stats-volatile-cache-path:
     description: Path for Actions-cache-backed volatile API metadata
     required: false
-    default: ".github-profile-stats/volatile-cache.json"
+    default: ".diffler/cache-volatile.json"
   stats-backfill-mode:
     description: Backfill mode for optional REST metrics
     required: false
@@ -61,6 +61,10 @@ inputs:
     default: "false"
   collect-stats:
     description: Also run stats collection before rendering
+    required: false
+    default: "false"
+  monorepo-build:
+    description: Build diffler from local monorepo workspace instead of npm registry
     required: false
     default: "false"
 
@@ -77,14 +81,19 @@ runs:
       with:
         node-version: "20"
 
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 9
+
     - name: Install diffler
       shell: bash
       run: |
-        if [ -f "package.json" ] && grep -q '"workspaces"' package.json; then
+        if [ "${{ inputs.monorepo-build }}" = "true" ] || [ -f "pnpm-workspace.yaml" ]; then
           echo "Monorepo detected — using local workspace diffler"
-          npm install --legacy-peer-deps
-          npm run build -w packages/diffler
-          echo "DIFFLER_BIN=npx -w packages/diffler diffler" >> "$GITHUB_ENV"
+          pnpm install --frozen-lockfile
+          pnpm --filter diffler build
+          echo "DIFFLER_BIN=pnpm --filter diffler diffler" >> "$GITHUB_ENV"
         else
           npm install -g diffler
           echo "DIFFLER_BIN=diffler" >> "$GITHUB_ENV"
@@ -135,7 +144,7 @@ runs:
         if [ -n "${{ inputs.remotion-output }}" ]; then
           git add "${{ inputs.remotion-output }}"
         fi
-        git add .github-profile-stats/cache.json 2>/dev/null || true
+        git add .diffler/cache-stable.json 2>/dev/null || true
         if [ "${{ inputs.collect-stats }}" = "true" ]; then
           git add "${{ inputs.stats-output-path }}" 2>/dev/null || true
           git add "${{ inputs.stats-cache-path }}" 2>/dev/null || true

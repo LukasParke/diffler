@@ -70,9 +70,9 @@ export const CacheConfigSchema = z.object({
 export type CacheConfig = z.infer<typeof CacheConfigSchema>;
 
 export const StatsActionConfigSchema = z.object({
-  outputPath: z.string().default("github-user-stats.json"),
-  cachePath: z.string().default(".github-profile-stats/cache.json"),
-  volatileCachePath: z.string().default(".github-profile-stats/volatile-cache.json"),
+  outputPath: z.string().default(".diffler/stats.json"),
+  cachePath: z.string().default(".diffler/cache-stable.json"),
+  volatileCachePath: z.string().default(".diffler/cache-volatile.json"),
   maxRuntimeSeconds: z.number().int().default(480),
   graphqlConcurrency: z.number().int().default(2),
   restConcurrency: z.number().int().default(4),

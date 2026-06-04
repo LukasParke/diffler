@@ -4,19 +4,17 @@
   "private": true,
   "description": "Monorepo for diffler CLI, stats-action engine, and remotion renderer",
   "type": "module",
-  "workspaces": [
-    "packages/*"
-  ],
   "scripts": {
-    "build": "npm run build --workspaces",
-    "test": "npm test --workspaces",
-    "lint": "npm run lint --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present",
-    "diffler": "npm run diffler -w packages/diffler",
-    "render": "npm run render -w packages/remotion --if-present"
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "diffler": "pnpm --filter diffler diffler",
+    "render": "pnpm --filter @diffler/remotion render"
   },
   "devDependencies": {
-    "typescript": "^5.7.0"
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.8"
   },
   "engines": {
     "node": ">=20.0.0"

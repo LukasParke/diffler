@@ -1,5 +1,5 @@
 {
-  "name": "github-readme-cards-example",
+  "name": "remotion-usage-example",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -7,11 +7,11 @@
     "render": "github-readme-cards render --entry-point ./src/index.tsx --cards readme,stats --formats webp,gif --out-dir pages --props input.json"
   },
   "dependencies": {
-    "github-readme-cards": "file:..",
+    "@diffler/remotion": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "remotion": "^4.0.214",
-    "zod": "^3.23.8"
+    "zod": "^3.24.3"
   },
   "devDependencies": {
     "@remotion/bundler": "^4.0.214",
@@ -19,6 +19,6 @@
     "@remotion/tailwind": "^4.0.214",
     "@types/react": "^18.3.10",
     "tailwindcss": "^3.4.0",
-    "typescript": "^5.6.2"
+    "typescript": "^5.8.3"
   }
 }

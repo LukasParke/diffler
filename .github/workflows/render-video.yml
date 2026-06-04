@@ -10,7 +10,7 @@ on:
       stats-json-url:
         description: "Public stats JSON URL"
         required: false
-        default: "https://raw.githubusercontent.com/LukasParke/stats/main/github-user-stats.json"
+        default: "https://raw.githubusercontent.com/${{ github.repository_owner }}/stats/main/github-user-stats.json"
 
 permissions:
   contents: read
@@ -36,7 +36,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       - name: Install ffmpeg
         run: |
@@ -44,10 +48,10 @@ jobs:
           sudo apt-get install -y ffmpeg
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: pnpm install --frozen-lockfile
 
       - name: Build remotion package
-        run: npm run build -w packages/remotion
+        run: pnpm --filter @diffler/remotion build
 
       - name: Restore Remotion render cache
         uses: actions/cache@v4
@@ -55,15 +59,15 @@ jobs:
           path: |
             node_modules/.remotion
             node_modules/.cache/webpack
-          key: ${{ runner.os }}-remotion-${{ hashFiles('package-lock.json', 'packages/remotion/package.json', 'packages/remotion/remotion.config.ts', 'packages/remotion/tailwind.config.js', 'packages/remotion/src/**') }}
+          key: ${{ runner.os }}-remotion-${{ hashFiles('pnpm-lock.yaml', 'packages/remotion/package.json', 'packages/remotion/remotion.config.ts', 'packages/remotion/tailwind.config.js', 'packages/remotion/src/**') }}
           restore-keys: |
             ${{ runner.os }}-remotion-
 
       - name: Prepare stats input
         working-directory: packages/remotion
-        run: npx remotion render --help || true && node scripts/prepare-stats.mjs
+        run: pnpm exec remotion render --help || true && node scripts/prepare-stats.mjs
         env:
-          STATS_JSON_URL: ${{ inputs['stats-json-url'] || 'https://raw.githubusercontent.com/LukasParke/stats/main/github-user-stats.json' }}
+          STATS_JSON_URL: ${{ inputs['stats-json-url'] || format('https://raw.githubusercontent.com/{0}/stats/main/github-user-stats.json', github.repository_owner) }}
 
       - name: Render WebP and GIF assets
         working-directory: packages/remotion

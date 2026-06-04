@@ -114,7 +114,7 @@ function normalizeV2Stats(raw: UnknownRecord): UserStats {
       asString(readmeSummary.username) ||
       asString(profile.login) ||
       asString(legacy.username) ||
-      'LukasParke',
+      'unknown',
     avatarUrl: asString(profile.avatarUrl) || asString(legacy.avatarUrl),
     bio: asNullableString(profile.bio ?? legacy.bio),
     websiteUrl: asNullableString(profile.websiteUrl ?? legacy.websiteUrl),
@@ -275,7 +275,7 @@ function normalizeLegacyStats(raw: UnknownRecord): UserStats {
   return {
     schemaVersion: null,
     name: asString(raw.name) || asString(raw.username) || 'GitHub User',
-    username: asString(raw.username) || 'LukasParke',
+    username: asString(raw.username) || 'unknown',
     avatarUrl: asString(raw.avatarUrl),
     bio: asNullableString(raw.bio),
     websiteUrl: asNullableString(raw.websiteUrl),

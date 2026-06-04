@@ -19,11 +19,16 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: pnpm install --frozen-lockfile
 
       - name: Build diffler
-        run: npm run build -w packages/diffler
+        run: pnpm --filter diffler build
 
       - name: Update profile README
         uses: ./packages/diffler

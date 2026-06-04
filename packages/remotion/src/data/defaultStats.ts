@@ -3,8 +3,8 @@ import {UserStats} from './schemas';
 export const defaultStats: UserStats = {
 	schemaVersion: 2,
 	name: 'Lukas Parke',
-	username: 'LukasParke',
-	avatarUrl: 'https://github.com/LukasParke.png',
+	username: 'unknown',
+	avatarUrl: 'https://github.com/unknown.png',
 	bio: null,
 	websiteUrl: null,
 	location: null,

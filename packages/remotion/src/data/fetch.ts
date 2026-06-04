@@ -46,7 +46,7 @@ function getStatsUrls(inputProps: SourceProps): string[] {
 
   const usernames = inputProps.usernames?.length
     ? inputProps.usernames
-    : [inputProps.username || 'LukasParke'];
+    : [inputProps.username || 'stats-user'];
 
   return usernames.map((username) => defaultStatsTemplate(username));
 }

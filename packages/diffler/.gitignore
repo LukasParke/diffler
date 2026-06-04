@@ -18,6 +18,7 @@ htmlcov/
 coverage/
 
 # Diffler cache
+.diffler/
 .github-profile-stats/
 
 # IDE

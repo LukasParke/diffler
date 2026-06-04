@@ -19,8 +19,10 @@ build/
 .idea/
 
 # Cache
+.diffler/
 .github-profile-stats/
 *.log
 
 # Package manager
 yarn-error.log
+pnpm-lock.yaml

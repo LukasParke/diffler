@@ -1,0 +1,8 @@
+packages:
+  - "packages/*"
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+  onlyBuiltDependencies:
+    - esbuild

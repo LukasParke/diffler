@@ -90,7 +90,7 @@ async function renderCard(card) {
 		if (remotionConcurrency) {
 			remotionArgs.push('--concurrency', remotionConcurrency);
 		}
-		await run('yarn', remotionArgs);
+		await run('pnpm', ['exec', ...remotionArgs]);
 	}
 
 	if (formats.includes('webp')) {
