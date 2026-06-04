@@ -26,7 +26,7 @@ from diffler.collectors.rest import (
     TrafficCollector,
 )
 from diffler.collectors.v2_output import build_v2_output
-from diffler.config import DifflerConfig
+from diffler.config import DifflerConfig, GitHubProfileConfig
 from diffler.github.client import GitHubClient
 from diffler.github.graphql import USER_PROFILE_QUERY, parse_user
 
@@ -91,47 +91,67 @@ class ContextBuilder:
     def _build_with_collectors(self, template_source: str) -> dict[str, Any]:
         """Run only the collectors needed by the template.
 
-        Supports multi-profile aggregation when ``github.usernames`` is set.
+        Supports multi-profile aggregation when ``github.profiles`` or
+        ``github.usernames`` is set.
         """
-        usernames = self.config.github.get_usernames()
-        if not usernames:
+        profiles = self.config.github.get_profiles()
+        if not profiles:
             logger.warning("No GitHub usernames configured; using stub data.")
             return self._build_single_user(template_source, stub=True)
 
-        if len(usernames) == 1:
-            return self._build_single_user(template_source)
+        if len(profiles) == 1:
+            return self._build_single_user(template_source, profile=profiles[0])
 
-        # Multi-profile mode: collect for each user, then aggregate
-        return self._build_multi_user(template_source, usernames)
+        # Multi-profile mode: collect for each profile, then aggregate
+        return self._build_multi_user(template_source, profiles)
 
     def _build_single_user(
-        self, template_source: str, *, stub: bool = False
+        self,
+        template_source: str,
+        *,
+        stub: bool = False,
+        profile: "GitHubProfileConfig | None" = None,
     ) -> dict[str, Any]:
         """Collect and build context for a single user."""
-        ctx = CollectorContext(self.config, cache=self.cache)
+        # Temporarily override config if a specific profile is provided
+        original_username = self.config.github.username
+        original_token = self.config.github.token
+        if profile is not None:
+            self.config.github.username = profile.username
+            self.config.github.token = profile.token
 
-        if stub:
+        try:
+            ctx = CollectorContext(self.config, cache=self.cache)
+
+            if stub:
+                return self._build_context_from_results(ctx.results)
+
+            needed = self.registry.discover_needed(template_source)
+            self._run_collectors(needed, ctx)
+
+            if self.config.cache.enabled:
+                self.cache.save()
+
             return self._build_context_from_results(ctx.results)
-
-        needed = self.registry.discover_needed(template_source)
-        self._run_collectors(needed, ctx)
-
-        if self.config.cache.enabled:
-            self.cache.save()
-
-        return self._build_context_from_results(ctx.results)
+        finally:
+            self.config.github.username = original_username
+            self.config.github.token = original_token
 
     def _build_multi_user(
-        self, template_source: str, usernames: list[str]
+        self,
+        template_source: str,
+        profiles: list["GitHubProfileConfig"],
     ) -> dict[str, Any]:
-        """Collect data for multiple users and aggregate."""
+        """Collect data for multiple profiles and aggregate."""
         results_by_user: dict[str, dict[str, Any]] = {}
+        original_username = self.config.github.username
+        original_token = self.config.github.token
 
-        for username in usernames:
+        for profile in profiles:
+            username = profile.username
             logger.info("Collecting data for %s", username)
-            # Temporarily override username in config
-            original_username = self.config.github.username
             self.config.github.username = username
+            self.config.github.token = profile.token
 
             try:
                 ctx = CollectorContext(self.config, cache=self.cache)
@@ -141,8 +161,10 @@ class ContextBuilder:
             except Exception:
                 logger.exception("Failed to collect data for %s", username)
                 results_by_user[username] = {}
-            finally:
-                self.config.github.username = original_username
+
+        # Restore original config values
+        self.config.github.username = original_username
+        self.config.github.token = original_token
 
         if self.config.cache.enabled:
             self.cache.save()

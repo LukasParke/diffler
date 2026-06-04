@@ -35,12 +35,31 @@ def _resolve_env(value: Any) -> Any:
     return value
 
 
+class GitHubProfileConfig(BaseModel):
+    """Per-profile GitHub authentication settings.
+
+    Allows separate tokens per account, which is useful when aggregating
+    stats across personal and work profiles where private org repos
+    require different authentication scopes.
+    """
+
+    username: str
+    token: str = Field(default="${GITHUB_TOKEN}")
+
+    @model_validator(mode="after")
+    def _resolve_env_vars(self) -> "GitHubProfileConfig":
+        self.token = _resolve_env(self.token)
+        self.username = _resolve_env(self.username)
+        return self
+
+
 class GitHubConfig(BaseModel):
     """GitHub authentication and user settings."""
 
     username: str | None = None
     usernames: list[str] = Field(default_factory=list)
     token: str = Field(default="${GITHUB_TOKEN}")
+    profiles: list[GitHubProfileConfig] = Field(default_factory=list)
     api_url: str = "https://api.github.com"
     graphql_url: str = "https://api.github.com/graphql"
     include_orgs: bool = False
@@ -53,6 +72,11 @@ class GitHubConfig(BaseModel):
             self.username = _resolve_env(self.username)
         self.api_url = _resolve_env(self.api_url)
         self.graphql_url = _resolve_env(self.graphql_url)
+        # Profiles resolve their own env vars via their own validator,
+        # but we re-resolve here just in case they were constructed inline
+        for profile in self.profiles:
+            profile.token = _resolve_env(profile.token)
+            profile.username = _resolve_env(profile.username)
         return self
 
     def get_usernames(self) -> list[str]:
@@ -65,6 +89,23 @@ class GitHubConfig(BaseModel):
             return self.usernames
         if self.username:
             return [self.username]
+        return []
+
+    def get_profiles(self) -> list[GitHubProfileConfig]:
+        """Return all profiles to collect data for.
+
+        If ``profiles`` is explicitly configured, returns that list.
+        Otherwise falls back to ``usernames`` / ``username`` paired
+        with the global ``token``.
+        """
+        if self.profiles:
+            return self.profiles
+        usernames = self.get_usernames()
+        if usernames:
+            return [
+                GitHubProfileConfig(username=u, token=self.token)
+                for u in usernames
+            ]
         return []
 
 
