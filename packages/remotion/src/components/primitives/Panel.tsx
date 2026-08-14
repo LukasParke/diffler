@@ -23,7 +23,7 @@ export function Panel({
 
   return (
     <div
-      className={`relative h-full w-full overflow-hidden rounded-xl border font-mono shadow-2xl ${compact ? 'p-3' : 'p-4'} ${className}`}
+      className={`relative h-full w-full overflow-hidden rounded-xl border shadow-2xl ${compact ? 'p-3' : 'p-4'} ${className}`}
       style={{
         background:
           'linear-gradient(135deg, rgba(8,11,18,0.98), rgba(13,17,23,0.98) 48%, rgba(18,24,33,0.96))',

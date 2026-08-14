@@ -58,6 +58,7 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "vitest run",
+    "test:render": "pnpm prepare:stats && node scripts/render-assets.mjs --cards=readme --formats=webp,gif --out-dir=.render-smoke",
     "typecheck": "tsc --noEmit",
     "lint": "ESLINT_USE_FLAT_CONFIG=false eslint src --ext ts,tsx,js,jsx",
     "prepare:stats": "node scripts/prepare-stats.mjs",

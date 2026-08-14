@@ -225,7 +225,7 @@ export function ReadmeClassicCard({userStats}: ReadmeVariantProps) {
 								opacity: interpolate(
 									frame,
 									[index * 5, index * 5 + 18],
-									[0, 1],
+									[0.35, 1],
 									{
 										extrapolateLeft: 'clamp',
 										extrapolateRight: 'clamp',
@@ -234,7 +234,7 @@ export function ReadmeClassicCard({userStats}: ReadmeVariantProps) {
 								transform: `translateX(${interpolate(
 									frame,
 									[index * 5, index * 5 + 18],
-									[-16, 0],
+									[-6, 0],
 									{
 										easing: Easing.bezier(0.22, 1, 0.36, 1),
 										extrapolateLeft: 'clamp',
@@ -275,7 +275,7 @@ export function ReadmeSpotlightCard({userStats}: ReadmeVariantProps) {
 	return (
 		<ReadmeShell className="bg-[#070a10]">
 			<GeminiBeams
-				className="left-[8%] top-[-22%] h-[122%] w-[110%] opacity-60"
+				className="left-[8%] top-[-22%] h-[122%] w-[110%] opacity-35"
 				rotate={2}
 				scale={1.08}
 				speed={0.72}
@@ -284,11 +284,28 @@ export function ReadmeSpotlightCard({userStats}: ReadmeVariantProps) {
 			<div className="relative z-10 grid h-full grid-cols-[310px_1fr] gap-5 p-6">
 				<div className="flex flex-col justify-between rounded-xl border border-white/10 bg-black/30 p-5">
 					<div>
-						<ProfileImage userStats={userStats} size="large" />
-						<h1 className="mt-4 text-4xl font-black leading-none">
+						<ProfileImage userStats={userStats} />
+						<h1 className="mt-3 text-4xl font-black leading-none">
 							{userStats.name || userStats.username}
 						</h1>
 						<p className="mt-2 text-sm text-[#9ba7b4]">@{userStats.username}</p>
+						{userStats.location ? (
+							<p className="mt-3 flex items-center gap-1.5 text-xs text-[#b7c0cc]">
+								<MapPin size={13} />
+								<span className="truncate">{userStats.location}</span>
+							</p>
+						) : null}
+						<p
+							className="mt-3 overflow-hidden text-xs leading-relaxed text-[#c8d1dc]"
+							style={{
+								display: '-webkit-box',
+								WebkitLineClamp: 2,
+								WebkitBoxOrient: 'vertical',
+							}}
+						>
+							{userStats.bio ||
+								'Building software, systems, and public projects across GitHub.'}
+						</p>
 					</div>
 					<div className="grid grid-cols-2 gap-2">
 						<MiniStat label="Followers" value={userStats.community.followers} />
@@ -307,7 +324,7 @@ export function ReadmeSpotlightCard({userStats}: ReadmeVariantProps) {
 							<p className="text-xs font-semibold uppercase tracking-normal text-[#9ba7b4]">
 								Contribution signal
 							</p>
-							<div className="mt-4 grid grid-cols-3 gap-3">
+							<div className="mt-4 grid grid-cols-[1.25fr_0.75fr_0.75fr] gap-4">
 								<HeroMetric
 									label="Total"
 									value={userStats.summary.totalContributions}
@@ -399,7 +416,7 @@ function ReadmeShell({
 }) {
 	return (
 		<div
-			className={`relative h-full w-full overflow-hidden rounded-2xl border border-white/10 font-mono text-[#f0f3f6] shadow-2xl ${className}`}
+			className={`relative h-full w-full overflow-hidden rounded-2xl border border-white/10 text-[#f0f3f6] shadow-2xl ${className}`}
 			style={{
 				boxShadow:
 					'0 24px 80px rgba(0,0,0,0.48), inset 0 1px 0 rgba(255,255,255,0.08)',
@@ -454,7 +471,7 @@ function HeroMetric({
 			<p className="text-[11px] font-semibold uppercase tracking-normal text-[#9ba7b4]">
 				{label}
 			</p>
-			<p className="mt-1 text-4xl font-black leading-none tabular-nums">
+			<p className="mt-1 text-3xl font-black leading-none tabular-nums">
 				<span style={{color: accent}}>
 					{value >= 1000 ? (
 						formatCompactNumber(value)

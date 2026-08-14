@@ -26,3 +26,15 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm verify
       - run: pnpm test:package
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Smoke test animated card rendering
+        env:
+          STATS_JSON_URL: https://raw.githubusercontent.com/LukasParke/stats/main/github-user-stats.json
+          RENDER_CARD_CONCURRENCY: 1
+          REMOTION_CONCURRENCY: 4
+        run: pnpm --filter @lukasparke/diffler-remotion test:render
