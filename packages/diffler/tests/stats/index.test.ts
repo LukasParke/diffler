@@ -646,8 +646,11 @@ describe("v2 collection helpers", () => {
 
   it("scopes profile presentation metrics to public repositories owned by the profile", () => {
     const cache = createEmptyStableCache();
+    const currentTimestamp = `${new Date().getFullYear()}-01-01T00:00:00Z`;
     const ownedOriginal = createRepository({
       id: "R_OWNED",
+      pushedAt: currentTimestamp,
+      updatedAt: currentTimestamp,
       stars: 10,
       forks: 2,
       languages: [

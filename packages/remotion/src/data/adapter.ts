@@ -35,6 +35,7 @@ function normalizeV2Stats(raw: UnknownRecord): UserStats {
     Object.keys(explicitProfileRepoMetrics).length > 0
       ? explicitProfileRepoMetrics
       : deriveProfileRepositoryMetrics(raw.repositories, asString(profile.login));
+  const hasProfileRepoMetrics = Object.keys(profileRepoMetrics).length > 0;
   const contributorStats = asRecord(asRecord(repoMetrics.contributorStats));
   const traffic = asRecord(asRecord(repoMetrics.traffic));
   const repoStats = asRecord(asRecord(repoMetrics.repoStats));
@@ -45,12 +46,13 @@ function normalizeV2Stats(raw: UnknownRecord): UserStats {
   const backfill = asRecord(collectionStatus.backfill);
 
   const topLanguages = normalizeLanguages(
-    firstArray(
-      profileRepoMetrics.topLanguages,
-      readmeSummary.topLanguages,
-      repoMetrics.topLanguages,
-      legacy.topLanguages
-    ),
+    hasProfileRepoMetrics
+      ? profileRepoMetrics.topLanguages
+      : firstArray(
+          readmeSummary.topLanguages,
+          repoMetrics.topLanguages,
+          legacy.topLanguages
+        ),
     asNumber(
       readmeSummary.codeByteTotal,
       asNumber(
@@ -309,6 +311,10 @@ function deriveProfileRepositoryMetrics(
   repositoriesValue: unknown,
   username: string
 ): UnknownRecord {
+  if (!Array.isArray(repositoriesValue)) {
+    return {};
+  }
+
   const ownedPublicRepos = asArray(repositoriesValue)
     .map(asRecord)
     .filter((repo) => {
@@ -316,10 +322,6 @@ function deriveProfileRepositoryMetrics(
       const owned = sources.includes('owned') || asString(repo.owner) === username;
       return owned && repo.isPrivate !== true;
     });
-  if (ownedPublicRepos.length === 0) {
-    return {};
-  }
-
   const originalRepos = ownedPublicRepos.filter((repo) => repo.isFork !== true);
   const languageValues = originalRepos.flatMap((repo) =>
     asArray(repo.languages).map((language) => {
