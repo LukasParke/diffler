@@ -10,7 +10,6 @@ on:
       stats-json-url:
         description: "Public stats JSON URL"
         required: false
-        default: "https://raw.githubusercontent.com/${{ github.repository_owner }}/stats/main/github-user-stats.json"
 
 permissions:
   contents: read
