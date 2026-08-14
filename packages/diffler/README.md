@@ -28,7 +28,7 @@ Inspired by tools like [readme-scribe](https://github.com/muesli/readme-scribe),
 ### Install
 
 ```bash
-npm install -g diffler
+npm install -g @lukasparke/diffler
 ```
 
 ### Initialize your profile project
@@ -182,8 +182,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: diffler/diffler-action@v1
+      - uses: LukasParke/diffler/packages/diffler@v1
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "🤖 Auto-update profile README"
 ```
 

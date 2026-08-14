@@ -27,7 +27,7 @@ export {
   type CollectionStatus,
   type LegacyStats,
   type GitHubStatsOutput,
-} from "@diffler/schemas";
+} from "@lukasparke/diffler-schemas";
 
 // ---------------------------------------------------------------------------
 // Internal collection-engine types (not part of the public output schema)
@@ -99,7 +99,7 @@ import type {
   RateLimitInfo,
   RepositoryContributionSummary,
   RepositoryRecord,
-} from "@diffler/schemas";
+} from "@lukasparke/diffler-schemas";
 
 export type CachedContributionYear = {
   year: string;

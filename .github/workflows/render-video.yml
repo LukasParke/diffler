@@ -40,7 +40,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10.34.5
 
       - name: Install ffmpeg
         run: |
@@ -51,7 +51,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build remotion package
-        run: pnpm --filter @diffler/remotion build
+        run: pnpm --filter @lukasparke/diffler-remotion build
 
       - name: Restore Remotion render cache
         uses: actions/cache@v4

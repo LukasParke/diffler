@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import type { GitHubStatsOutput } from "@diffler/schemas";
+import type { GitHubStatsOutput } from "@lukasparke/diffler-schemas";
 import type { DifflerConfig, GitHubProfileConfig } from "../config.js";
 import { buildStatsActionConfig } from "../config.js";
 import { GitHubClient } from "../github/client.js";
