@@ -78,12 +78,11 @@ async function renderCard(card) {
 		const remotionArgs = [
 			'remotion',
 			'render',
-			'--entry-point',
 			'src/app.tsx',
-			'--props',
-			propsPath,
 			card,
 			gifPath,
+			'--props',
+			propsPath,
 			'--codec',
 			'gif',
 		];
