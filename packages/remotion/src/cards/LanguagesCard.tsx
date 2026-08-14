@@ -6,7 +6,8 @@ import {formatBytes} from '../utils/format';
 export function LanguagesCard({userStats}: {userStats: UserStats}) {
 	const languages = userStats.topLanguages.slice(0, 6);
 	const accent = languages[0]?.color || defaultTheme.colors.blue;
-	const hasLanguages = languages.length > 0;
+	const hasLanguages =
+		userStats.summary.profileMetricsComplete && languages.length > 0;
 
 	return (
 		<Panel

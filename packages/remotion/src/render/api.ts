@@ -14,7 +14,7 @@ export async function renderCards(config: RenderConfig): Promise<void> {
     outputDir,
     props,
     concurrency = 1,
-    remotionConcurrency,
+    remotionConcurrency
   } = config;
 
   const needsAnimation = formats.includes('gif') || formats.includes('webp');
@@ -22,105 +22,105 @@ export async function renderCards(config: RenderConfig): Promise<void> {
 
   const propsFile = join(
     tmpdir(),
-    `remotion-props-${randomBytes(8).toString('hex')}.json`,
+    `remotion-props-${randomBytes(8).toString('hex')}.json`
   );
-  await writeFile(propsFile, JSON.stringify(props), 'utf8');
 
   try {
-  await rm(outputDir, {recursive: true, force: true});
-  await mkdir(outputDir, {recursive: true});
-  if (needsAnimation) {
-    await mkdir(tempDir, {recursive: true});
-  }
+    await writeFile(propsFile, JSON.stringify(props), 'utf8');
+    await rm(outputDir, {recursive: true, force: true});
+    await mkdir(outputDir, {recursive: true});
+    if (needsAnimation) {
+      await mkdir(tempDir, {recursive: true});
+    }
 
-  console.log(
-      `Rendering ${compositionIds.length} cards to ${outputDir} with concurrency ${concurrency}`,
-  );
+    console.log(
+      `Rendering ${compositionIds.length} cards to ${outputDir} with concurrency ${concurrency}`
+    );
 
-  await runPool(
-    compositionIds,
-    Math.min(concurrency, compositionIds.length),
-    async (id) => {
-      const masterPath = join(tempDir, `${id}.webm`);
+    await runPool(
+      compositionIds,
+      Math.min(concurrency, compositionIds.length),
+      async (id) => {
+        const masterPath = join(tempDir, `${id}.webm`);
 
-      if (needsAnimation) {
-        const remotionArgs = [
-          'remotion',
-          'render',
-          entryPoint,
-          id,
-          masterPath,
-          '--props',
-          propsFile,
-          '--codec',
-          'vp9',
-          '--crf',
+        if (needsAnimation) {
+          const remotionArgs = [
+            'remotion',
+            'render',
+            entryPoint,
+            id,
+            masterPath,
+            '--props',
+            propsFile,
+            '--codec',
+            'vp9',
+            '--crf',
             '10',
-          '--pixel-format',
-          'yuv444p',
-        ];
-        if (remotionConcurrency) {
-          remotionArgs.push('--concurrency', String(remotionConcurrency));
-        }
+            '--pixel-format',
+            'yuv444p'
+          ];
+          if (remotionConcurrency) {
+            remotionArgs.push('--concurrency', String(remotionConcurrency));
+          }
           await run('npx', ['--no-install', ...remotionArgs]);
-      }
+        }
 
-      if (formats.includes('webp')) {
+        if (formats.includes('webp')) {
           await run('ffmpeg', [
-          '-y',
-          '-i',
-          masterPath,
-          '-vf',
+            '-y',
+            '-i',
+            masterPath,
+            '-vf',
             'fps=12',
-          '-loop',
-          '0',
-          '-c:v',
-          'libwebp',
-          '-quality',
-          '84',
-          '-compression_level',
-          '6',
-          '-preset',
-          'picture',
-          '-an',
-          join(outputDir, `${id}.webp`),
-        ]);
-      }
+            '-loop',
+            '0',
+            '-c:v',
+            'libwebp',
+            '-quality',
+            '84',
+            '-compression_level',
+            '6',
+            '-preset',
+            'picture',
+            '-an',
+            join(outputDir, `${id}.webp`)
+          ]);
+        }
 
-      if (formats.includes('gif')) {
+        if (formats.includes('gif')) {
           await run('ffmpeg', [
-          '-y',
-          '-i',
-          masterPath,
-          '-filter_complex',
+            '-y',
+            '-i',
+            masterPath,
+            '-filter_complex',
             '[0:v]fps=8,split[frames][palette_source];[palette_source]palettegen=max_colors=256:stats_mode=diff[palette];[frames][palette]paletteuse=dither=sierra2_4a:diff_mode=rectangle',
-          '-loop',
-          '0',
-          join(outputDir, `${id}.gif`),
-        ]);
-      }
+            '-loop',
+            '0',
+            join(outputDir, `${id}.gif`)
+          ]);
+        }
 
-      await rm(masterPath, {force: true});
-      },
-  );
+        await rm(masterPath, {force: true});
+      }
+    );
 
     await writeFile(
       join(outputDir, 'index.html'),
       buildIndexHtml(compositionIds, formats),
-      'utf8',
+      'utf8'
     );
   } finally {
-  if (existsSync(tempDir)) {
-    await rm(tempDir, {recursive: true, force: true});
-  }
-  await rm(propsFile, {force: true}).catch(() => {});
+    if (existsSync(tempDir)) {
+      await rm(tempDir, {recursive: true, force: true});
+    }
+    await rm(propsFile, {force: true}).catch(() => {});
   }
 }
 
 async function runPool<T>(
   items: T[],
   concurrency: number,
-  worker: (item: T) => Promise<void>,
+  worker: (item: T) => Promise<void>
 ): Promise<void> {
   let index = 0;
   const workers = Array.from({length: concurrency}, async () => {

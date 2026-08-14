@@ -70,7 +70,7 @@ export function buildOutput(params: {
     languages: profileTopLanguages,
     codeByteTotal: profileCodeByteTotal,
   } = aggregateRepositoryLanguages(ownedOriginalRepos);
-  const currentYear = `${new Date().getFullYear()}`;
+  const currentYear = `${new Date(params.fetchedAt).getUTCFullYear()}`;
   const profileRepoMetrics: NonNullable<RepoMetrics["profile"]> = {
     publicRepos: ownedPublicRepos.length,
     originalRepos: ownedOriginalRepos.length,

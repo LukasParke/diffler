@@ -646,7 +646,7 @@ describe("v2 collection helpers", () => {
 
   it("scopes profile presentation metrics to public repositories owned by the profile", () => {
     const cache = createEmptyStableCache();
-    const currentTimestamp = `${new Date().getFullYear()}-01-01T00:00:00Z`;
+    const currentTimestamp = "2024-01-01T00:00:00Z";
     const ownedOriginal = createRepository({
       id: "R_OWNED",
       pushedAt: currentTimestamp,
@@ -756,7 +756,7 @@ describe("v2 collection helpers", () => {
         warnings: [],
         errors: [],
       },
-      fetchedAt: 1000,
+      fetchedAt: Date.parse("2024-08-14T00:00:00Z"),
     });
 
     expect(output.repoMetrics.profile).toEqual({

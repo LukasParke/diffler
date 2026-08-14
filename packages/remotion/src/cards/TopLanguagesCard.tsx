@@ -7,7 +7,8 @@ export function TopLanguagesCard({userStats}: {userStats: UserStats}) {
 	const languages = userStats.topLanguages.slice(0, 8);
 	const maxBytes = Math.max(1, ...languages.map((language) => language.value));
 	const accent = languages[0]?.color || defaultTheme.colors.blue;
-	const hasLanguages = languages.length > 0;
+	const hasLanguages =
+		userStats.summary.profileMetricsComplete && languages.length > 0;
 
 	return (
 		<Panel

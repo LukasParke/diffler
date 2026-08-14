@@ -411,7 +411,8 @@ export function ReadmeSpotlightCard({userStats}: ReadmeVariantProps) {
 								Language leaders
 							</p>
 							<div className="space-y-2">
-								{topLanguages.length === 0 ? (
+								{!userStats.summary.profileMetricsComplete ||
+								topLanguages.length === 0 ? (
 									<p className="pt-8 text-center text-sm text-[#9ba7b4]">
 										No public language data available
 									</p>
