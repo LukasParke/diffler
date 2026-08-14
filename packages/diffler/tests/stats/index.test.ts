@@ -938,7 +938,7 @@ describe("v2 collection helpers", () => {
       errors: [],
     };
 
-    const output = buildOutput({
+    const outputParams = {
       profile: {
         name: "Luke Parke",
         login: "LukasParke",
@@ -979,14 +979,29 @@ describe("v2 collection helpers", () => {
       },
       repositories: [publicRepo, privateRepo],
       cache,
+      config: baseConfig,
+      collectionStatus: status,
+      fetchedAt: 1000,
+    };
+    const defaultOutput = buildOutput(outputParams);
+    const output = buildOutput({
+      ...outputParams,
       config: {
         ...baseConfig,
         includePrivateRepositoryMetrics: true,
       },
-      collectionStatus: status,
-      fetchedAt: 1000,
     });
 
+    expect(defaultOutput.repoStats).toMatchObject({
+      totalRepos: 1,
+      publicRepos: 1,
+      privateRepos: 0,
+      originalRepos: 1,
+      averageStarsPerRepo: 10,
+    });
+    expect(defaultOutput.topLanguages.map((lang) => lang.languageName)).not.toContain(
+      "SecretLang"
+    );
     expect(output.repoStats.privateRepos).toBe(1);
     expect(output.repoMetrics.profile).toMatchObject({
       totalRepos: 2,

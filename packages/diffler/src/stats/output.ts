@@ -58,10 +58,9 @@ export function buildOutput(params: {
   const contributionStats = calculateContributionStats(params.contributions.collection);
   const { languages: topLanguages, codeByteTotal } =
     aggregateRepositoryLanguages(metricRepositories);
-  const allComputedRepos = params.repositories.map(toComputedRepo);
   const visibleComputedRepos = visibleRepositories.map(toComputedRepo);
   const metricComputedRepos = metricRepositories.map(toComputedRepo);
-  const repoStats = calculateRepoStats(allComputedRepos);
+  const repoStats = calculateRepoStats(metricComputedRepos);
   const visibleComputedStats = calculateComputedStats(
     visibleComputedRepos,
     aggregateRepositoryLanguages(visibleRepositories).languages,
