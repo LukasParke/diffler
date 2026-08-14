@@ -32,6 +32,7 @@ function normalizeV2Stats(raw: UnknownRecord): UserStats {
   const computedStats = asRecord(asRecord(repoMetrics.computedStats));
   const contributionStats = asRecord(asRecord(legacy.contributionStats));
   const privacy = asRecord(raw.privacy);
+  const packageMetrics = asRecord(raw.packageMetrics);
   const collectionStatus = asRecord(raw.collectionStatus);
   const backfill = asRecord(collectionStatus.backfill);
   const fetchedAt = asNumber(
@@ -278,6 +279,7 @@ function normalizeV2Stats(raw: UnknownRecord): UserStats {
       forkCount
     },
     topLanguages,
+    packages: normalizePackageMetrics(packageMetrics),
     cards: normalizeMetricCards(presentation.cards),
     highlights: normalizeMetricCards(presentation.highlights),
     privacy: {
@@ -525,6 +527,7 @@ function normalizeLegacyStats(raw: UnknownRecord): UserStats {
       forkCount: asNumber(raw.forkCount, 0)
     },
     topLanguages,
+    packages: normalizePackageMetrics({}),
     cards: [],
     highlights: [],
     privacy: {
@@ -646,6 +649,46 @@ function normalizeMetricCards(value: unknown): MetricCard[] {
       return metric;
     })
     .filter((item): item is MetricCard => item !== null);
+}
+
+function normalizePackageMetrics(value: unknown): UserStats['packages'] {
+  const metrics = asRecord(value);
+  const downloads = asRecord(metrics.downloads);
+  const packages = asArray(metrics.packages)
+    .map(asRecord)
+    .map((item) => {
+      const itemDownloads = asRecord(item.downloads);
+      return {
+        provider: asString(item.provider),
+        name: asString(item.name),
+        url: asString(item.url),
+        latestVersion: asNullableString(item.latestVersion),
+        latestPublishedAt: asNullableString(item.latestPublishedAt),
+        downloads: {
+          lastDay: asNumber(itemDownloads.lastDay, 0),
+          lastWeek: asNumber(itemDownloads.lastWeek, 0),
+          lastMonth: asNumber(itemDownloads.lastMonth, 0),
+          lastYear: asNumber(itemDownloads.lastYear, 0),
+          allTime: asNumber(itemDownloads.allTime, 0)
+        }
+      };
+    })
+    .filter((item) => item.provider && item.name);
+
+  return {
+    packageCount: asNumber(metrics.packageCount, packages.length),
+    providers: asStringArray(metrics.providers),
+    downloads: {
+      lastDay: asNumber(downloads.lastDay, 0),
+      lastWeek: asNumber(downloads.lastWeek, 0),
+      lastMonth: asNumber(downloads.lastMonth, 0),
+      lastYear: asNumber(downloads.lastYear, 0),
+      allTime: asNumber(downloads.allTime, 0)
+    },
+    packages,
+    complete: metrics.complete !== false,
+    warnings: asStringArray(metrics.warnings)
+  };
 }
 
 function normalizePeakDay(value: unknown) {

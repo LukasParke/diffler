@@ -10,6 +10,7 @@ const allCards = [
 	'main-stats',
 	'stats',
 	'repo-impact',
+	'package-impact',
 	'languages',
 	'top-languages',
 	'activity-overview',

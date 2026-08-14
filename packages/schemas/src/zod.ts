@@ -24,6 +24,23 @@ export const metricCardSchema = z.object({
   detail: z.string().optional(),
 });
 
+export const packageDownloadCountsSchema = z.object({
+  lastDay: z.number(),
+  lastWeek: z.number(),
+  lastMonth: z.number(),
+  lastYear: z.number(),
+  allTime: z.number(),
+});
+
+export const packageMetricSchema = z.object({
+  provider: z.string(),
+  name: z.string(),
+  url: z.string(),
+  latestVersion: z.string().nullable(),
+  latestPublishedAt: z.string().nullable(),
+  downloads: packageDownloadCountsSchema,
+});
+
 export const userStatsSchema = z.object({
   schemaVersion: z.number().nullable(),
   name: z.string(),
@@ -108,6 +125,14 @@ export const userStatsSchema = z.object({
     forkCount: z.number(),
   }),
   topLanguages: z.array(renderLanguageSchema),
+  packages: z.object({
+    packageCount: z.number(),
+    providers: z.array(z.string()),
+    downloads: packageDownloadCountsSchema,
+    packages: z.array(packageMetricSchema),
+    complete: z.boolean(),
+    warnings: z.array(z.string()),
+  }),
   cards: z.array(metricCardSchema),
   highlights: z.array(metricCardSchema),
   privacy: z.object({

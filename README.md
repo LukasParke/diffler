@@ -50,8 +50,8 @@ pnpm --filter @lukasparke/diffler-remotion test
 └─────────────────┘     └──────────────────┘     └─────────────────┘
 ```
 
-1. **diffler** collects comprehensive GitHub stats via GraphQL + REST, with caching, rate-limit budgeting, and resumable backfill
-2. The collected stats are written as JSON conforming to the v2 schema
+1. **diffler** collects comprehensive GitHub stats via GraphQL + REST and package install stats through registry adapters
+2. Provider-specific package data is normalized alongside GitHub data in the v2 JSON schema
 3. **@lukasparke/diffler-remotion** reads the JSON and renders animated profile cards
 
 ## GitHub Actions

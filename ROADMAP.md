@@ -19,6 +19,7 @@ rendering.
 
 ## Next
 
+- Add a PyPI package-stats adapter using the normalized package metrics seam.
 - Add a consumer fixture that exercises the released GitHub Action.
 - Consolidate the three Remotion export commands.
 - Add image-link validation to the profile repository.

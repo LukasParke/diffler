@@ -254,6 +254,32 @@ export type RepoMetrics = {
   computedStats: ComputedStats;
 };
 
+export type PackageDownloadCounts = {
+  lastDay: number;
+  lastWeek: number;
+  lastMonth: number;
+  lastYear: number;
+  allTime: number;
+};
+
+export type PackageMetric = {
+  provider: string;
+  name: string;
+  url: string;
+  latestVersion: string | null;
+  latestPublishedAt: string | null;
+  downloads: PackageDownloadCounts;
+};
+
+export type PackageMetrics = {
+  packageCount: number;
+  providers: string[];
+  downloads: PackageDownloadCounts;
+  packages: PackageMetric[];
+  complete: boolean;
+  warnings: string[];
+};
+
 export type PresentationData = {
   readmeSummary: {
     name: string;
@@ -366,6 +392,7 @@ export type GitHubStatsOutput = LegacyStats & {
   activity: ActivityStats;
   repositories: RepositoryRecord[];
   repoMetrics: RepoMetrics;
+  packageMetrics: PackageMetrics;
   presentation: PresentationData;
   privacy: PrivacyReport;
   collectionStatus: CollectionStatus;

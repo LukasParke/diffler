@@ -22,6 +22,9 @@ export {
   type RepositoryContributionSummary,
   type ProfileContributions,
   type RepoMetrics,
+  type PackageDownloadCounts,
+  type PackageMetric,
+  type PackageMetrics,
   type PresentationData,
   type PrivacyReport,
   type CollectionStatus,
@@ -48,6 +51,12 @@ export type StatsActionConfig = {
   includePrivateRepositoryDetails: boolean;
   includePrivateCacheDetails: boolean;
   backfillMode: "resume" | "refresh" | "off";
+  packageSources: PackageSourceConfig[];
+};
+
+export type PackageSourceConfig = {
+  provider: string;
+  packages: string[];
 };
 
 export type ContributorStatsSummary = {

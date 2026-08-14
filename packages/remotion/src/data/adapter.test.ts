@@ -253,4 +253,59 @@ describe('normalizeGithubStats', () => {
 		expect(stats.repositories.repoViews).toBeNull();
 		expect(stats.repoViews).toBeNull();
 	});
+
+	it('normalizes provider-neutral package metrics', () => {
+		const stats = normalizeGithubStats(
+			{
+				schemaVersion: 2,
+				generatedAt: '2026-08-14T00:00:00.000Z',
+				profile: {login: 'octocat'},
+				legacy: {contributionStats: {}},
+				profileContributions: {contributionCalendar: {weeks: []}},
+				presentation: {readmeSummary: {}, timeline: [], cards: [], highlights: []},
+				repoMetrics: {contributorStats: {}, traffic: {}, repoStats: {}},
+				collectionStatus: {},
+				privacy: {},
+				activity: {},
+				repositories: [],
+				packageMetrics: {
+					packageCount: 1,
+					providers: ['npm'],
+					downloads: {
+						lastDay: 4,
+						lastWeek: 28,
+						lastMonth: 120,
+						lastYear: 1440,
+						allTime: 2000,
+					},
+					packages: [
+						{
+							provider: 'npm',
+							name: '@example/tool',
+							url: 'https://npmjs.com/package/example',
+							latestVersion: '2.0.0',
+							latestPublishedAt: '2026-08-01T00:00:00.000Z',
+							downloads: {lastMonth: 120},
+						},
+					],
+					complete: true,
+					warnings: [],
+				},
+			},
+			{allowPrivateRepositoryDetails: false},
+		);
+
+		expect(stats.packages).toMatchObject({
+			packageCount: 1,
+			providers: ['npm'],
+			downloads: {lastMonth: 120, allTime: 2000},
+			complete: true,
+		});
+		expect(stats.packages.packages[0]).toMatchObject({
+			provider: 'npm',
+			name: '@example/tool',
+			latestVersion: '2.0.0',
+			downloads: {lastDay: 0, lastMonth: 120},
+		});
+	});
 });

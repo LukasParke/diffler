@@ -31,6 +31,7 @@ describe("config", () => {
       expect(config.templates.main).toBe("profile.md.j2");
       expect(config.cache.enabled).toBe(true);
       expect(config.statsAction.includePrivateRepositoryMetrics).toBe(false);
+      expect(config.statsAction.packageSources).toEqual([]);
     });
   });
 
@@ -164,6 +165,22 @@ describe("config", () => {
       expect(config.includePrivateRepositoryMetrics).toBe(true);
       expect(config.includePrivateRepositoryDetails).toBe(false);
       expect(config.includePrivateCacheDetails).toBe(false);
+    });
+
+    it("configures npm package stats from the environment", () => {
+      process.env.STATS_NPM_PACKAGES =
+        "@lukasparke/diffler, @lukasparke/diffler-remotion";
+      const config = buildStatsActionConfig(loadConfigFromEnv());
+
+      expect(config.packageSources).toEqual([
+        {
+          provider: "npm",
+          packages: [
+            "@lukasparke/diffler",
+            "@lukasparke/diffler-remotion",
+          ],
+        },
+      ]);
     });
   });
 });
