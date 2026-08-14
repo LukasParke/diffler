@@ -24,21 +24,28 @@ export async function collectPackageStats(
   );
   const packages: PackageMetric[] = [];
   const warnings: string[] = [];
+  const packagesByProvider = new Map<string, Set<string>>();
 
   for (const source of sources) {
-    const adapter = adaptersByProvider.get(source.provider);
+    const packageNames = packagesByProvider.get(source.provider) ?? new Set<string>();
+    source.packages.forEach((packageName) => packageNames.add(packageName));
+    packagesByProvider.set(source.provider, packageNames);
+  }
+
+  for (const [provider, packageNames] of packagesByProvider) {
+    const adapter = adaptersByProvider.get(provider);
     if (!adapter) {
-      warnings.push(`No package stats adapter registered for "${source.provider}"`);
+      warnings.push(`No package stats adapter registered for "${provider}"`);
       continue;
     }
 
     try {
-      const result = await adapter.collect([...new Set(source.packages)]);
+      const result = await adapter.collect([...packageNames]);
       packages.push(...result.packages);
       warnings.push(...result.warnings);
     } catch (error) {
       warnings.push(
-        `${source.provider} package stats unavailable: ${
+        `${provider} package stats unavailable: ${
           error instanceof Error ? error.message : String(error)
         }`
       );

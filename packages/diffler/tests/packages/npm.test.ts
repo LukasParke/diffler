@@ -80,6 +80,41 @@ describe("NpmPackageStatsAdapter", () => {
     expect(result.warnings).toHaveLength(1);
     expect(result.warnings[0]).toContain('npm package "missing" unavailable');
   });
+
+  it("splits and sums historical downloads across bounded date ranges", async () => {
+    const requests: string[] = [];
+    const adapter = new NpmPackageStatsAdapter(
+      async (url, init) => {
+        requests.push(url);
+        expect(init?.signal).toBeInstanceOf(AbortSignal);
+        if (url.startsWith("https://registry.npmjs.org/")) {
+          return response({
+            "dist-tags": { latest: "1.0.0" },
+            time: { created: "2014-01-01T00:00:00.000Z" },
+          });
+        }
+        const period = url.split("/").at(-2) ?? "";
+        if (period.startsWith("2015-01-10:")) return response({ downloads: 100 });
+        if (period.startsWith("2016-07-03:")) return response({ downloads: 200 });
+        if (period.startsWith("2017-12-25:")) return response({ downloads: 300 });
+        return response({ downloads: 1 });
+      },
+      () => new Date("2018-01-01T12:00:00.000Z")
+    );
+
+    const result = await adapter.collect(["historical"]);
+
+    expect(requests).toContain(
+      "https://api.npmjs.org/downloads/point/2015-01-10:2016-07-02/historical"
+    );
+    expect(requests).toContain(
+      "https://api.npmjs.org/downloads/point/2016-07-03:2017-12-24/historical"
+    );
+    expect(requests).toContain(
+      "https://api.npmjs.org/downloads/point/2017-12-25:2017-12-31/historical"
+    );
+    expect(result.packages[0].downloads.allTime).toBe(600);
+  });
 });
 
 describe("collectPackageStats", () => {
@@ -88,6 +123,7 @@ describe("collectPackageStats", () => {
     const result = await collectPackageStats(
       [
         { provider: "npm", packages: ["one", "one", "two"] },
+        { provider: "npm", packages: ["two", "three"] },
         { provider: "pypi", packages: ["future"] },
       ],
       [
@@ -117,17 +153,21 @@ describe("collectPackageStats", () => {
       ]
     );
 
-    expect(requested).toEqual([["one", "two"]]);
-    expect(result.packageCount).toBe(2);
+    expect(requested).toEqual([["one", "two", "three"]]);
+    expect(result.packageCount).toBe(3);
     expect(result.providers).toEqual(["npm"]);
     expect(result.downloads).toEqual({
-      lastDay: 3,
-      lastWeek: 20,
-      lastMonth: 300,
-      lastYear: 2_000,
-      allTime: 4_000,
+      lastDay: 6,
+      lastWeek: 30,
+      lastMonth: 600,
+      lastYear: 3_000,
+      allTime: 6_000,
     });
-    expect(result.packages.map((item) => item.name)).toEqual(["two", "one"]);
+    expect(result.packages.map((item) => item.name)).toEqual([
+      "three",
+      "two",
+      "one",
+    ]);
     expect(result.complete).toBe(false);
     expect(result.warnings).toEqual([
       'No package stats adapter registered for "pypi"',

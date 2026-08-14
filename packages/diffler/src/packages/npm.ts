@@ -11,7 +11,7 @@ type FetchResponse = {
   json(): Promise<unknown>;
 };
 
-type Fetcher = (url: string) => Promise<FetchResponse>;
+type Fetcher = (url: string, init?: RequestInit) => Promise<FetchResponse>;
 
 const DOWNLOAD_PERIODS: Array<[keyof PackageDownloadCounts, string]> = [
   ["lastDay", "last-day"],
@@ -20,6 +20,9 @@ const DOWNLOAD_PERIODS: Array<[keyof PackageDownloadCounts, string]> = [
   ["lastYear", "last-year"],
 ];
 const NPM_DOWNLOAD_DATA_START = new Date("2015-01-10T00:00:00.000Z");
+const PACKAGE_CONCURRENCY = 3;
+const RANGE_CONCURRENCY = 3;
+const REQUEST_TIMEOUT_MS = 15_000;
 
 export class NpmPackageStatsAdapter implements PackageStatsAdapter {
   readonly provider = "npm";
@@ -30,8 +33,10 @@ export class NpmPackageStatsAdapter implements PackageStatsAdapter {
   ) {}
 
   async collect(packageNames: string[]): Promise<PackageStatsAdapterResult> {
-    const results = await Promise.allSettled(
-      packageNames.map((packageName) => this.collectPackage(packageName))
+    const results = await mapSettledWithConcurrency(
+      packageNames,
+      PACKAGE_CONCURRENCY,
+      (packageName) => this.collectPackage(packageName)
     );
     const packages: PackageMetric[] = [];
     const warnings: string[] = [];
@@ -108,13 +113,14 @@ export class NpmPackageStatsAdapter implements PackageStatsAdapter {
     if (firstDay > yesterday) return 0;
 
     const ranges = buildDownloadRanges(firstDay, yesterday);
-    const results = await Promise.all(
-      ranges.map((range) =>
+    const results = await mapWithConcurrency(
+      ranges,
+      RANGE_CONCURRENCY,
+      (range) =>
         fetchJson(
           this.fetcher,
           `https://api.npmjs.org/downloads/point/${range}/${encodedName}`
         )
-      )
     );
     return results.reduce<number>(
       (total, result) => total + asNonNegativeNumber(asRecord(result).downloads),
@@ -155,11 +161,47 @@ function formatDate(value: Date): string {
 }
 
 async function fetchJson(fetcher: Fetcher, url: string): Promise<unknown> {
-  const response = await fetcher(url);
+  const response = await fetcher(url, {
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
   if (!response.ok) {
     throw new Error(`npm request failed with HTTP ${response.status}: ${url}`);
   }
   return response.json();
+}
+
+async function mapWithConcurrency<T, R>(
+  values: T[],
+  concurrency: number,
+  worker: (value: T) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(values.length);
+  let nextIndex = 0;
+  const workers = Array.from(
+    { length: Math.min(concurrency, values.length) },
+    async () => {
+      while (nextIndex < values.length) {
+        const index = nextIndex++;
+        results[index] = await worker(values[index]);
+      }
+    }
+  );
+  await Promise.all(workers);
+  return results;
+}
+
+async function mapSettledWithConcurrency<T, R>(
+  values: T[],
+  concurrency: number,
+  worker: (value: T) => Promise<R>
+): Promise<PromiseSettledResult<R>[]> {
+  return mapWithConcurrency(values, concurrency, async (value) => {
+    try {
+      return { status: "fulfilled", value: await worker(value) } as const;
+    } catch (reason) {
+      return { status: "rejected", reason } as const;
+    }
+  });
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

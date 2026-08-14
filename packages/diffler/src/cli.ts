@@ -130,15 +130,16 @@ program
       statsConfig.includePrivateRepositoryDetails = true;
       statsConfig.includePrivateCacheDetails = true;
     }
-    if (options.npmPackages) {
+    const npmPackages = options.npmPackages
+      ?.split(",")
+      .map((packageName: string) => packageName.trim())
+      .filter(Boolean);
+    if (npmPackages?.length) {
       statsConfig.packageSources = [
         ...statsConfig.packageSources.filter((source) => source.provider !== "npm"),
         {
           provider: "npm",
-          packages: options.npmPackages
-            .split(",")
-            .map((packageName: string) => packageName.trim())
-            .filter(Boolean),
+          packages: npmPackages,
         },
       ];
     }
