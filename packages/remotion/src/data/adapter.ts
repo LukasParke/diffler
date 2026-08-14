@@ -79,7 +79,10 @@ function normalizeV2Stats(raw: UnknownRecord): UserStats {
   const starCount = asNumber(profileRepoMetrics.starsReceived, 0);
   const forkCount = asNumber(profileRepoMetrics.forksReceived, 0);
   const activeRepos = asNumber(profileRepoMetrics.activeOriginalRepos, 0);
-  const totalRepos = asNumber(profileRepoMetrics.publicRepos, 0);
+  const totalRepos = asNumber(
+    profileRepoMetrics.totalRepos,
+    asNumber(profileRepoMetrics.publicRepos, 0)
+  );
   const contributionCalendar = normalizeContributionCalendar(
     asRecord(profileContributions.contributionCalendar)
   );
@@ -227,13 +230,10 @@ function normalizeV2Stats(raw: UnknownRecord): UserStats {
     repositories: {
       totalRepos,
       publicRepos: asNumber(profileRepoMetrics.publicRepos, totalRepos),
-      privateRepos:
-        profileRepoMetrics.publicRepos === undefined
-          ? asNumber(
-              repoStats.privateRepos,
-              asNumber(computedStats.privateRepos, 0)
-            )
-          : 0,
+      privateRepos: asNumber(
+        profileRepoMetrics.privateRepos,
+        Math.max(0, totalRepos - asNumber(profileRepoMetrics.publicRepos, totalRepos))
+      ),
       activeRepos,
       archivedRepos: asNumber(
         profileRepoMetrics.archivedOriginalRepos,
@@ -281,6 +281,8 @@ function normalizeV2Stats(raw: UnknownRecord): UserStats {
     cards: normalizeMetricCards(presentation.cards),
     highlights: normalizeMetricCards(presentation.highlights),
     privacy: {
+      privateRepositoryMetricsIncluded:
+        privacy.privateRepositoryMetricsIncluded === true,
       privateRepositoryDetailsIncluded:
         privacy.privateRepositoryDetailsIncluded === true,
       privateCacheDetailsIncluded: privacy.privateCacheDetailsIncluded === true,
@@ -526,6 +528,7 @@ function normalizeLegacyStats(raw: UnknownRecord): UserStats {
     cards: [],
     highlights: [],
     privacy: {
+      privateRepositoryMetricsIncluded: false,
       privateRepositoryDetailsIncluded: false,
       privateCacheDetailsIncluded: false,
       redactedPrivateRepositories: 0,

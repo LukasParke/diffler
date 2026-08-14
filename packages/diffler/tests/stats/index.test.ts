@@ -6,7 +6,14 @@ import {
   calculateContributionStats,
   calculateComputedStats,
 } from "../../src/stats/index.js";
-import { cacheRepository, createEmptyStableCache, shouldReuseContributionYear } from "../../src/stats/cache.js";
+import {
+  cacheRepository,
+  createEmptyStableCache,
+  repositoryMetricCacheKey,
+  repositoryMetricVersion,
+  sanitizeStableCache,
+  shouldReuseContributionYear,
+} from "../../src/stats/cache.js";
 import { emptyContributionsCollection } from "../../src/stats/aggregate.js";
 import { buildBackfillQueue, mergeRepositories } from "../../src/stats/github.js";
 import { buildOutput } from "../../src/stats/output.js";
@@ -361,6 +368,7 @@ describe("v2 collection helpers", () => {
     minRestRemaining: 750,
     includeTraffic: true,
     includeRestRepoStats: true,
+    includePrivateRepositoryMetrics: false,
     includePrivateRepositoryDetails: false,
     includePrivateCacheDetails: false,
     backfillMode: "resume",
@@ -492,6 +500,52 @@ describe("v2 collection helpers", () => {
     expect(buildBackfillQueue([repo], cache, baseConfig)).toHaveLength(0);
   });
 
+  it("queues anonymous metrics for private repositories without enabling details", () => {
+    const privateRepo = createRepository({
+      id: "R_PRIVATE",
+      isPrivate: true,
+      visibility: "PRIVATE",
+    });
+
+    expect(buildBackfillQueue([privateRepo], createEmptyStableCache(), baseConfig)).toEqual(
+      []
+    );
+
+    const queue = buildBackfillQueue([privateRepo], createEmptyStableCache(), {
+      ...baseConfig,
+      includePrivateRepositoryMetrics: true,
+    });
+
+    expect(queue.map((item) => item.type).sort()).toEqual([
+      "contributors",
+      "traffic",
+    ]);
+
+    const cache = createEmptyStableCache();
+    const metricCacheKey = repositoryMetricCacheKey(privateRepo, false);
+    cache.contributorStats[metricCacheKey] = {
+      additions: 10,
+      deletions: 2,
+      commits: 3,
+      fetchedAt: Date.now(),
+      defaultBranchOid: repositoryMetricVersion(privateRepo, false),
+      status: "cached",
+    };
+    cache.traffic[metricCacheKey] = {
+      count: 1,
+      uniques: 1,
+      days: [],
+      fetchedAt: Date.now(),
+      status: "cached",
+    };
+    expect(
+      buildBackfillQueue([privateRepo], cache, {
+        ...baseConfig,
+        includePrivateRepositoryMetrics: true,
+      })
+    ).toHaveLength(0);
+  });
+
   it("reuses immutable cached contribution years but refreshes current years", () => {
     const cached: CachedContributionYear = {
       year: "2022",
@@ -543,6 +597,33 @@ describe("v2 collection helpers", () => {
     cacheRepository(cache, privateRepo);
 
     expect(cache.repositories[privateRepo.id]).toBeUndefined();
+  });
+
+  it("persists private metrics under anonymous cache keys", () => {
+    const cache = createEmptyStableCache();
+    const privateRepo = createRepository({
+      id: "R_PRIVATE",
+      name: "private-product",
+      nameWithOwner: "LukasParke/private-product",
+      isPrivate: true,
+    });
+    const metricCacheKey = repositoryMetricCacheKey(privateRepo, false);
+    cache.contributorStats[metricCacheKey] = {
+      additions: 10,
+      deletions: 2,
+      commits: 3,
+      fetchedAt: Date.now(),
+      defaultBranchOid: repositoryMetricVersion(privateRepo, false),
+      status: "cached",
+    };
+
+    const sanitized = sanitizeStableCache(cache, false, true);
+
+    expect(metricCacheKey).toMatch(/^private:[a-f0-9]{64}$/);
+    expect(sanitized.contributorStats[metricCacheKey]?.commits).toBe(3);
+    expect(JSON.stringify(sanitized)).not.toContain(privateRepo.id);
+    expect(JSON.stringify(sanitized)).not.toContain(privateRepo.nameWithOwner);
+    expect(JSON.stringify(sanitized)).not.toContain(privateRepo.defaultBranchOid);
   });
 
   it("builds v2 output while preserving legacy top-level aliases", () => {
@@ -760,7 +841,9 @@ describe("v2 collection helpers", () => {
     });
 
     expect(output.repoMetrics.profile).toEqual({
+      totalRepos: 2,
       publicRepos: 2,
+      privateRepos: 0,
       originalRepos: 1,
       forkedRepos: 1,
       activeOriginalRepos: 1,
@@ -792,7 +875,7 @@ describe("v2 collection helpers", () => {
     );
   });
 
-  it("redacts private repository details from public output while keeping aggregate counts", () => {
+  it("includes full private aggregates without exposing private repository details", () => {
     const cache = createEmptyStableCache();
     const publicRepo = createRepository();
     const privateRepo = createRepository({
@@ -812,6 +895,22 @@ describe("v2 collection helpers", () => {
       ],
       codeByteTotal: 5000,
     });
+    const privateMetricCacheKey = repositoryMetricCacheKey(privateRepo, false);
+    cache.contributorStats[privateMetricCacheKey] = {
+      additions: 100,
+      deletions: 25,
+      commits: 8,
+      fetchedAt: Date.now(),
+      defaultBranchOid: repositoryMetricVersion(privateRepo, false),
+      status: "fresh",
+    };
+    cache.traffic[privateMetricCacheKey] = {
+      count: 50,
+      uniques: 12,
+      days: [],
+      fetchedAt: Date.now(),
+      status: "fresh",
+    };
     const collection = emptyContributionsCollection();
     const status: CollectionStatus = {
       startedAt: 1,
@@ -880,19 +979,49 @@ describe("v2 collection helpers", () => {
       },
       repositories: [publicRepo, privateRepo],
       cache,
-      config: baseConfig,
+      config: {
+        ...baseConfig,
+        includePrivateRepositoryMetrics: true,
+      },
       collectionStatus: status,
       fetchedAt: 1000,
     });
 
     expect(output.repoStats.privateRepos).toBe(1);
+    expect(output.repoMetrics.profile).toMatchObject({
+      totalRepos: 2,
+      publicRepos: 1,
+      privateRepos: 1,
+      originalRepos: 2,
+      starsReceived: 1009,
+      codeByteTotal: 6000,
+    });
+    expect(output.repoMetrics.contributorStats).toMatchObject({
+      totalCommits: 8,
+      linesAdded: 100,
+      linesDeleted: 25,
+      reposCompleted: 1,
+    });
+    expect(output.repoMetrics.traffic).toMatchObject({
+      repoViews: 50,
+      repoViewUniques: 12,
+      reposCompleted: 1,
+    });
+    expect(output.topLanguages.map((lang) => lang.languageName)).toContain(
+      "SecretLang"
+    );
+    expect(output.repoMetrics.topTopics.map((topic) => topic.name)).not.toContain(
+      "secret-topic"
+    );
     expect(output.repositories.map((repo) => repo.nameWithOwner)).not.toContain(
       privateRepo.nameWithOwner
     );
     expect(output.profileContributions.repositoryContributions).toHaveLength(0);
-    expect(output.topLanguages.map((lang) => lang.languageName)).not.toContain(
-      "SecretLang"
-    );
+    expect(JSON.stringify(output)).not.toContain(privateRepo.nameWithOwner);
+    expect(JSON.stringify(output)).not.toContain("secret-topic");
+    expect(output.privacy.privateRepositoryMetricsIncluded).toBe(true);
+    expect(output.privacy.privateRepositoryDetailsIncluded).toBe(false);
+    expect(output.privacy.redactedOptionalMetrics).toBe(0);
     expect(output.privacy.redactedPrivateRepositories).toBe(1);
     expect(output.collectionStatus.warnings[0]).toContain("Private repository details redacted");
   });

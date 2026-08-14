@@ -152,10 +152,13 @@ describe('normalizeGithubStats', () => {
 		const explicitProfile = normalizeGithubStats(
 			{
 				...raw,
+				privacy: {privateRepositoryMetricsIncluded: true},
 				repoMetrics: {
 					...raw.repoMetrics,
 					profile: {
+						totalRepos: 9,
 						publicRepos: 7,
+						privateRepos: 2,
 						originalRepos: 6,
 						forkedRepos: 1,
 						activeOriginalRepos: 5,
@@ -179,13 +182,21 @@ describe('normalizeGithubStats', () => {
 			{allowPrivateRepositoryDetails: false},
 		);
 		expect(explicitProfile.summary).toMatchObject({
-			totalRepos: 7,
+			totalRepos: 9,
 			activeRepos: 5,
 			languageCount: 1,
 			starsReceived: 99,
 			forksReceived: 12,
 			profileMetricsComplete: true,
 		});
+		expect(explicitProfile.repositories).toMatchObject({
+			totalRepos: 9,
+			publicRepos: 7,
+			privateRepos: 2,
+		});
+		expect(explicitProfile.privacy.privateRepositoryMetricsIncluded).toBe(
+			true,
+		);
 		expect(explicitProfile.topLanguages[0]?.languageName).toBe('Go');
 	});
 

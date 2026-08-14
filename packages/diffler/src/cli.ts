@@ -95,6 +95,10 @@ program
   .option("--cache-path <path>", "Path for committed stable cache state")
   .option("--volatile-cache-path <path>", "Path for volatile API metadata cache")
   .option("--backfill-mode <mode>", "Backfill mode: resume, refresh, or off")
+  .option(
+    "--include-private-metrics",
+    "Include anonymous private repository metrics without repository details"
+  )
   .option("--include-private", "Include private repository details")
   .action(async (options) => {
     const token = process.env.GITHUB_TOKEN;
@@ -114,7 +118,11 @@ program
         statsConfig.backfillMode = options.backfillMode;
       }
     }
+    if (options.includePrivateMetrics) {
+      statsConfig.includePrivateRepositoryMetrics = true;
+    }
     if (options.includePrivate) {
+      statsConfig.includePrivateRepositoryMetrics = true;
       statsConfig.includePrivateRepositoryDetails = true;
       statsConfig.includePrivateCacheDetails = true;
     }

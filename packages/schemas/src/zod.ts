@@ -111,6 +111,7 @@ export const userStatsSchema = z.object({
   cards: z.array(metricCardSchema),
   highlights: z.array(metricCardSchema),
   privacy: z.object({
+    privateRepositoryMetricsIncluded: z.boolean(),
     privateRepositoryDetailsIncluded: z.boolean(),
     privateCacheDetailsIncluded: z.boolean(),
     redactedPrivateRepositories: z.number(),

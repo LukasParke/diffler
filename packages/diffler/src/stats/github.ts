@@ -26,6 +26,8 @@ import {
   cacheRepository,
   mergeBackfillQueue,
   recordBackfillFailure,
+  repositoryMetricCacheKey,
+  repositoryMetricVersion,
   shouldReuseContributionYear,
 } from "./cache.js";
 import { aggregateLanguages, mergeContributionsCollections } from "./aggregate.js";
@@ -408,12 +410,26 @@ export function buildBackfillQueue(
   const next: BackfillItem[] = [];
   const forceRefresh = config.backfillMode === "refresh";
   for (const repo of repositories) {
-    if (repo.isPrivate && !config.includePrivateRepositoryDetails) continue;
+    if (
+      repo.isPrivate &&
+      !config.includePrivateRepositoryMetrics &&
+      !config.includePrivateRepositoryDetails
+    ) {
+      continue;
+    }
 
     const basePriority = getRepositoryPriority(repo);
-    const contributorStats = cache.contributorStats[repo.id];
+    const metricCacheKey = repositoryMetricCacheKey(
+      repo,
+      config.includePrivateRepositoryDetails
+    );
+    const metricVersion = repositoryMetricVersion(
+      repo,
+      config.includePrivateRepositoryDetails
+    );
+    const contributorStats = cache.contributorStats[metricCacheKey];
     const contributorStatsComplete =
-      contributorStats?.defaultBranchOid === repo.defaultBranchOid &&
+      contributorStats?.defaultBranchOid === metricVersion &&
       ["fresh", "cached"].includes(contributorStats.status);
     if (
       config.includeRestRepoStats &&
@@ -430,7 +446,7 @@ export function buildBackfillQueue(
       });
     }
 
-    const traffic = cache.traffic[repo.id];
+    const traffic = cache.traffic[metricCacheKey];
     if (
       config.includeTraffic &&
       canReadTraffic(repo) &&
@@ -486,21 +502,32 @@ export async function processBackfillQueue(
     }
 
     try {
+      const metricCacheKey = repositoryMetricCacheKey(
+        repo,
+        config.includePrivateRepositoryDetails
+      );
       if (item.type === "contributors") {
-        cache.contributorStats[repo.id] = await fetchContributorStats(
+        const contributorStats = await fetchContributorStats(
           client,
           scheduler,
           volatileCache,
-          cache.contributorStats[repo.id],
+          cache.contributorStats[metricCacheKey],
           repo,
           username
         );
+        cache.contributorStats[metricCacheKey] = {
+          ...contributorStats,
+          defaultBranchOid: repositoryMetricVersion(
+            repo,
+            config.includePrivateRepositoryDetails
+          ),
+        };
       } else {
-        cache.traffic[repo.id] = await fetchTraffic(
+        cache.traffic[metricCacheKey] = await fetchTraffic(
           client,
           scheduler,
           volatileCache,
-          cache.traffic[repo.id],
+          cache.traffic[metricCacheKey],
           repo
         );
       }
