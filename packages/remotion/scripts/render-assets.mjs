@@ -3,7 +3,7 @@ import {mkdir, rm, writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {spawn} from 'node:child_process';
 
-const cards = [
+const allCards = [
 	'readme',
 	'readme-classic',
 	'readme-spotlight',
@@ -28,6 +28,20 @@ const args = new Map(
 		}),
 );
 
+const requestedCards = (
+	args.get('cards') ||
+	process.env.RENDER_CARDS ||
+	allCards.join(',')
+)
+	.split(',')
+	.map((card) => card.trim())
+	.filter(Boolean);
+const unknownCards = requestedCards.filter((card) => !allCards.includes(card));
+if (unknownCards.length > 0) {
+	throw new Error(`Unknown cards: ${unknownCards.join(', ')}`);
+}
+const cards = requestedCards;
+
 const formats = (
 	args.get('formats') ||
 	process.env.RENDER_FORMATS ||
@@ -47,13 +61,12 @@ const propsPath =
 	args.get('props') ||
 	process.env.RENDER_PROPS ||
 	(existsSync('input.generated.json') ? 'input.generated.json' : 'input.json');
-const needsGif = formats.includes('gif') || formats.includes('webp');
-const keepGif = formats.includes('gif');
+const needsAnimation = formats.includes('gif') || formats.includes('webp');
 const tempDir = join(outputDir, '.tmp');
 
 await rm(outputDir, {recursive: true, force: true});
 await mkdir(outputDir, {recursive: true});
-if (needsGif && !keepGif) {
+if (needsAnimation) {
 	await mkdir(tempDir, {recursive: true});
 }
 
@@ -70,21 +83,25 @@ if (existsSync(tempDir)) {
 await writeFile(join(outputDir, 'index.html'), buildIndexHtml(), 'utf8');
 
 async function renderCard(card) {
-	const gifPath = keepGif
-		? join(outputDir, `${card}.gif`)
-		: join(tempDir, `${card}.gif`);
+	const masterPath = join(tempDir, `${card}.webm`);
 
-	if (needsGif) {
+	if (needsAnimation) {
 		const remotionArgs = [
 			'remotion',
 			'render',
 			'src/app.tsx',
 			card,
-			gifPath,
+			masterPath,
 			'--props',
 			propsPath,
 			'--codec',
-			'gif',
+			'vp9',
+			'--crf',
+			'8',
+			'--pixel-format',
+			'yuv444p',
+			'--scale',
+			'2',
 		];
 		if (remotionConcurrency) {
 			remotionArgs.push('--concurrency', remotionConcurrency);
@@ -96,13 +113,15 @@ async function renderCard(card) {
 		await run('ffmpeg', [
 			'-y',
 			'-i',
-			gifPath,
+			masterPath,
+			'-vf',
+			'scale=trunc(iw*0.75/2)*2:trunc(ih*0.75/2)*2:flags=lanczos',
 			'-loop',
 			'0',
 			'-c:v',
 			'libwebp',
 			'-quality',
-			'82',
+			'84',
 			'-compression_level',
 			'6',
 			'-preset',
@@ -113,6 +132,21 @@ async function renderCard(card) {
 			join(outputDir, `${card}.webp`),
 		]);
 	}
+
+	if (formats.includes('gif')) {
+		await run('ffmpeg', [
+			'-y',
+			'-i',
+			masterPath,
+			'-filter_complex',
+			'[0:v]fps=24,scale=iw/2:ih/2:flags=lanczos,split[frames][palette_source];[palette_source]palettegen=max_colors=256:stats_mode=diff[palette];[frames][palette]paletteuse=dither=sierra2_4a:diff_mode=rectangle',
+			'-loop',
+			'0',
+			join(outputDir, `${card}.gif`),
+		]);
+	}
+
+	await rm(masterPath, {force: true});
 }
 
 async function runPool(items, concurrency, worker) {

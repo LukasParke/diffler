@@ -57,6 +57,9 @@ pnpm render:all
 ```
 
 Rendered assets are written to `pages/`, which is intentionally ignored by Git.
+Animations are rendered once as a high-quality 2× VP9 master. The pipeline then
+creates a 1.5× animated WebP for sharp high-density displays and a 1×,
+palette-optimized GIF fallback.
 
 ## CI Publishing
 

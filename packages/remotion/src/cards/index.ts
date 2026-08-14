@@ -7,7 +7,7 @@ import {CommitStreakCard} from './CommitStreakCard';
 import {IssueTrackingCard} from './IssueTrackingCard';
 import {LanguagesCard} from './LanguagesCard';
 import {MainStatsCard} from './MainStatsCard';
-import {ReadmeCard, ReadmeClassicCard, ReadmeSpotlightCard} from './ReadmeCard';
+import {ReadmeClassicCard, ReadmeSpotlightCard} from './ReadmeCard';
 import {RepositoryImpactCard} from './RepositoryImpactCard';
 import {StatsCard} from './StatsCard';
 import {TopLanguagesCard} from './TopLanguagesCard';
@@ -23,7 +23,7 @@ export type CardConfig = {
 export const cards: CardConfig[] = [
 	{
 		id: 'readme',
-		component: ReadmeCard,
+		component: ReadmeSpotlightCard,
 		width: 900,
 		height: 460,
 	},

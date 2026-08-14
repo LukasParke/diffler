@@ -17,8 +17,7 @@ export async function renderCards(config: RenderConfig): Promise<void> {
     remotionConcurrency,
   } = config;
 
-  const needsGif = formats.includes('gif') || formats.includes('webp');
-  const keepGif = formats.includes('gif');
+  const needsAnimation = formats.includes('gif') || formats.includes('webp');
   const tempDir = join(outputDir, '.tmp');
 
   const propsFile = join(
@@ -29,7 +28,7 @@ export async function renderCards(config: RenderConfig): Promise<void> {
 
   await rm(outputDir, {recursive: true, force: true});
   await mkdir(outputDir, {recursive: true});
-  if (needsGif && !keepGif) {
+  if (needsAnimation) {
     await mkdir(tempDir, {recursive: true});
   }
 
@@ -41,22 +40,25 @@ export async function renderCards(config: RenderConfig): Promise<void> {
     compositionIds,
     Math.min(concurrency, compositionIds.length),
     async (id) => {
-      const gifPath = keepGif
-        ? join(outputDir, `${id}.gif`)
-        : join(tempDir, `${id}.gif`);
+      const masterPath = join(tempDir, `${id}.webm`);
 
-      if (needsGif) {
+      if (needsAnimation) {
         const remotionArgs = [
           'remotion',
           'render',
-          '--entry-point',
           entryPoint,
+          id,
+          masterPath,
           '--props',
           propsFile,
-          id,
-          gifPath,
           '--codec',
-          'gif',
+          'vp9',
+          '--crf',
+          '8',
+          '--pixel-format',
+          'yuv444p',
+          '--scale',
+          '2',
         ];
         if (remotionConcurrency) {
           remotionArgs.push('--concurrency', String(remotionConcurrency));
@@ -68,13 +70,15 @@ export async function renderCards(config: RenderConfig): Promise<void> {
         await run('ffmpeg', [
           '-y',
           '-i',
-          gifPath,
+          masterPath,
+          '-vf',
+          'scale=trunc(iw*0.75/2)*2:trunc(ih*0.75/2)*2:flags=lanczos',
           '-loop',
           '0',
           '-c:v',
           'libwebp',
           '-quality',
-          '82',
+          '84',
           '-compression_level',
           '6',
           '-preset',
@@ -85,6 +89,21 @@ export async function renderCards(config: RenderConfig): Promise<void> {
           join(outputDir, `${id}.webp`),
         ]);
       }
+
+      if (formats.includes('gif')) {
+        await run('ffmpeg', [
+          '-y',
+          '-i',
+          masterPath,
+          '-filter_complex',
+          '[0:v]fps=24,scale=iw/2:ih/2:flags=lanczos,split[frames][palette_source];[palette_source]palettegen=max_colors=256:stats_mode=diff[palette];[frames][palette]paletteuse=dither=sierra2_4a:diff_mode=rectangle',
+          '-loop',
+          '0',
+          join(outputDir, `${id}.gif`),
+        ]);
+      }
+
+      await rm(masterPath, {force: true});
     }
   );
 
