@@ -62,6 +62,29 @@ export function buildOutput(params: {
   const ownedVisibleRepos = visibleRepositories.filter((repo) =>
     repo.sources.includes("owned")
   );
+  const ownedPublicRepos = params.repositories.filter(
+    (repo) => !repo.isPrivate && repo.sources.includes("owned")
+  );
+  const ownedOriginalRepos = ownedPublicRepos.filter((repo) => !repo.isFork);
+  const {
+    languages: profileTopLanguages,
+    codeByteTotal: profileCodeByteTotal,
+  } = aggregateRepositoryLanguages(ownedOriginalRepos);
+  const currentYear = `${new Date().getFullYear()}`;
+  const profileRepoMetrics: RepoMetrics["profile"] = {
+    publicRepos: ownedPublicRepos.length,
+    originalRepos: ownedOriginalRepos.length,
+    forkedRepos: ownedPublicRepos.length - ownedOriginalRepos.length,
+    activeOriginalRepos: ownedOriginalRepos.filter((repo) =>
+      (repo.pushedAt || repo.updatedAt).startsWith(currentYear)
+    ).length,
+    archivedOriginalRepos: ownedOriginalRepos.filter((repo) => repo.isArchived).length,
+    reposWithStars: ownedOriginalRepos.filter((repo) => repo.stars > 0).length,
+    starsReceived: ownedOriginalRepos.reduce((sum, repo) => sum + repo.stars, 0),
+    forksReceived: ownedOriginalRepos.reduce((sum, repo) => sum + repo.forks, 0),
+    codeByteTotal: profileCodeByteTotal,
+    topLanguages: profileTopLanguages,
+  };
 
   const linesAdded = visibleContributorStats.reduce(
     (sum, stats) => sum + stats.additions,
@@ -103,6 +126,7 @@ export function buildOutput(params: {
     codeByteTotal,
     topLanguages,
     topTopics: computedStats.topTopics,
+    profile: profileRepoMetrics,
     contributorStats: {
       totalCommits: commitCount,
       linesAdded,
@@ -305,7 +329,8 @@ function buildPresentation(params: {
   repoMetrics: RepoMetrics;
   complete: boolean;
 }): PresentationData {
-  const topLanguage = params.legacy.topLanguages[0];
+  const topLanguage = params.repoMetrics.profile.topLanguages[0];
+  const profileMetrics = params.repoMetrics.profile;
   const mostProductiveMonth = params.legacy.computedStats.mostProductiveMonth;
   const peakDay = params.legacy.contributionStats.peakDay;
 
@@ -316,10 +341,14 @@ function buildPresentation(params: {
       totalContributions: params.legacy.totalContributions,
       currentStreak: params.legacy.contributionStats.currentStreak,
       longestStreak: params.legacy.contributionStats.longestStreak,
-      topLanguages: params.legacy.topLanguages.slice(0, 5),
-      starsReceived: params.legacy.starCount,
-      forksReceived: params.legacy.forkCount,
-      activeRepos: params.legacy.repoStats.activeRepos,
+      topLanguages: profileMetrics.topLanguages.slice(0, 5),
+      starsReceived: profileMetrics.starsReceived,
+      forksReceived: profileMetrics.forksReceived,
+      totalRepos: profileMetrics.publicRepos,
+      originalRepos: profileMetrics.originalRepos,
+      activeRepos: profileMetrics.activeOriginalRepos,
+      languageCount: profileMetrics.topLanguages.length,
+      codeByteTotal: profileMetrics.codeByteTotal,
       refreshedAt: new Date(params.legacy.fetchedAt).toISOString(),
       complete: params.complete,
     },
@@ -337,18 +366,18 @@ function buildPresentation(params: {
       {
         id: "languages",
         label: "Languages",
-        value: params.legacy.computedStats.languageCount,
+        value: profileMetrics.topLanguages.length,
         detail: topLanguage ? `${topLanguage.languageName} leads` : undefined,
       },
       {
         id: "code-volume",
         label: "Code volume",
-        value: formatBytes(params.legacy.codeByteTotal),
+        value: formatBytes(profileMetrics.codeByteTotal),
       },
       {
         id: "stars",
         label: "Stars received",
-        value: formatNumber(params.legacy.starCount),
+        value: formatNumber(profileMetrics.starsReceived),
       },
     ],
     timeline: params.legacy.contributionStats.yearlyBreakdown.map((year) => ({
@@ -404,14 +433,14 @@ function buildPresentation(params: {
         {
           id: "repositories",
           title: "Repository footprint",
-          metric: params.legacy.repoStats.totalRepos,
-          supportingText: `${params.legacy.repoStats.activeRepos} active this year`,
+          metric: profileMetrics.publicRepos,
+          supportingText: `${profileMetrics.originalRepos} original repositories`,
         },
         {
           id: "languages",
           title: "Language mix",
           metric: topLanguage?.languageName || "N/A",
-          supportingText: `${params.legacy.computedStats.languageCount} languages detected`,
+          supportingText: `${profileMetrics.topLanguages.length} languages detected`,
         },
       ],
     },

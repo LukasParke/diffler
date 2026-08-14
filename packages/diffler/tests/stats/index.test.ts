@@ -644,6 +644,151 @@ describe("v2 collection helpers", () => {
     expect(output.presentation.readmeSummary.username).toBe("LukasParke");
   });
 
+  it("scopes profile presentation metrics to public repositories owned by the profile", () => {
+    const cache = createEmptyStableCache();
+    const ownedOriginal = createRepository({
+      id: "R_OWNED",
+      stars: 10,
+      forks: 2,
+      languages: [
+        {
+          languageName: "TypeScript",
+          color: "#3178c6",
+          value: 1000,
+          percentage: 100,
+        },
+      ],
+    });
+    const ownedFork = createRepository({
+      id: "R_FORK",
+      name: "fork",
+      nameWithOwner: "LukasParke/fork",
+      isFork: true,
+      stars: 50,
+      languages: [
+        {
+          languageName: "Java",
+          color: "#b07219",
+          value: 5000,
+          percentage: 100,
+        },
+      ],
+    });
+    const contributed = createRepository({
+      id: "R_CONTRIBUTED",
+      name: "large-project",
+      nameWithOwner: "example/large-project",
+      owner: "example",
+      viewerPermission: "READ",
+      sources: ["contributed"],
+      stars: 10000,
+      forks: 1000,
+      languages: [
+        {
+          languageName: "HTML",
+          color: "#e34c26",
+          value: 100000,
+          percentage: 100,
+        },
+      ],
+    });
+
+    const output = buildOutput({
+      profile: {
+        name: "Luke Parke",
+        login: "LukasParke",
+        bio: null,
+        company: null,
+        location: null,
+        email: null,
+        twitterUsername: null,
+        websiteUrl: null,
+        avatarUrl: "https://example.com/avatar.png",
+        createdAt: "2020-01-01T00:00:00Z",
+        followers: 1,
+        following: 2,
+      },
+      activity: {
+        totalPullRequests: 0,
+        openIssues: 0,
+        closedIssues: 0,
+        repositoriesContributedTo: 1,
+        discussionsStarted: 0,
+        discussionsAnswered: 0,
+        starsGiven: 0,
+      },
+      contributions: {
+        collection: emptyContributionsCollection(),
+        repositoryContributions: [],
+        repositories: [ownedOriginal, ownedFork, contributed],
+        yearsFetched: ["2026"],
+        yearsFromCache: [],
+        missingYears: [],
+      },
+      repositories: [ownedOriginal, ownedFork, contributed],
+      cache,
+      config: baseConfig,
+      collectionStatus: {
+        startedAt: 1,
+        finishedAt: 2,
+        durationMs: 1,
+        complete: true,
+        coreComplete: true,
+        cache: {
+          stablePath: "cache.json",
+          volatilePath: "volatile.json",
+          contributionYearsFromCache: 0,
+          contributionYearsFetched: 1,
+          repositoriesFromCache: 0,
+          repositoriesFetched: 3,
+        },
+        backfill: {
+          enabled: false,
+          completedThisRun: 0,
+          pending: 0,
+          failedThisRun: 0,
+          skippedThisRun: 0,
+        },
+        rateLimit: { graphql: null, rest: null },
+        warnings: [],
+        errors: [],
+      },
+      fetchedAt: 1000,
+    });
+
+    expect(output.repoMetrics.profile).toEqual({
+      publicRepos: 2,
+      originalRepos: 1,
+      forkedRepos: 1,
+      activeOriginalRepos: 1,
+      archivedOriginalRepos: 0,
+      reposWithStars: 1,
+      starsReceived: 10,
+      forksReceived: 2,
+      codeByteTotal: 1000,
+      topLanguages: [
+        {
+          languageName: "TypeScript",
+          color: "#3178c6",
+          value: 1000,
+          percentage: 100,
+        },
+      ],
+    });
+    expect(output.presentation.readmeSummary).toMatchObject({
+      totalRepos: 2,
+      originalRepos: 1,
+      activeRepos: 1,
+      languageCount: 1,
+      codeByteTotal: 1000,
+      starsReceived: 10,
+      forksReceived: 2,
+    });
+    expect(output.presentation.readmeSummary.topLanguages[0]?.languageName).toBe(
+      "TypeScript"
+    );
+  });
+
   it("redacts private repository details from public output while keeping aggregate counts", () => {
     const cache = createEmptyStableCache();
     const publicRepo = createRepository();

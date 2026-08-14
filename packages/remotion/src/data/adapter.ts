@@ -30,6 +30,11 @@ function normalizeV2Stats(raw: UnknownRecord): UserStats {
   const profileContributions = asRecord(raw.profileContributions);
   const activity = asRecord(raw.activity);
   const repoMetrics = asRecord(raw.repoMetrics);
+  const explicitProfileRepoMetrics = asRecord(repoMetrics.profile);
+  const profileRepoMetrics =
+    Object.keys(explicitProfileRepoMetrics).length > 0
+      ? explicitProfileRepoMetrics
+      : deriveProfileRepositoryMetrics(raw.repositories, asString(profile.login));
   const contributorStats = asRecord(asRecord(repoMetrics.contributorStats));
   const traffic = asRecord(asRecord(repoMetrics.traffic));
   const repoStats = asRecord(asRecord(repoMetrics.repoStats));
@@ -41,11 +46,18 @@ function normalizeV2Stats(raw: UnknownRecord): UserStats {
 
   const topLanguages = normalizeLanguages(
     firstArray(
+      profileRepoMetrics.topLanguages,
       readmeSummary.topLanguages,
       repoMetrics.topLanguages,
       legacy.topLanguages
     ),
-    asNumber(repoMetrics.codeByteTotal, asNumber(legacy.codeByteTotal, 0))
+    asNumber(
+      readmeSummary.codeByteTotal,
+      asNumber(
+        profileRepoMetrics.codeByteTotal,
+        asNumber(repoMetrics.codeByteTotal, asNumber(legacy.codeByteTotal, 0))
+      )
+    )
   );
   const totalContributions = asNumber(
     readmeSummary.totalContributions,
@@ -55,20 +67,32 @@ function normalizeV2Stats(raw: UnknownRecord): UserStats {
     )
   );
   const starCount = asNumber(
-    readmeSummary.starsReceived,
-    asNumber(repoMetrics.starCount, asNumber(legacy.starCount, 0))
+    profileRepoMetrics.starsReceived,
+    asNumber(
+      readmeSummary.starsReceived,
+      asNumber(repoMetrics.starCount, asNumber(legacy.starCount, 0))
+    )
   );
   const forkCount = asNumber(
-    readmeSummary.forksReceived,
-    asNumber(repoMetrics.forkCount, asNumber(legacy.forkCount, 0))
+    profileRepoMetrics.forksReceived,
+    asNumber(
+      readmeSummary.forksReceived,
+      asNumber(repoMetrics.forkCount, asNumber(legacy.forkCount, 0))
+    )
   );
   const activeRepos = asNumber(
-    readmeSummary.activeRepos,
-    asNumber(repoStats.activeRepos, asNumber(computedStats.activeRepos, 0))
+    profileRepoMetrics.activeOriginalRepos,
+    asNumber(
+      readmeSummary.activeRepos,
+      asNumber(repoStats.activeRepos, asNumber(computedStats.activeRepos, 0))
+    )
   );
   const totalRepos = asNumber(
-    repoStats.totalRepos,
-    asNumber(computedStats.totalRepos, activeRepos)
+    readmeSummary.totalRepos,
+    asNumber(
+      profileRepoMetrics.publicRepos,
+      asNumber(repoStats.totalRepos, asNumber(computedStats.totalRepos, activeRepos))
+    )
   );
   const fetchedAt = asNumber(legacy.fetchedAt, Date.parse(asString(raw.generatedAt)));
   const generatedAt =
@@ -137,8 +161,8 @@ function normalizeV2Stats(raw: UnknownRecord): UserStats {
       activeRepos,
       totalRepos,
       languageCount: asNumber(
-        computedStats.languageCount,
-        asNumber(readmeSummary.languageCount, topLanguages.length)
+        readmeSummary.languageCount,
+        asNumber(profileRepoMetrics.languageCount, topLanguages.length)
       ),
       refreshedAt: asString(readmeSummary.refreshedAt) || generatedAt,
     },
@@ -169,7 +193,13 @@ function normalizeV2Stats(raw: UnknownRecord): UserStats {
       timeline,
     },
     code: {
-      codeByteTotal: asNumber(repoMetrics.codeByteTotal, asNumber(legacy.codeByteTotal, 0)),
+      codeByteTotal: asNumber(
+        readmeSummary.codeByteTotal,
+        asNumber(
+          profileRepoMetrics.codeByteTotal,
+          asNumber(repoMetrics.codeByteTotal, asNumber(legacy.codeByteTotal, 0))
+        )
+      ),
       linesAdded,
       linesDeleted,
       linesChanged,
@@ -204,13 +234,30 @@ function normalizeV2Stats(raw: UnknownRecord): UserStats {
     },
     repositories: {
       totalRepos,
-      publicRepos: asNumber(repoStats.publicRepos, asNumber(computedStats.publicRepos, 0)),
-      privateRepos: asNumber(repoStats.privateRepos, asNumber(computedStats.privateRepos, 0)),
+      publicRepos: asNumber(profileRepoMetrics.publicRepos, totalRepos),
+      privateRepos: profileRepoMetrics.publicRepos === undefined
+        ? asNumber(repoStats.privateRepos, asNumber(computedStats.privateRepos, 0))
+        : 0,
       activeRepos,
-      archivedRepos: asNumber(repoStats.archivedRepos, asNumber(computedStats.archivedRepos, 0)),
-      forkedRepos: asNumber(repoStats.forkedRepos, asNumber(computedStats.forkedRepos, 0)),
-      originalRepos: asNumber(repoStats.originalRepos, asNumber(computedStats.originalRepos, 0)),
-      reposWithStars: asNumber(repoStats.reposWithStars, asNumber(computedStats.reposWithStars, 0)),
+      archivedRepos: asNumber(
+        profileRepoMetrics.archivedOriginalRepos,
+        asNumber(repoStats.archivedRepos, asNumber(computedStats.archivedRepos, 0))
+      ),
+      forkedRepos: asNumber(
+        profileRepoMetrics.forkedRepos,
+        asNumber(repoStats.forkedRepos, asNumber(computedStats.forkedRepos, 0))
+      ),
+      originalRepos: asNumber(
+        profileRepoMetrics.originalRepos,
+        asNumber(
+          readmeSummary.originalRepos,
+          asNumber(repoStats.originalRepos, asNumber(computedStats.originalRepos, 0))
+        )
+      ),
+      reposWithStars: asNumber(
+        profileRepoMetrics.reposWithStars,
+        asNumber(repoStats.reposWithStars, asNumber(computedStats.reposWithStars, 0))
+      ),
       repoViews: asNumber(traffic.repoViews, asNumber(legacy.repoViews, 0)),
       repoViewUniques: asNumber(traffic.repoViewUniques, 0),
       trafficReposCompleted: asNumber(traffic.reposCompleted, 0),
@@ -255,6 +302,52 @@ function normalizeV2Stats(raw: UnknownRecord): UserStats {
     starCount,
     totalContributions,
     codeByteTotal: asNumber(repoMetrics.codeByteTotal, asNumber(legacy.codeByteTotal, 0)),
+  };
+}
+
+function deriveProfileRepositoryMetrics(
+  repositoriesValue: unknown,
+  username: string
+): UnknownRecord {
+  const ownedPublicRepos = asArray(repositoriesValue)
+    .map(asRecord)
+    .filter((repo) => {
+      const sources = asStringArray(repo.sources);
+      const owned = sources.includes('owned') || asString(repo.owner) === username;
+      return owned && repo.isPrivate !== true;
+    });
+  if (ownedPublicRepos.length === 0) {
+    return {};
+  }
+
+  const originalRepos = ownedPublicRepos.filter((repo) => repo.isFork !== true);
+  const languageValues = originalRepos.flatMap((repo) =>
+    asArray(repo.languages).map((language) => {
+      const record = asRecord(language);
+      return {
+        languageName: asString(record.languageName) || asString(record.name),
+        color: asNullableString(record.color),
+        value: asNumber(record.value, asNumber(record.bytes, 0)),
+      };
+    })
+  );
+  const codeByteTotal = languageValues.reduce((sum, language) => sum + language.value, 0);
+  const currentYear = `${new Date().getFullYear()}`;
+
+  return {
+    publicRepos: ownedPublicRepos.length,
+    originalRepos: originalRepos.length,
+    forkedRepos: ownedPublicRepos.length - originalRepos.length,
+    activeOriginalRepos: originalRepos.filter((repo) =>
+      (asString(repo.pushedAt) || asString(repo.updatedAt)).startsWith(currentYear)
+    ).length,
+    archivedOriginalRepos: originalRepos.filter((repo) => repo.isArchived === true).length,
+    reposWithStars: originalRepos.filter((repo) => asNumber(repo.stars, 0) > 0).length,
+    starsReceived: originalRepos.reduce((sum, repo) => sum + asNumber(repo.stars, 0), 0),
+    forksReceived: originalRepos.reduce((sum, repo) => sum + asNumber(repo.forks, 0), 0),
+    codeByteTotal,
+    languageCount: new Set(languageValues.map((language) => language.languageName)).size,
+    topLanguages: normalizeLanguages(languageValues, codeByteTotal),
   };
 }
 
