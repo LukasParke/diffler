@@ -1,5 +1,5 @@
 {
-  "name": "@diffler/remotion",
+  "name": "@lukasparke/diffler-remotion",
   "version": "0.1.0",
   "description": "Remotion components and helpers for generating animated GitHub profile README cards",
   "sideEffects": [
@@ -39,6 +39,18 @@
     "dist",
     "README.md"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LukasParke/diffler.git",
+    "directory": "packages/remotion"
+  },
+  "homepage": "https://github.com/LukasParke/diffler#readme",
+  "bugs": {
+    "url": "https://github.com/LukasParke/diffler/issues"
+  },
   "bin": {
     "github-readme-cards": "./dist/render/cli.js"
   },
@@ -67,17 +79,20 @@
     "octokit": "^4.0.2",
     "tailwind-merge": "^2.5.2",
     "zod": "^3.24.3",
-    "@diffler/schemas": "workspace:*"
+    "@lukasparke/diffler-schemas": "workspace:*"
   },
   "devDependencies": {
     "@remotion/bundler": "^4.0.214",
     "@remotion/cli": "^4.0.214",
     "@remotion/eslint-config": "^4.0.214",
+    "@remotion/eslint-plugin": "^4.0.214",
     "@remotion/tailwind": "^4.0.214",
     "@remotion/zod-types": "^4.0.214",
     "@types/node": "^22.15.0",
     "@types/react": "^18.3.10",
     "@types/web": "^0.0.167",
+    "@typescript-eslint/eslint-plugin": "^8.46.2",
+    "@typescript-eslint/parser": "^8.46.2",
     "eslint": "^8.57.1",
     "prettier": "^3.3.3",
     "tsup": "^8.0.0",

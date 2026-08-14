@@ -7,7 +7,7 @@ import {
   buildStubContext,
   type CollectionExtras,
 } from "../engine/index.js";
-import type { GitHubStatsOutput } from "@diffler/schemas";
+import type { GitHubStatsOutput } from "@lukasparke/diffler-schemas";
 
 function mergeOutputs(
   outputs: GitHubStatsOutput[],

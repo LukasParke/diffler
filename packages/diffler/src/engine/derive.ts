@@ -1,4 +1,4 @@
-import type { GitHubStatsOutput } from "@diffler/schemas";
+import type { GitHubStatsOutput } from "@lukasparke/diffler-schemas";
 import type { DifflerConfig } from "../config.js";
 
 export interface DerivedContext {

@@ -7,7 +7,7 @@
     "render": "github-readme-cards render --entry-point ./src/index.tsx --cards readme,stats --formats webp,gif --out-dir pages --props input.json"
   },
   "dependencies": {
-    "@diffler/remotion": "workspace:*",
+    "@lukasparke/diffler-remotion": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "remotion": "^4.0.214",

@@ -25,4 +25,3 @@ build/
 
 # Package manager
 yarn-error.log
-pnpm-lock.yaml

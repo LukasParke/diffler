@@ -1,5 +1,5 @@
 {
-  "name": "@diffler/schemas",
+  "name": "@lukasparke/diffler-schemas",
   "version": "0.1.0",
   "description": "Shared TypeScript types and Zod schemas for diffler stats output",
   "type": "module",
@@ -26,6 +26,18 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LukasParke/diffler.git",
+    "directory": "packages/schemas"
+  },
+  "homepage": "https://github.com/LukasParke/diffler#readme",
+  "bugs": {
+    "url": "https://github.com/LukasParke/diffler/issues"
+  },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit"

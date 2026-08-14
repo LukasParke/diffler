@@ -1,4 +1,4 @@
-// Re-export shared schemas and types from @diffler/schemas
+// Re-export shared schemas and types from @lukasparke/diffler-schemas
 export {
   renderLanguageSchema,
   contributionDaySchema,
@@ -12,4 +12,4 @@ export {
   type SourceProps,
   type MainProps,
   type UserStats,
-} from "@diffler/schemas";
+} from "@lukasparke/diffler-schemas";

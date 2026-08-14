@@ -63,11 +63,6 @@ inputs:
     description: Also run stats collection before rendering
     required: false
     default: "false"
-  monorepo-build:
-    description: Build diffler from local monorepo workspace instead of npm registry
-    required: false
-    default: "false"
-
 outputs:
   changed:
     description: Whether the README was changed
@@ -84,20 +79,13 @@ runs:
     - name: Install pnpm
       uses: pnpm/action-setup@v4
       with:
-        version: 9
+        version: 10.34.5
 
-    - name: Install diffler
+    - name: Build Diffler action
       shell: bash
       run: |
-        if [ "${{ inputs.monorepo-build }}" = "true" ] || [ -f "pnpm-workspace.yaml" ]; then
-          echo "Monorepo detected — using local workspace diffler"
-          pnpm install --frozen-lockfile
-          pnpm --filter diffler build
-          echo "DIFFLER_BIN=pnpm --filter diffler diffler" >> "$GITHUB_ENV"
-        else
-          npm install -g diffler
-          echo "DIFFLER_BIN=diffler" >> "$GITHUB_ENV"
-        fi
+        pnpm --dir "$GITHUB_ACTION_PATH/../.." install --frozen-lockfile
+        pnpm --dir "$GITHUB_ACTION_PATH/../.." --filter @lukasparke/diffler... build
 
     - name: Collect stats (optional)
       id: collect
@@ -110,7 +98,7 @@ runs:
           export DIFFLER_GITHUB_USERNAME="${{ inputs.username }}"
         fi
 
-        $DIFFLER_BIN collect \
+        node "$GITHUB_ACTION_PATH/dist/cli.js" collect \
           --config "${{ inputs.config }}" \
           --output-path "${{ inputs.stats-output-path }}" \
           --cache-path "${{ inputs.stats-cache-path }}" \
@@ -128,11 +116,11 @@ runs:
           export DIFFLER_GITHUB_USERNAME="${{ inputs.username }}"
         fi
 
-        $DIFFLER_BIN render --config "${{ inputs.config }}" --output "${{ inputs.output }}"
+        node "$GITHUB_ACTION_PATH/dist/cli.js" render --config "${{ inputs.config }}" --output "${{ inputs.output }}"
 
         if [ -n "${{ inputs.remotion-output }}" ]; then
           echo "Generating remotion config..."
-          $DIFFLER_BIN export-remotion --config "${{ inputs.config }}" --output "${{ inputs.remotion-output }}"
+          node "$GITHUB_ACTION_PATH/dist/cli.js" export-remotion --config "${{ inputs.config }}" --output "${{ inputs.remotion-output }}"
         fi
 
         if [ "${{ inputs.dry-run }}" = "true" ]; then
