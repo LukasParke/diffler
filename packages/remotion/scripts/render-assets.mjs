@@ -42,11 +42,7 @@ if (unknownCards.length > 0) {
 }
 const cards = requestedCards;
 
-const formats = (
-	args.get('formats') ||
-	process.env.RENDER_FORMATS ||
-	'webp,gif'
-)
+const formats = (args.get('formats') || process.env.RENDER_FORMATS || 'webp')
 	.split(',')
 	.map((format) => format.trim())
 	.filter(Boolean);
@@ -74,13 +70,14 @@ console.log(
 	`Rendering ${cards.length} cards to ${outputDir} with card concurrency ${cardConcurrency}`,
 );
 
-await runPool(cards, Math.min(cardConcurrency, cards.length), renderCard);
-
-if (existsSync(tempDir)) {
-	await rm(tempDir, {recursive: true, force: true});
+try {
+	await runPool(cards, Math.min(cardConcurrency, cards.length), renderCard);
+	await writeFile(join(outputDir, 'index.html'), buildIndexHtml(), 'utf8');
+} finally {
+	if (existsSync(tempDir)) {
+		await rm(tempDir, {recursive: true, force: true});
+	}
 }
-
-await writeFile(join(outputDir, 'index.html'), buildIndexHtml(), 'utf8');
 
 async function renderCard(card) {
 	const masterPath = join(tempDir, `${card}.webm`);
@@ -97,11 +94,9 @@ async function renderCard(card) {
 			'--codec',
 			'vp9',
 			'--crf',
-			'8',
+			'10',
 			'--pixel-format',
 			'yuv444p',
-			'--scale',
-			'2',
 		];
 		if (remotionConcurrency) {
 			remotionArgs.push('--concurrency', remotionConcurrency);
@@ -115,7 +110,7 @@ async function renderCard(card) {
 			'-i',
 			masterPath,
 			'-vf',
-			'scale=trunc(iw*0.75/2)*2:trunc(ih*0.75/2)*2:flags=lanczos',
+			'fps=12',
 			'-loop',
 			'0',
 			'-c:v',
@@ -127,8 +122,6 @@ async function renderCard(card) {
 			'-preset',
 			'picture',
 			'-an',
-			'-fps_mode',
-			'passthrough',
 			join(outputDir, `${card}.webp`),
 		]);
 	}
@@ -139,7 +132,7 @@ async function renderCard(card) {
 			'-i',
 			masterPath,
 			'-filter_complex',
-			'[0:v]fps=24,scale=iw/2:ih/2:flags=lanczos,split[frames][palette_source];[palette_source]palettegen=max_colors=256:stats_mode=diff[palette];[frames][palette]paletteuse=dither=sierra2_4a:diff_mode=rectangle',
+			'[0:v]fps=8,split[frames][palette_source];[palette_source]palettegen=max_colors=256:stats_mode=diff[palette];[frames][palette]paletteuse=dither=sierra2_4a:diff_mode=rectangle',
 			'-loop',
 			'0',
 			join(outputDir, `${card}.gif`),

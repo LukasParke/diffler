@@ -71,7 +71,7 @@ export function buildOutput(params: {
     codeByteTotal: profileCodeByteTotal,
   } = aggregateRepositoryLanguages(ownedOriginalRepos);
   const currentYear = `${new Date().getFullYear()}`;
-  const profileRepoMetrics: RepoMetrics["profile"] = {
+  const profileRepoMetrics: NonNullable<RepoMetrics["profile"]> = {
     publicRepos: ownedPublicRepos.length,
     originalRepos: ownedOriginalRepos.length,
     forkedRepos: ownedPublicRepos.length - ownedOriginalRepos.length,
@@ -329,8 +329,11 @@ function buildPresentation(params: {
   repoMetrics: RepoMetrics;
   complete: boolean;
 }): PresentationData {
-  const topLanguage = params.repoMetrics.profile.topLanguages[0];
   const profileMetrics = params.repoMetrics.profile;
+  if (!profileMetrics) {
+    throw new Error("Profile repository metrics are required for presentation output");
+  }
+  const topLanguage = profileMetrics.topLanguages[0];
   const mostProductiveMonth = params.legacy.computedStats.mostProductiveMonth;
   const peakDay = params.legacy.contributionStats.peakDay;
 

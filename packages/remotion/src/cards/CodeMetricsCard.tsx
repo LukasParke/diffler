@@ -72,7 +72,7 @@ export function CodeMetricsCard({userStats}: {userStats: UserStats}) {
 							color={defaultTheme.colors.cyan}
 							height={10}
 						/>
-						<p className="mt-2 text-[11px] text-[#8b949e]">
+						<p className="mt-2 text-xs text-[#8b949e]">
 							{pending} pending, {failed} failed
 						</p>
 					</div>

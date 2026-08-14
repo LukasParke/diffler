@@ -21,15 +21,31 @@ export function MainStatsCard({userStats}: {userStats: UserStats}) {
 			/>
 			<StatCard
 				title="Stars"
-				value={userStats.summary.starsReceived}
-				detail="received"
+				value={
+					userStats.summary.profileMetricsComplete
+						? userStats.summary.starsReceived
+						: 'Unavailable'
+				}
+				detail={
+					userStats.summary.profileMetricsComplete
+						? 'received'
+						: 'Collection incomplete'
+				}
 				accent={defaultTheme.colors.yellow}
 				delay={0.12}
 			/>
 			<StatCard
 				title="Repos"
-				value={userStats.summary.totalRepos}
-				detail={`${userStats.summary.activeRepos} active`}
+				value={
+					userStats.summary.profileMetricsComplete
+						? userStats.summary.totalRepos
+						: 'Unavailable'
+				}
+				detail={
+					userStats.summary.profileMetricsComplete
+						? `${userStats.summary.activeRepos} active`
+						: 'Collection incomplete'
+				}
 				accent={defaultTheme.colors.blue}
 				delay={0.24}
 			/>
@@ -42,15 +58,27 @@ export function MainStatsCard({userStats}: {userStats: UserStats}) {
 			/>
 			<StatCard
 				title="Languages"
-				value={userStats.summary.languageCount}
-				detail={userStats.topLanguages[0]?.languageName}
+				value={
+					userStats.summary.profileMetricsComplete
+						? userStats.summary.languageCount
+						: 'Unavailable'
+				}
+				detail={
+					userStats.summary.profileMetricsComplete
+						? userStats.topLanguages[0]?.languageName
+						: 'Collection incomplete'
+				}
 				accent={defaultTheme.colors.red}
 				delay={0.48}
 			/>
 			<StatCard
 				title="Repo Views"
-				value={userStats.repositories.repoViews}
-				detail="14 day traffic"
+				value={userStats.repositories.repoViews ?? 'Unavailable'}
+				detail={
+					userStats.repositories.repoViews === null
+						? 'Collection pending'
+						: '14 day traffic'
+				}
 				accent={defaultTheme.colors.cyan}
 				delay={0.6}
 			/>

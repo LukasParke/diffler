@@ -19,7 +19,12 @@ export function ActivityOverviewCard({userStats}: {userStats: UserStats}) {
 		>
 			<div className="grid h-[278px] grid-cols-[1fr_170px] gap-3">
 				<div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.035] p-3">
-					{timeline.map((item, index) => (
+					{timeline.length === 0 ? (
+						<div className="flex h-full items-center justify-center text-center text-sm text-[#9ba7b4]">
+							No contribution timeline available
+						</div>
+					) : (
+						timeline.map((item, index) => (
 						<div
 							key={item.period}
 							className="grid grid-cols-[48px_1fr_56px] items-center gap-2"
@@ -36,7 +41,8 @@ export function ActivityOverviewCard({userStats}: {userStats: UserStats}) {
 								{formatCompactNumber(item.contributions)}
 							</p>
 						</div>
-					))}
+						))
+					)}
 				</div>
 				<div className="grid gap-2">
 					<MetricTile

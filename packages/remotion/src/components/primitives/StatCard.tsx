@@ -6,7 +6,7 @@ import {useTheme} from '../../themes';
 
 type StatCardProps = {
   title: string;
-  value: number;
+  value: number | string;
   detail?: string;
   accent?: string;
   delay?: number;
@@ -45,7 +45,7 @@ export const StatCard = ({
       <div
         className="absolute bottom-0 left-0 h-px"
         style={{
-          width: `${Math.min(100, Math.max(18, value ? 78 : 18))}%`,
+          width: `${typeof value === 'number' && value > 0 ? 78 : 18}%`,
           backgroundColor: accent,
           opacity: 0.45,
         }}
@@ -56,16 +56,18 @@ export const StatCard = ({
       <p
         className={`leading-none tabular-nums ${compact ? 'text-2xl' : 'text-3xl'} font-bold`}
       >
-        {compact ? (
+        {typeof value === 'string' ? (
+          value
+        ) : compact ? (
           formatCompactNumber(value)
         ) : (
           <AnimatedCounter value={value} duration={2} delay={delay} />
         )}
       </p>
       {detail ? (
-        <p className="truncate text-[11px] text-[#8b949e]">{detail}</p>
+        <p className="truncate text-xs text-[#8b949e]">{detail}</p>
       ) : (
-        <p className="text-[11px]" style={{color: theme.colors.faint}}>
+        <p className="text-xs" style={{color: theme.colors.faint}}>
           &nbsp;
         </p>
       )}

@@ -9,7 +9,7 @@ import {
   MainProps,
   mainSchema,
   defaultStats,
-} from 'github-readme-cards';
+} from '@lukasparke/diffler-remotion';
 import {
   ReadmeCard,
   ReadmeClassicCard,
@@ -23,7 +23,7 @@ import {
   ActivityOverviewCard,
   CommitStreakCard,
   TopLanguagesCard,
-} from 'github-readme-cards/cards';
+} from '@lukasparke/diffler-remotion/cards';
 
 export const RemotionRoot = () => {
   const calculateMetadata: CalculateMetadataFunction<MainProps> = async (

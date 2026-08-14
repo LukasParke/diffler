@@ -5,6 +5,20 @@ import {GitFork, ShieldCheck, Sparkles, Telescope} from 'lucide-react';
 
 export function RepositoryImpactCard({userStats}: {userStats: UserStats}) {
 	const repos = userStats.repositories;
+	if (!userStats.summary.profileMetricsComplete) {
+		return (
+			<Panel
+				title="Repository Impact"
+				subtitle="Profile repository collection incomplete"
+				accent={defaultTheme.colors.green}
+			>
+				<div className="flex h-[188px] items-center justify-center rounded-lg border border-dashed border-white/10 bg-white/[0.025] text-sm text-[#9ba7b4]">
+					Repository impact metrics are not available yet
+				</div>
+			</Panel>
+		);
+	}
+
 	const publicRepos =
 		repos.publicRepos || repos.totalRepos - repos.privateRepos;
 	const originalRepos =
@@ -88,8 +102,12 @@ export function RepositoryImpactCard({userStats}: {userStats: UserStats}) {
 					<MetricTile
 						icon={<Telescope size={14} />}
 						label="Views"
-						value={repos.repoViews}
-						detail={`${repos.repoViewUniques} unique`}
+						value={repos.repoViews ?? 'Unavailable'}
+						detail={
+							repos.repoViewUniques === null
+								? 'Collection pending'
+								: `${repos.repoViewUniques} unique`
+						}
 						delay={0.16}
 						accent={defaultTheme.colors.cyan}
 					/>

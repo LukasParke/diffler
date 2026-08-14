@@ -220,7 +220,7 @@ export type RepoMetrics = {
   codeByteTotal: number;
   topLanguages: Language[];
   topTopics: TopicCount[];
-  profile: {
+  profile?: {
     publicRepos: number;
     originalRepos: number;
     forkedRepos: number;
@@ -262,11 +262,11 @@ export type PresentationData = {
     topLanguages: Language[];
     starsReceived: number;
     forksReceived: number;
-    totalRepos: number;
-    originalRepos: number;
+    totalRepos?: number;
+    originalRepos?: number;
     activeRepos: number;
-    languageCount: number;
-    codeByteTotal: number;
+    languageCount?: number;
+    codeByteTotal?: number;
     refreshedAt: string;
     complete: boolean;
   };

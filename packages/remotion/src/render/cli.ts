@@ -24,7 +24,7 @@ for (let i = 2; i < process.argv.length; i++) {
   }
 }
 
-const rawFormats = (args.get('formats') || 'webp,gif')
+const rawFormats = (args.get('formats') || 'webp')
   .split(',')
   .map((f) => f.trim())
   .filter(Boolean);
@@ -47,14 +47,18 @@ if (compositionIds.length === 0) {
   process.exit(1);
 }
 
+const entryPoint = args.get('entry-point');
+if (!entryPoint) {
+  console.error('Error: --entry-point is required');
+  process.exit(1);
+}
+
 const propsPath = args.get('props');
-const props = propsPath
-  ? JSON.parse(readFileSync(propsPath, 'utf8'))
-  : {};
+const props = propsPath ? JSON.parse(readFileSync(propsPath, 'utf8')) : {};
 
 renderCards({
   compositionIds,
-  entryPoint: args.get('entry-point') || './src/index.tsx',
+  entryPoint,
   formats,
   outputDir: args.get('out-dir') || 'pages',
   props,

@@ -3,7 +3,7 @@ import {normalizeGithubStats} from './adapter';
 
 describe('normalizeGithubStats', () => {
 	it('prefers profile-scoped repository metrics over repository-universe metrics', () => {
-		const currentTimestamp = `${new Date().getFullYear()}-01-01T00:00:00.000Z`;
+		const currentTimestamp = '2026-01-01T00:00:00.000Z';
 		const raw = {
 				schemaVersion: 2,
 				generatedAt: '2026-08-14T00:00:00.000Z',
@@ -40,7 +40,7 @@ describe('normalizeGithubStats', () => {
 				repoMetrics: {
 					repoStats: {
 						totalRepos: 303,
-						publicRepos: 261,
+					publicRepos: 2,
 						privateRepos: 42,
 						activeRepos: 152,
 						archivedRepos: 5,
@@ -55,7 +55,7 @@ describe('normalizeGithubStats', () => {
 					traffic: {},
 				},
 				privacy: {},
-				collectionStatus: {},
+			collectionStatus: {coreComplete: true},
 				activity: {},
 				repositories: [
 					{
@@ -111,10 +111,9 @@ describe('normalizeGithubStats', () => {
 					},
 				],
 			};
-		const stats = normalizeGithubStats(
-			raw,
-			{allowPrivateRepositoryDetails: false},
-		);
+		const stats = normalizeGithubStats(raw, {
+			allowPrivateRepositoryDetails: false,
+		});
 
 		expect(stats.summary).toMatchObject({
 			totalRepos: 2,
@@ -122,7 +121,9 @@ describe('normalizeGithubStats', () => {
 			languageCount: 1,
 			starsReceived: 10,
 			forksReceived: 2,
+			profileMetricsComplete: true,
 		});
+		expect(stats.repositories.repoViews).toBeNull();
 		expect(stats.repositories).toMatchObject({
 			totalRepos: 2,
 			publicRepos: 2,
@@ -144,6 +145,7 @@ describe('normalizeGithubStats', () => {
 			languageCount: 0,
 			starsReceived: 0,
 			forksReceived: 0,
+			profileMetricsComplete: false,
 		});
 		expect(contributedOnly.topLanguages).toEqual([]);
 
@@ -182,7 +184,62 @@ describe('normalizeGithubStats', () => {
 			languageCount: 1,
 			starsReceived: 99,
 			forksReceived: 12,
+			profileMetricsComplete: true,
 		});
 		expect(explicitProfile.topLanguages[0]?.languageName).toBe('Go');
+	});
+
+	it('does not derive profile metrics from an incomplete repository collection', () => {
+		const raw = {
+			schemaVersion: 2,
+			generatedAt: '2024-08-14T00:00:00.000Z',
+			profile: {login: 'octocat'},
+			legacy: {contributionStats: {}},
+			profileContributions: {contributionCalendar: {weeks: []}},
+			presentation: {
+				readmeSummary: {
+					totalRepos: 99,
+					activeRepos: 99,
+					starsReceived: 999,
+					topLanguages: [{languageName: 'Wrong', value: 999}],
+				},
+				timeline: [],
+				cards: [],
+				highlights: [],
+			},
+			repoMetrics: {
+				repoStats: {publicRepos: 2},
+				contributorStats: {},
+				traffic: {reposCompleted: 0, repoViews: 0},
+			},
+			collectionStatus: {coreComplete: false},
+			privacy: {},
+			activity: {},
+			repositories: [
+				{
+					owner: 'octocat',
+					sources: ['owned'],
+					isPrivate: false,
+					isFork: false,
+					pushedAt: '2024-01-01T00:00:00.000Z',
+					stars: 10,
+					languages: [{languageName: 'TypeScript', value: 100}],
+				},
+			],
+		};
+
+		const stats = normalizeGithubStats(raw, {
+			allowPrivateRepositoryDetails: false,
+		});
+
+		expect(stats.summary).toMatchObject({
+			totalRepos: 0,
+			activeRepos: 0,
+			starsReceived: 0,
+			profileMetricsComplete: false,
+		});
+		expect(stats.topLanguages).toEqual([]);
+		expect(stats.repositories.repoViews).toBeNull();
+		expect(stats.repoViews).toBeNull();
 	});
 });

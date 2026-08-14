@@ -1,7 +1,7 @@
 import {writeFile} from 'node:fs/promises';
 
 const DEFAULT_STATS_URL =
-	'https://raw.githubusercontent.com/stats-user/stats/main/github-user-stats.json';
+	'https://raw.githubusercontent.com/LukasParke/stats/main/github-user-stats.json';
 
 const statsUrl = process.env.STATS_JSON_URL || DEFAULT_STATS_URL;
 const outputPath = process.env.RENDER_INPUT_PATH || 'input.generated.json';
@@ -26,7 +26,7 @@ await writeFile(
 	outputPath,
 	`${JSON.stringify(
 		{
-			username: 'stats-user',
+			username: stats?.profile?.login || stats?.username || 'stats-user',
 			statsUrl,
 			allowPrivateRepositoryDetails,
 			stats,

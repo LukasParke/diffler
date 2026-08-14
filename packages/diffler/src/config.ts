@@ -89,11 +89,11 @@ export type StatsActionConfig = z.infer<typeof StatsActionConfigSchema>;
 
 export const DifflerConfigSchema = z.object({
   version: z.string().default("1"),
-  github: GitHubConfigSchema.default({}),
-  templates: TemplateConfigSchema.default({}),
-  cache: CacheConfigSchema.default({}),
-  statsAction: StatsActionConfigSchema.default({}),
-  helpers: z.record(z.unknown()).default({}),
+  github: GitHubConfigSchema.prefault({}),
+  templates: TemplateConfigSchema.prefault({}),
+  cache: CacheConfigSchema.prefault({}),
+  statsAction: StatsActionConfigSchema.prefault({}),
+  helpers: z.record(z.string(), z.unknown()).default({}),
   plugins: z.array(z.string()).default([]),
 });
 

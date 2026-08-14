@@ -22,10 +22,11 @@ export async function renderCards(config: RenderConfig): Promise<void> {
 
   const propsFile = join(
     tmpdir(),
-    `remotion-props-${randomBytes(8).toString('hex')}.json`
+    `remotion-props-${randomBytes(8).toString('hex')}.json`,
   );
   await writeFile(propsFile, JSON.stringify(props), 'utf8');
 
+  try {
   await rm(outputDir, {recursive: true, force: true});
   await mkdir(outputDir, {recursive: true});
   if (needsAnimation) {
@@ -33,7 +34,7 @@ export async function renderCards(config: RenderConfig): Promise<void> {
   }
 
   console.log(
-    `Rendering ${compositionIds.length} cards to ${outputDir} with concurrency ${concurrency}`
+      `Rendering ${compositionIds.length} cards to ${outputDir} with concurrency ${concurrency}`,
   );
 
   await runPool(
@@ -54,25 +55,23 @@ export async function renderCards(config: RenderConfig): Promise<void> {
           '--codec',
           'vp9',
           '--crf',
-          '8',
+            '10',
           '--pixel-format',
           'yuv444p',
-          '--scale',
-          '2',
         ];
         if (remotionConcurrency) {
           remotionArgs.push('--concurrency', String(remotionConcurrency));
         }
-        await run('npx', remotionArgs);
+          await run('npx', ['--no-install', ...remotionArgs]);
       }
 
       if (formats.includes('webp')) {
-        await run('ffmpeg', [
+          await run('ffmpeg', [
           '-y',
           '-i',
           masterPath,
           '-vf',
-          'scale=trunc(iw*0.75/2)*2:trunc(ih*0.75/2)*2:flags=lanczos',
+            'fps=12',
           '-loop',
           '0',
           '-c:v',
@@ -84,19 +83,17 @@ export async function renderCards(config: RenderConfig): Promise<void> {
           '-preset',
           'picture',
           '-an',
-          '-fps_mode',
-          'passthrough',
           join(outputDir, `${id}.webp`),
         ]);
       }
 
       if (formats.includes('gif')) {
-        await run('ffmpeg', [
+          await run('ffmpeg', [
           '-y',
           '-i',
           masterPath,
           '-filter_complex',
-          '[0:v]fps=24,scale=iw/2:ih/2:flags=lanczos,split[frames][palette_source];[palette_source]palettegen=max_colors=256:stats_mode=diff[palette];[frames][palette]paletteuse=dither=sierra2_4a:diff_mode=rectangle',
+            '[0:v]fps=8,split[frames][palette_source];[palette_source]palettegen=max_colors=256:stats_mode=diff[palette];[frames][palette]paletteuse=dither=sierra2_4a:diff_mode=rectangle',
           '-loop',
           '0',
           join(outputDir, `${id}.gif`),
@@ -104,22 +101,26 @@ export async function renderCards(config: RenderConfig): Promise<void> {
       }
 
       await rm(masterPath, {force: true});
-    }
+      },
   );
 
+    await writeFile(
+      join(outputDir, 'index.html'),
+      buildIndexHtml(compositionIds, formats),
+      'utf8',
+    );
+  } finally {
   if (existsSync(tempDir)) {
     await rm(tempDir, {recursive: true, force: true});
   }
-
   await rm(propsFile, {force: true}).catch(() => {});
-
-  await writeFile(join(outputDir, 'index.html'), buildIndexHtml(compositionIds, formats), 'utf8');
+  }
 }
 
 async function runPool<T>(
   items: T[],
   concurrency: number,
-  worker: (item: T) => Promise<void>
+  worker: (item: T) => Promise<void>,
 ): Promise<void> {
   let index = 0;
   const workers = Array.from({length: concurrency}, async () => {
@@ -146,10 +147,7 @@ function run(command: string, commandArgs: string[]): Promise<void> {
   });
 }
 
-function buildIndexHtml(
-  compositionIds: string[],
-  formats: string[]
-): string {
+function buildIndexHtml(compositionIds: string[], formats: string[]): string {
   const images = compositionIds
     .map((id) => {
       const webp = formats.includes('webp')

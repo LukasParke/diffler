@@ -40,11 +40,13 @@ export function MetricRow({
         <div className="min-w-0">
           <p className="truncate text-xs text-[#b7c0cc]">{label}</p>
           {detail ? (
-            <p className="truncate text-[10px] text-[#7d8590]">{detail}</p>
+            <p className="truncate text-xs text-[#7d8590]">{detail}</p>
           ) : null}
         </div>
       </div>
-      <p className="shrink-0 text-sm font-semibold tabular-nums">{displayValue}</p>
+      <p className="shrink-0 text-sm font-semibold tabular-nums">
+        {displayValue}
+      </p>
     </div>
   );
 }

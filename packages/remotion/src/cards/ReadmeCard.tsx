@@ -26,7 +26,7 @@ type ReadmeVariantProps = {
 type ReadmeMetric = {
 	icon: JSX.Element;
 	label: string;
-	value: number;
+	value: number | string;
 	detail?: string;
 	accent: string;
 };
@@ -98,15 +98,31 @@ export function ReadmeCard({userStats}: ReadmeVariantProps) {
 						/>
 						<HeroMetric
 							label="Stars"
-							value={userStats.summary.starsReceived}
-							detail={`${formatCompactNumber(userStats.summary.forksReceived)} forks`}
+							value={
+								userStats.summary.profileMetricsComplete
+									? userStats.summary.starsReceived
+									: 'Unavailable'
+							}
+							detail={
+								userStats.summary.profileMetricsComplete
+									? `${formatCompactNumber(userStats.summary.forksReceived)} forks`
+									: 'Collection incomplete'
+							}
 							accent={defaultTheme.colors.yellow}
 							delay={0.12}
 						/>
 						<HeroMetric
 							label="Repos"
-							value={userStats.summary.totalRepos}
-							detail={`${formatCompactNumber(userStats.summary.activeRepos)} active`}
+							value={
+								userStats.summary.profileMetricsComplete
+									? userStats.summary.totalRepos
+									: 'Unavailable'
+							}
+							detail={
+								userStats.summary.profileMetricsComplete
+									? `${formatCompactNumber(userStats.summary.activeRepos)} active`
+									: 'Collection incomplete'
+							}
 							accent={defaultTheme.colors.blue}
 							delay={0.24}
 						/>
@@ -133,17 +149,27 @@ export function ReadmeCard({userStats}: ReadmeVariantProps) {
 						<ReadmeMetricCard
 							icon={<Telescope size={18} />}
 							label="Repo views"
-							value={userStats.repositories.repoViews}
-							detail="14 day traffic"
+							value={userStats.repositories.repoViews ?? 'Unavailable'}
+							detail={
+								userStats.repositories.repoViews === null
+									? 'Collection pending'
+									: '14 day traffic'
+							}
 							accent={defaultTheme.colors.cyan}
 							delay={0.16}
 						/>
 						<ReadmeMetricCard
 							icon={<Code2 size={18} />}
 							label={topLanguage?.languageName || 'Languages'}
-							value={userStats.summary.languageCount}
+							value={
+								userStats.summary.profileMetricsComplete
+									? userStats.summary.languageCount
+									: 'Unavailable'
+							}
 							detail={
-								topLanguage?.percentage
+								!userStats.summary.profileMetricsComplete
+									? 'Collection incomplete'
+									: topLanguage?.percentage
 									? `${topLanguage.percentage.toFixed(1)}% top language`
 									: 'languages detected'
 							}
@@ -250,11 +276,15 @@ export function ReadmeClassicCard({userStats}: ReadmeVariantProps) {
 								<p className="truncate text-sm">{metric.label}</p>
 							</div>
 							<p className="shrink-0 text-sm font-bold tabular-nums">
+								{typeof metric.value === 'number' ? (
 								<AnimatedCounter
 									value={metric.value}
 									duration={2.2}
 									delay={index * 0.05}
 								/>
+								) : (
+									metric.value
+								)}
 							</p>
 						</div>
 					))}
@@ -282,10 +312,17 @@ export function ReadmeSpotlightCard({userStats}: ReadmeVariantProps) {
 			/>
 			<div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,10,16,0.42),rgba(7,10,16,0.96)_72%)]" />
 			<div className="relative z-10 grid h-full grid-cols-[310px_1fr] gap-5 p-6">
-				<div className="flex flex-col justify-between rounded-xl border border-white/10 bg-black/30 p-5">
+				<div className="flex min-w-0 flex-col justify-between rounded-xl border border-white/10 bg-black/30 p-5">
 					<div>
 						<ProfileImage userStats={userStats} />
-						<h1 className="mt-3 text-4xl font-black leading-none">
+						<h1
+							className="mt-3 min-w-0 overflow-hidden break-words text-4xl font-black leading-none"
+							style={{
+								display: '-webkit-box',
+								WebkitLineClamp: 2,
+								WebkitBoxOrient: 'vertical',
+							}}
+						>
 							{userStats.name || userStats.username}
 						</h1>
 						<p className="mt-2 text-sm text-[#9ba7b4]">@{userStats.username}</p>
@@ -309,11 +346,29 @@ export function ReadmeSpotlightCard({userStats}: ReadmeVariantProps) {
 					</div>
 					<div className="grid grid-cols-2 gap-2">
 						<MiniStat label="Followers" value={userStats.community.followers} />
-						<MiniStat label="Stars" value={userStats.summary.starsReceived} />
-						<MiniStat label="Repos" value={userStats.summary.totalRepos} />
+						<MiniStat
+							label="Stars"
+							value={
+								userStats.summary.profileMetricsComplete
+									? userStats.summary.starsReceived
+									: '—'
+							}
+						/>
+						<MiniStat
+							label="Repos"
+							value={
+								userStats.summary.profileMetricsComplete
+									? userStats.summary.totalRepos
+									: '—'
+							}
+						/>
 						<MiniStat
 							label="Languages"
-							value={userStats.summary.languageCount}
+							value={
+								userStats.summary.profileMetricsComplete
+									? userStats.summary.languageCount
+									: '—'
+							}
 						/>
 					</div>
 				</div>
@@ -356,10 +411,17 @@ export function ReadmeSpotlightCard({userStats}: ReadmeVariantProps) {
 								Language leaders
 							</p>
 							<div className="space-y-2">
-								{topLanguages.map((language, index) => (
+								{topLanguages.length === 0 ? (
+									<p className="pt-8 text-center text-sm text-[#9ba7b4]">
+										No public language data available
+									</p>
+								) : (
+									topLanguages.map((language, index) => (
 									<div key={language.languageName}>
 										<div className="mb-1 flex justify-between gap-2 text-xs">
-											<span className="truncate">{language.languageName}</span>
+												<span className="truncate">
+													{language.languageName}
+												</span>
 											<span className="shrink-0 text-[#8b949e]">
 												{(language.percentage || 0).toFixed(1)}%
 											</span>
@@ -372,18 +434,24 @@ export function ReadmeSpotlightCard({userStats}: ReadmeVariantProps) {
 											height={7}
 										/>
 									</div>
-								))}
+									))
+								)}
 							</div>
 						</div>
 					</div>
 
 					<div className="grid grid-cols-6 gap-2 rounded-xl border border-white/10 bg-black/25 p-3">
-						{timeline.map((item) => (
+						{timeline.length === 0 ? (
+							<p className="col-span-6 self-center text-center text-sm text-[#9ba7b4]">
+								No contribution timeline available
+							</p>
+						) : (
+							timeline.map((item) => (
 							<div
 								key={item.period}
 								className="flex min-w-0 flex-col justify-between"
 							>
-								<p className="truncate text-[10px] text-[#8b949e]">
+									<p className="truncate text-xs text-[#8b949e]">
 									{item.period}
 								</p>
 								<div className="mt-2 flex h-12 items-end">
@@ -399,7 +467,8 @@ export function ReadmeSpotlightCard({userStats}: ReadmeVariantProps) {
 									{formatCompactNumber(item.contributions)}
 								</p>
 							</div>
-						))}
+							))
+						)}
 					</div>
 				</div>
 			</div>
@@ -461,19 +530,21 @@ function HeroMetric({
 	delay = 0,
 }: {
 	label: string;
-	value: number;
+	value: number | string;
 	detail: string;
 	accent: string;
 	delay?: number;
 }) {
 	return (
 		<div>
-			<p className="text-[11px] font-semibold uppercase tracking-normal text-[#9ba7b4]">
+			<p className="text-xs font-semibold uppercase tracking-normal text-[#9ba7b4]">
 				{label}
 			</p>
 			<p className="mt-1 text-3xl font-black leading-none tabular-nums">
 				<span style={{color: accent}}>
-					{value >= 1000 ? (
+					{typeof value === 'string' ? (
+						value
+					) : value >= 1000 ? (
 						formatCompactNumber(value)
 					) : (
 						<AnimatedCounter value={value} duration={1.8} delay={delay} />
@@ -506,21 +577,25 @@ function ReadmeMetricCard({
 				</p>
 			</div>
 			<p className="mt-3 text-3xl font-black leading-none tabular-nums">
+				{typeof value === 'number' ? (
 				<AnimatedCounter value={value} duration={1.8} delay={delay} />
+				) : (
+					value
+				)}
 			</p>
 			<p className="mt-2 truncate text-xs text-[#8b949e]">{detail}</p>
 		</div>
 	);
 }
 
-function MiniStat({label, value}: {label: string; value: number}) {
+function MiniStat({label, value}: {label: string; value: number | string}) {
 	return (
 		<div className="rounded-lg border border-white/10 bg-white/[0.05] p-3">
-			<p className="text-[10px] font-semibold uppercase tracking-normal text-[#9ba7b4]">
+			<p className="text-xs font-semibold uppercase tracking-normal text-[#9ba7b4]">
 				{label}
 			</p>
 			<p className="mt-1 text-xl font-bold tabular-nums">
-				{formatCompactNumber(value)}
+				{typeof value === 'number' ? formatCompactNumber(value) : value}
 			</p>
 		</div>
 	);
@@ -570,13 +645,17 @@ function getClassicMetrics(userStats: UserStats): ReadmeMetric[] {
 		{
 			icon: <Sparkles size={18} />,
 			label: 'Stars',
-			value: userStats.summary.starsReceived,
+			value: userStats.summary.profileMetricsComplete
+				? userStats.summary.starsReceived
+				: 'Unavailable',
 			accent: defaultTheme.colors.yellow,
 		},
 		{
 			icon: <GitFork size={18} />,
 			label: 'Forks',
-			value: userStats.summary.forksReceived,
+			value: userStats.summary.profileMetricsComplete
+				? userStats.summary.forksReceived
+				: 'Unavailable',
 			accent: defaultTheme.colors.green,
 		},
 		{
@@ -606,7 +685,7 @@ function getClassicMetrics(userStats: UserStats): ReadmeMetric[] {
 		{
 			icon: <Telescope size={18} />,
 			label: 'Repo Views (2 wks)',
-			value: userStats.repositories.repoViews,
+			value: userStats.repositories.repoViews ?? 'Unavailable',
 			accent: defaultTheme.colors.cyan,
 		},
 		{
