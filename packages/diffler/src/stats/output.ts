@@ -3,6 +3,7 @@ import type {
   CollectionStatus,
   GitHubStatsOutput,
   LegacyStats,
+  PackageMetrics,
   PresentationData,
   PrivacyReport,
   ProfileContributions,
@@ -33,6 +34,7 @@ export function buildOutput(params: {
   config: StatsActionConfig;
   collectionStatus: CollectionStatus;
   fetchedAt: number;
+  packageMetrics?: PackageMetrics;
 }): GitHubStatsOutput {
   const includePrivateDetails = params.config.includePrivateRepositoryDetails;
   const includePrivateMetrics =
@@ -278,10 +280,28 @@ export function buildOutput(params: {
     activity: params.activity,
     repositories: visibleRepositories,
     repoMetrics,
+    packageMetrics: params.packageMetrics ?? emptyPackageMetrics(),
     presentation,
     privacy,
     collectionStatus,
     legacy,
+  };
+}
+
+function emptyPackageMetrics(): PackageMetrics {
+  return {
+    packageCount: 0,
+    providers: [],
+    downloads: {
+      lastDay: 0,
+      lastWeek: 0,
+      lastMonth: 0,
+      lastYear: 0,
+      allTime: 0,
+    },
+    packages: [],
+    complete: true,
+    warnings: [],
   };
 }
 

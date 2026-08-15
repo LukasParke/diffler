@@ -6,6 +6,7 @@ import {CommitStreakCard} from './CommitStreakCard';
 import {IssueTrackingCard} from './IssueTrackingCard';
 import {LanguagesCard} from './LanguagesCard';
 import {MainStatsCard} from './MainStatsCard';
+import {PackageImpactCard} from './PackageImpactCard';
 import {ReadmeClassicCard, ReadmeSpotlightCard} from './ReadmeCard';
 import {RepositoryImpactCard} from './RepositoryImpactCard';
 import {StatsCard} from './StatsCard';
@@ -58,6 +59,11 @@ export const cards: CardConfig[] = [
 		height: 280,
 	},
 	{
+		id: 'package-impact',
+		component: PackageImpactCard,
+		height: 300,
+	},
+	{
 		id: 'issue-tracking',
 		component: IssueTrackingCard,
 		height: 280,
@@ -90,6 +96,7 @@ export {CommitStreakCard} from './CommitStreakCard';
 export {IssueTrackingCard} from './IssueTrackingCard';
 export {LanguagesCard} from './LanguagesCard';
 export {MainStatsCard} from './MainStatsCard';
+export {PackageImpactCard} from './PackageImpactCard';
 export {ReadmeCard, ReadmeClassicCard, ReadmeSpotlightCard} from './ReadmeCard';
 export {RepositoryImpactCard} from './RepositoryImpactCard';
 export {StatsCard} from './StatsCard';

@@ -166,6 +166,13 @@ statsAction:
   includePrivateRepositoryMetrics: true
   includePrivateRepositoryDetails: false
   includePrivateCacheDetails: false
+  # Package names are explicit so only packages you own or maintain are shown.
+  # Every provider is normalized through the package stats adapter interface.
+  packageSources:
+    - provider: "npm"
+      packages:
+        - "@octocat/example"
+        - "another-package"
 ```
 
 Private aggregate collection requires a token that can read the intended private
@@ -174,6 +181,13 @@ repositories outside its own repository; use a fine-grained PAT stored as a
 repository secret. You can also enable this mode with
 `STATS_INCLUDE_PRIVATE_REPOSITORY_METRICS=true` or
 `diffler collect --include-private-metrics`.
+
+Package stats currently support npm download totals for the last day, week,
+month, year, and all time, plus the latest version and publish date. Configure
+npm from YAML as above, with `STATS_NPM_PACKAGES` as a comma-separated list, or
+with `diffler collect --npm-packages "@octocat/example,another-package"`.
+The output and cards use provider-neutral package metrics so future registries
+such as PyPI can be added as adapters without changing consumers.
 
 ---
 

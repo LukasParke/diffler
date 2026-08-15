@@ -19,6 +19,7 @@ Available assets:
 - `main-stats.webp`
 - `stats.webp`
 - `repo-impact.webp`
+- `package-impact.webp`
 - `languages.webp`
 - `top-languages.webp`
 - `activity-overview.webp`

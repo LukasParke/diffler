@@ -372,6 +372,7 @@ describe("v2 collection helpers", () => {
     includePrivateRepositoryDetails: false,
     includePrivateCacheDetails: false,
     backfillMode: "resume",
+    packageSources: [],
   };
 
   const createRepository = (

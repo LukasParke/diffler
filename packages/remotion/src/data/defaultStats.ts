@@ -106,6 +106,20 @@ export const defaultStats: UserStats = {
 			percentage: 7.4,
 		},
 	],
+	packages: {
+		packageCount: 0,
+		providers: [],
+		downloads: {
+			lastDay: 0,
+			lastWeek: 0,
+			lastMonth: 0,
+			lastYear: 0,
+			allTime: 0,
+		},
+		packages: [],
+		complete: true,
+		warnings: [],
+	},
 	cards: [],
 	highlights: [],
 	privacy: {

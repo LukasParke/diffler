@@ -99,6 +99,10 @@ program
     "--include-private-metrics",
     "Include anonymous private repository metrics without repository details"
   )
+  .option(
+    "--npm-packages <packages>",
+    "Comma-separated npm package names to include in package stats"
+  )
   .option("--include-private", "Include private repository details")
   .action(async (options) => {
     const token = process.env.GITHUB_TOKEN;
@@ -125,6 +129,19 @@ program
       statsConfig.includePrivateRepositoryMetrics = true;
       statsConfig.includePrivateRepositoryDetails = true;
       statsConfig.includePrivateCacheDetails = true;
+    }
+    const npmPackages = options.npmPackages
+      ?.split(",")
+      .map((packageName: string) => packageName.trim())
+      .filter(Boolean);
+    if (npmPackages?.length) {
+      statsConfig.packageSources = [
+        ...statsConfig.packageSources.filter((source) => source.provider !== "npm"),
+        {
+          provider: "npm",
+          packages: npmPackages,
+        },
+      ];
     }
 
     const client = new GitHubClient(config.github);

@@ -30,6 +30,7 @@ import {
 import { buildOutput } from "./output.js";
 import { RequestScheduler } from "./scheduler.js";
 import type { GitHubClient } from "../github/client.js";
+import { collectPackageStats } from "../packages/index.js";
 
 export {
   formatBytes,
@@ -52,6 +53,8 @@ export async function runStatsCollection(
   const volatileCache = readVolatileCache(config.volatileCachePath);
   const warnings: string[] = [];
   const errors: string[] = [];
+  console.log("Collecting configured package registry stats");
+  const packageMetricsPromise = collectPackageStats(config.packageSources);
 
   console.log("Collecting viewer profile and activity counts");
   const { profile, activity } = await collectProfile(client, scheduler);
@@ -120,6 +123,8 @@ export async function runStatsCollection(
       ...contributions.repositories,
     ]
   );
+  const packageMetrics = await packageMetricsPromise;
+  warnings.push(...packageMetrics.warnings);
 
   const finishedAt = Date.now();
   const schedulerState = scheduler.state();
@@ -164,6 +169,7 @@ export async function runStatsCollection(
     config,
     collectionStatus,
     fetchedAt: finishedAt,
+    packageMetrics,
   });
 
   writeJsonOutput(config.outputPath, output);

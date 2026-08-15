@@ -84,6 +84,14 @@ export const StatsActionConfigSchema = z.object({
   includePrivateRepositoryDetails: z.boolean().default(false),
   includePrivateCacheDetails: z.boolean().default(false),
   backfillMode: z.enum(["resume", "refresh", "off"]).default("resume"),
+  packageSources: z
+    .array(
+      z.object({
+        provider: z.string().min(1),
+        packages: z.array(z.string().min(1)),
+      })
+    )
+    .default([]),
 });
 
 export type StatsActionConfig = z.infer<typeof StatsActionConfigSchema>;
@@ -166,6 +174,19 @@ export function buildStatsActionConfig(config: DifflerConfig): StatsActionConfig
   const backfillMode = env("backfill-mode", base.backfillMode);
   if (backfillMode === "resume" || backfillMode === "refresh" || backfillMode === "off") {
     base.backfillMode = backfillMode;
+  }
+  const npmPackages = env("npm-packages", "")
+    .split(",")
+    .map((packageName) => packageName.trim())
+    .filter(Boolean);
+  if (npmPackages.length > 0) {
+    const configuredSources = base.packageSources.filter(
+      (source) => source.provider !== "npm"
+    );
+    base.packageSources = [
+      ...configuredSources,
+      { provider: "npm", packages: npmPackages },
+    ];
   }
 
   return base;

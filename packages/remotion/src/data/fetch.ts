@@ -104,6 +104,7 @@ function mergeUserStats(stats: UserStats[]): UserStats {
       [...first.topLanguages, ...stat.topLanguages],
       first.code.codeByteTotal,
     );
+    first.packages = mergePackageMetrics(first.packages, stat.packages);
     first.contributions.timeline = mergeTimeline(
       first.contributions.timeline,
       stat.contributions.timeline,
@@ -126,6 +127,40 @@ function mergeUserStats(stats: UserStats[]): UserStats {
   first.codeByteTotal = first.code.codeByteTotal;
 
   return first;
+}
+
+function mergePackageMetrics(
+  current: UserStats['packages'],
+  next: UserStats['packages'],
+): UserStats['packages'] {
+  const packages = new Map(
+    [...current.packages, ...next.packages].map((item) => [
+      `${item.provider}:${item.name}`,
+      item,
+    ]),
+  );
+  const values = [...packages.values()].sort(
+    (left, right) => right.downloads.lastMonth - left.downloads.lastMonth,
+  );
+  const sum = (period: keyof UserStats['packages']['downloads']) =>
+    values.reduce((total, item) => total + item.downloads[period], 0);
+
+  return {
+    packageCount: values.length,
+    providers: [
+      ...new Set([...current.providers, ...next.providers]),
+    ],
+    downloads: {
+      lastDay: sum('lastDay'),
+      lastWeek: sum('lastWeek'),
+      lastMonth: sum('lastMonth'),
+      lastYear: sum('lastYear'),
+      allTime: sum('allTime'),
+    },
+    packages: values,
+    complete: current.complete && next.complete,
+    warnings: [...new Set([...current.warnings, ...next.warnings])],
+  };
 }
 
 function mergeTimeline(
