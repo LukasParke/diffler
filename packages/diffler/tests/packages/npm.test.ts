@@ -81,6 +81,37 @@ describe("NpmPackageStatsAdapter", () => {
     expect(result.warnings[0]).toContain('npm package "missing" unavailable');
   });
 
+  it("treats downloads API 404s as zero downloads for known packages", async () => {
+    const adapter = new NpmPackageStatsAdapter(
+      async (url) => {
+        if (url.startsWith("https://registry.npmjs.org/")) {
+          return response({
+            "dist-tags": { latest: "0.1.0" },
+            time: {
+              created: "2026-08-01T00:00:00.000Z",
+              "0.1.0": "2026-08-01T00:00:00.000Z",
+            },
+          });
+        }
+        return response({ error: "package not found" }, 404);
+      },
+      () => new Date("2026-08-14T12:00:00.000Z")
+    );
+
+    const result = await adapter.collect(["fresh-package"]);
+
+    expect(result.warnings).toEqual([]);
+    expect(result.packages).toHaveLength(1);
+    expect(result.packages[0].downloads).toEqual({
+      lastDay: 0,
+      lastWeek: 0,
+      lastMonth: 0,
+      lastYear: 0,
+      allTime: 0,
+    });
+    expect(result.packages[0].latestVersion).toBe("0.1.0");
+  });
+
   it("splits and sums historical downloads across bounded date ranges", async () => {
     const requests: string[] = [];
     const adapter = new NpmPackageStatsAdapter(
@@ -114,6 +145,84 @@ describe("NpmPackageStatsAdapter", () => {
       "https://api.npmjs.org/downloads/point/2017-12-25:2017-12-31/historical"
     );
     expect(result.packages[0].downloads.allTime).toBe(600);
+  });
+});
+
+describe("NpmPackageStatsAdapter retries", () => {
+  const noSleep = async () => {};
+
+  it("retries rate-limited requests until they succeed", async () => {
+    let callCount = 0;
+    const delays: number[] = [];
+    const adapter = new NpmPackageStatsAdapter(
+      async (url) => {
+        callCount += 1;
+        if (callCount <= 2) {
+          // npm's CDN answers 429s with "Retry-After: 0", which must not
+          // flatten the backoff delay.
+          return {
+            ...response({}, 429),
+            headers: { get: () => "0" },
+          };
+        }
+        if (url.startsWith("https://registry.npmjs.org/")) {
+          return response({
+            "dist-tags": { latest: "1.0.0" },
+            time: { created: "2026-01-01T00:00:00.000Z" },
+          });
+        }
+        return response({ downloads: 5 });
+      },
+      () => new Date("2026-08-14T12:00:00.000Z"),
+      async (ms) => {
+        delays.push(ms);
+      },
+      0
+    );
+
+    const result = await adapter.collect(["limited"]);
+
+    expect(result.warnings).toEqual([]);
+    expect(result.packages).toHaveLength(1);
+    expect(delays.length).toBeGreaterThanOrEqual(2);
+    expect(delays.every((delay) => delay >= 1_000)).toBe(true);
+  });
+
+  it("bounds attempts and warns when rate limiting persists", async () => {
+    let callCount = 0;
+    const adapter = new NpmPackageStatsAdapter(
+      async () => {
+        callCount += 1;
+        return response({}, 429);
+      },
+      () => new Date("2026-08-14T12:00:00.000Z"),
+      noSleep
+    );
+
+    const result = await adapter.collect(["always-limited"]);
+
+    expect(callCount).toBe(6);
+    expect(result.packages).toEqual([]);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toContain("HTTP 429");
+  });
+
+  it("does not retry permanent client errors", async () => {
+    let callCount = 0;
+    const adapter = new NpmPackageStatsAdapter(
+      async () => {
+        callCount += 1;
+        return response({}, 404);
+      },
+      () => new Date("2026-08-14T12:00:00.000Z"),
+      noSleep
+    );
+
+    const result = await adapter.collect(["missing"]);
+
+    expect(callCount).toBe(1);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toContain("HTTP 404");
   });
 });
 
