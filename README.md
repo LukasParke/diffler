@@ -7,7 +7,7 @@ Self-contained monorepo for generating animated GitHub profile READMEs with live
 | Package | Path | Description |
 |---------|------|-------------|
 | `@lukasparke/diffler` | [`packages/diffler`](packages/diffler) | CLI and GitHub Action for collecting GitHub stats and rendering profile READMEs from Nunjucks templates. |
-| `@lukasparke/diffler-remotion` | [`packages/remotion`](packages/remotion) | Remotion components and renderer for generating animated WebP/GIF assets from collected stats. |
+| `@lukasparke/diffler-remotion` | [`packages/remotion`](packages/remotion) | Remotion components and renderer for generating animated WebP assets, with optional GIF output, from collected stats. |
 | `@lukasparke/diffler-schemas` | [`packages/schemas`](packages/schemas) | Shared TypeScript and Zod contract for stats producers and consumers. |
 
 ## Quick Start
@@ -46,7 +46,7 @@ pnpm --filter @lukasparke/diffler-remotion test
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
 │   diffler CLI   │────▶│  github-user-    │────▶│  @diffler/      │
 │  (stats-action  │     │  stats.json      │     │  remotion       │
-│   engine)       │     │  (v2 schema)     │     │  (WebP/GIF)     │
+│   engine)       │     │  (v2 schema)     │     │    (WebP)       │
 └─────────────────┘     └──────────────────┘     └─────────────────┘
 ```
 
@@ -60,7 +60,7 @@ Workflows are in `.github/workflows/`:
 
 - `ci.yml` — Verifies every pull request and push to `main`
 - `release.yml` — Publishes version tags to npm
-- `render-video.yml` — Renders WebP/GIF assets and publishes to GitHub Pages
+- `render-video.yml` — Renders WebP assets and publishes to GitHub Pages
 - `update-readme-example.yml` — Updates the README example in this repo
 
 ## License

@@ -1,5 +1,4 @@
 import {ComponentType} from 'react';
-import {FPS} from '../config';
 import {MainProps} from '../data';
 import {ActivityOverviewCard} from './ActivityOverviewCard';
 import {CodeMetricsCard} from './CodeMetricsCard';
@@ -37,7 +36,6 @@ export const cards: CardConfig[] = [
 		component: ReadmeSpotlightCard,
 		width: 900,
 		height: 460,
-		durationInFrames: FPS * 12,
 	},
 	{
 		id: 'stats',
@@ -92,11 +90,7 @@ export {CommitStreakCard} from './CommitStreakCard';
 export {IssueTrackingCard} from './IssueTrackingCard';
 export {LanguagesCard} from './LanguagesCard';
 export {MainStatsCard} from './MainStatsCard';
-export {
-  ReadmeCard,
-  ReadmeClassicCard,
-  ReadmeSpotlightCard,
-} from './ReadmeCard';
+export {ReadmeCard, ReadmeClassicCard, ReadmeSpotlightCard} from './ReadmeCard';
 export {RepositoryImpactCard} from './RepositoryImpactCard';
 export {StatsCard} from './StatsCard';
 export {TopLanguagesCard} from './TopLanguagesCard';

@@ -68,9 +68,9 @@ jobs:
         env:
           STATS_JSON_URL: ${{ inputs['stats-json-url'] || format('https://raw.githubusercontent.com/{0}/stats/main/github-user-stats.json', github.repository_owner) }}
 
-      - name: Render WebP and GIF assets
+      - name: Render WebP assets
         working-directory: packages/remotion
-        run: node scripts/render-assets.mjs --formats=webp,gif
+        run: node scripts/render-assets.mjs --formats=webp
         env:
           RENDER_CARD_CONCURRENCY: 2
           REMOTION_CONCURRENCY: 4

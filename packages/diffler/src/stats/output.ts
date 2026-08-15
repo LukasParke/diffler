@@ -22,6 +22,7 @@ import {
   formatNumber,
   toTopRepos,
 } from "./aggregate.js";
+import { repositoryMetricCacheKey } from "./cache.js";
 
 export function buildOutput(params: {
   profile: UserProfile;
@@ -34,10 +35,21 @@ export function buildOutput(params: {
   fetchedAt: number;
 }): GitHubStatsOutput {
   const includePrivateDetails = params.config.includePrivateRepositoryDetails;
+  const includePrivateMetrics =
+    includePrivateDetails || params.config.includePrivateRepositoryMetrics;
   const visibleRepositories = includePrivateDetails
     ? params.repositories
     : params.repositories.filter((repo) => !repo.isPrivate);
   const visibleRepositoryIds = new Set(visibleRepositories.map((repo) => repo.id));
+  const metricRepositories = includePrivateMetrics
+    ? params.repositories
+    : params.repositories.filter((repo) => !repo.isPrivate);
+  const metricRepositoryIds = new Set(metricRepositories.map((repo) => repo.id));
+  const metricCacheKeys = new Set(
+    metricRepositories.map((repo) =>
+      repositoryMetricCacheKey(repo, includePrivateDetails)
+    )
+  );
   const visibleRepositoryContributions = includePrivateDetails
     ? params.contributions.repositoryContributions
     : params.contributions.repositoryContributions.filter((summary) =>
@@ -45,36 +57,56 @@ export function buildOutput(params: {
       );
   const contributionStats = calculateContributionStats(params.contributions.collection);
   const { languages: topLanguages, codeByteTotal } =
-    aggregateRepositoryLanguages(visibleRepositories);
-  const allComputedRepos = params.repositories.map(toComputedRepo);
+    aggregateRepositoryLanguages(metricRepositories);
   const visibleComputedRepos = visibleRepositories.map(toComputedRepo);
-  const repoStats = calculateRepoStats(allComputedRepos);
+  const metricComputedRepos = metricRepositories.map(toComputedRepo);
+  const repoStats = calculateRepoStats(metricComputedRepos);
+  const visibleComputedStats = calculateComputedStats(
+    visibleComputedRepos,
+    aggregateRepositoryLanguages(visibleRepositories).languages,
+    contributionStats
+  );
   const computedStats = {
-    ...calculateComputedStats(visibleComputedRepos, topLanguages, contributionStats),
+    ...calculateComputedStats(metricComputedRepos, topLanguages, contributionStats),
     ...repoStats,
+    topTopics: visibleComputedStats.topTopics,
+    allTopics: visibleComputedStats.allTopics,
   };
-  const visibleContributorStats = Object.entries(params.cache.contributorStats)
-    .filter(([repoId]) => visibleRepositoryIds.has(repoId))
-    .map(([, stats]) => stats);
-  const visibleTrafficSummaries = Object.entries(params.cache.traffic)
-    .filter(([repoId]) => visibleRepositoryIds.has(repoId))
-    .map(([, traffic]) => traffic);
-  const ownedVisibleRepos = visibleRepositories.filter((repo) =>
+  const metricContributorStats = metricRepositories
+    .map(
+      (repo) =>
+        params.cache.contributorStats[
+          repositoryMetricCacheKey(repo, includePrivateDetails)
+        ]
+    )
+    .filter((stats) => stats !== undefined);
+  const metricTrafficSummaries = metricRepositories
+    .map(
+      (repo) =>
+        params.cache.traffic[repositoryMetricCacheKey(repo, includePrivateDetails)]
+    )
+    .filter((traffic) => traffic !== undefined);
+  const ownedMetricRepos = metricRepositories.filter((repo) =>
     repo.sources.includes("owned")
   );
   const ownedPublicRepos = params.repositories.filter(
     (repo) => !repo.isPrivate && repo.sources.includes("owned")
   );
-  const ownedOriginalRepos = ownedPublicRepos.filter((repo) => !repo.isFork);
+  const ownedPrivateRepos = params.repositories.filter(
+    (repo) => repo.isPrivate && repo.sources.includes("owned")
+  );
+  const ownedOriginalRepos = ownedMetricRepos.filter((repo) => !repo.isFork);
   const {
     languages: profileTopLanguages,
     codeByteTotal: profileCodeByteTotal,
   } = aggregateRepositoryLanguages(ownedOriginalRepos);
-  const currentYear = `${new Date().getFullYear()}`;
-  const profileRepoMetrics: RepoMetrics["profile"] = {
+  const currentYear = `${new Date(params.fetchedAt).getUTCFullYear()}`;
+  const profileRepoMetrics: NonNullable<RepoMetrics["profile"]> = {
+    totalRepos: ownedMetricRepos.length,
     publicRepos: ownedPublicRepos.length,
+    privateRepos: includePrivateMetrics ? ownedPrivateRepos.length : 0,
     originalRepos: ownedOriginalRepos.length,
-    forkedRepos: ownedPublicRepos.length - ownedOriginalRepos.length,
+    forkedRepos: ownedMetricRepos.length - ownedOriginalRepos.length,
     activeOriginalRepos: ownedOriginalRepos.filter((repo) =>
       (repo.pushedAt || repo.updatedAt).startsWith(currentYear)
     ).length,
@@ -86,36 +118,37 @@ export function buildOutput(params: {
     topLanguages: profileTopLanguages,
   };
 
-  const linesAdded = visibleContributorStats.reduce(
+  const linesAdded = metricContributorStats.reduce(
     (sum, stats) => sum + stats.additions,
     0
   );
-  const linesDeleted = visibleContributorStats.reduce(
+  const linesDeleted = metricContributorStats.reduce(
     (sum, stats) => sum + stats.deletions,
     0
   );
-  const commitCount = visibleContributorStats.reduce(
+  const commitCount = metricContributorStats.reduce(
     (sum, stats) => sum + stats.commits,
     0
   );
-  const repoViews = visibleTrafficSummaries.reduce(
+  const repoViews = metricTrafficSummaries.reduce(
     (sum, traffic) => sum + traffic.count,
     0
   );
-  const repoViewUniques = visibleTrafficSummaries.reduce(
+  const repoViewUniques = metricTrafficSummaries.reduce(
     (sum, traffic) => sum + traffic.uniques,
     0
   );
-  const starCount = ownedVisibleRepos.reduce((sum, repo) => sum + repo.stars, 0);
-  const forkCount = ownedVisibleRepos.reduce((sum, repo) => sum + repo.forks, 0);
+  const starCount = ownedMetricRepos.reduce((sum, repo) => sum + repo.stars, 0);
+  const forkCount = ownedMetricRepos.reduce((sum, repo) => sum + repo.forks, 0);
   const topRepos = toTopRepos(visibleRepositories);
   const privacy = buildPrivacyReport({
+    includePrivateRepositoryMetrics: includePrivateMetrics,
     includePrivateRepositoryDetails: includePrivateDetails,
     includePrivateCacheDetails: params.config.includePrivateCacheDetails,
     repositories: params.repositories,
     repositoryContributions: params.contributions.repositoryContributions.length,
     visibleRepositoryContributions: visibleRepositoryContributions.length,
-    visibleRepositoryIds,
+    metricCacheKeys,
     cache: params.cache,
   });
   const collectionStatus = addPrivacyWarnings(params.collectionStatus, privacy);
@@ -132,31 +165,31 @@ export function buildOutput(params: {
       linesAdded,
       linesDeleted,
       linesOfCodeChanged: linesAdded + linesDeleted,
-      reposCompleted: visibleContributorStats.filter((stats) =>
+      reposCompleted: metricContributorStats.filter((stats) =>
         ["fresh", "cached"].includes(stats.status)
       ).length,
       reposPending: params.cache.backfill.pending.filter(
-        (item) => item.type === "contributors" && visibleRepositoryIds.has(item.repoId)
+        (item) => item.type === "contributors" && metricRepositoryIds.has(item.repoId)
       ).length,
       reposFailed: Object.values(params.cache.backfill.failures).filter(
         (failure) =>
           failure.key.startsWith("contributors:") &&
-          hasVisibleRepositoryId(failure.key, visibleRepositoryIds)
+          hasVisibleRepositoryId(failure.key, metricRepositoryIds)
       ).length,
     },
     traffic: {
       repoViews,
       repoViewUniques,
-      reposCompleted: visibleTrafficSummaries.filter((traffic) =>
+      reposCompleted: metricTrafficSummaries.filter((traffic) =>
         ["fresh", "cached"].includes(traffic.status)
       ).length,
       reposPending: params.cache.backfill.pending.filter(
-        (item) => item.type === "traffic" && visibleRepositoryIds.has(item.repoId)
+        (item) => item.type === "traffic" && metricRepositoryIds.has(item.repoId)
       ).length,
       reposFailed: Object.values(params.cache.backfill.failures).filter(
         (failure) =>
           failure.key.startsWith("traffic:") &&
-          hasVisibleRepositoryId(failure.key, visibleRepositoryIds)
+          hasVisibleRepositoryId(failure.key, metricRepositoryIds)
       ).length,
     },
     repoStats,
@@ -268,15 +301,17 @@ function toComputedRepo(repo: RepositoryRecord) {
 }
 
 function buildPrivacyReport(params: {
+  includePrivateRepositoryMetrics: boolean;
   includePrivateRepositoryDetails: boolean;
   includePrivateCacheDetails: boolean;
   repositories: RepositoryRecord[];
   repositoryContributions: number;
   visibleRepositoryContributions: number;
-  visibleRepositoryIds: Set<string>;
+  metricCacheKeys: Set<string>;
   cache: StableCache;
 }): PrivacyReport {
   return {
+    privateRepositoryMetricsIncluded: params.includePrivateRepositoryMetrics,
     privateRepositoryDetailsIncluded: params.includePrivateRepositoryDetails,
     privateCacheDetailsIncluded: params.includePrivateCacheDetails,
     redactedPrivateRepositories: params.includePrivateRepositoryDetails
@@ -286,10 +321,10 @@ function buildPrivacyReport(params: {
       params.repositoryContributions - params.visibleRepositoryContributions,
     redactedOptionalMetrics:
       Object.keys(params.cache.contributorStats).filter(
-        (repoId) => !params.visibleRepositoryIds.has(repoId)
+        (repoId) => !params.metricCacheKeys.has(repoId)
       ).length +
       Object.keys(params.cache.traffic).filter(
-        (repoId) => !params.visibleRepositoryIds.has(repoId)
+        (repoId) => !params.metricCacheKeys.has(repoId)
       ).length,
   };
 }
@@ -329,8 +364,11 @@ function buildPresentation(params: {
   repoMetrics: RepoMetrics;
   complete: boolean;
 }): PresentationData {
-  const topLanguage = params.repoMetrics.profile.topLanguages[0];
   const profileMetrics = params.repoMetrics.profile;
+  if (!profileMetrics) {
+    throw new Error("Profile repository metrics are required for presentation output");
+  }
+  const topLanguage = profileMetrics.topLanguages[0];
   const mostProductiveMonth = params.legacy.computedStats.mostProductiveMonth;
   const peakDay = params.legacy.contributionStats.peakDay;
 
@@ -344,7 +382,7 @@ function buildPresentation(params: {
       topLanguages: profileMetrics.topLanguages.slice(0, 5),
       starsReceived: profileMetrics.starsReceived,
       forksReceived: profileMetrics.forksReceived,
-      totalRepos: profileMetrics.publicRepos,
+      totalRepos: profileMetrics.totalRepos ?? profileMetrics.publicRepos,
       originalRepos: profileMetrics.originalRepos,
       activeRepos: profileMetrics.activeOriginalRepos,
       languageCount: profileMetrics.topLanguages.length,
@@ -433,7 +471,7 @@ function buildPresentation(params: {
         {
           id: "repositories",
           title: "Repository footprint",
-          metric: profileMetrics.publicRepos,
+          metric: profileMetrics.totalRepos ?? profileMetrics.publicRepos,
           supportingText: `${profileMetrics.originalRepos} original repositories`,
         },
         {

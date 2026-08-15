@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { dirname } from "node:path";
 import {
   type BackfillFailure,
@@ -46,10 +47,11 @@ export function readVolatileCache(path: string): VolatileCache {
 export function writeStableCache(
   path: string,
   cache: StableCache,
-  includePrivateDetails = false
+  includePrivateDetails = false,
+  includePrivateMetrics = false
 ): void {
   writeJsonFile(path, {
-    ...sanitizeStableCache(cache, includePrivateDetails),
+    ...sanitizeStableCache(cache, includePrivateDetails, includePrivateMetrics),
     updatedAt: Date.now(),
   });
 }
@@ -84,7 +86,8 @@ export function cacheRepository(
 
 export function sanitizeStableCache(
   cache: StableCache,
-  includePrivateDetails: boolean
+  includePrivateDetails: boolean,
+  includePrivateMetrics = false
 ): StableCache {
   if (includePrivateDetails) return cache;
 
@@ -94,6 +97,13 @@ export function sanitizeStableCache(
     )
   ) as Record<string, CachedRepository>;
   const publicRepositoryIds = new Set(Object.keys(repositories));
+  const metricCacheIds = includePrivateMetrics
+    ? new Set([
+        ...publicRepositoryIds,
+        ...Object.keys(cache.contributorStats).filter(isPrivateMetricCacheKey),
+        ...Object.keys(cache.traffic).filter(isPrivateMetricCacheKey),
+      ])
+    : publicRepositoryIds;
 
   return {
     ...cache,
@@ -106,9 +116,9 @@ export function sanitizeStableCache(
     ),
     contributorStats: filterRecordByPublicRepoId(
       cache.contributorStats,
-      publicRepositoryIds
+      metricCacheIds
     ),
-    traffic: filterRecordByPublicRepoId(cache.traffic, publicRepositoryIds),
+    traffic: filterRecordByPublicRepoId(cache.traffic, metricCacheIds),
     backfill: {
       pending: cache.backfill.pending.filter((item) =>
         publicRepositoryIds.has(item.repoId)
@@ -117,6 +127,36 @@ export function sanitizeStableCache(
       failures: filterBackfillRecord(cache.backfill.failures, publicRepositoryIds),
     },
   };
+}
+
+export function repositoryMetricCacheKey(
+  repository: RepositoryRecord,
+  includePrivateDetails: boolean
+): string {
+  if (!repository.isPrivate || includePrivateDetails) return repository.id;
+  return `private:${hashPrivateMetricValue(repository.id)}`;
+}
+
+export function repositoryMetricVersion(
+  repository: RepositoryRecord,
+  includePrivateDetails: boolean
+): string | null {
+  if (
+    !repository.defaultBranchOid ||
+    !repository.isPrivate ||
+    includePrivateDetails
+  ) {
+    return repository.defaultBranchOid;
+  }
+  return `private:${hashPrivateMetricValue(repository.defaultBranchOid)}`;
+}
+
+function isPrivateMetricCacheKey(key: string): boolean {
+  return key.startsWith("private:");
+}
+
+function hashPrivateMetricValue(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 export function shouldReuseContributionYear(

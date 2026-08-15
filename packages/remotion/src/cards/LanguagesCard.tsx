@@ -6,20 +6,27 @@ import {formatBytes} from '../utils/format';
 export function LanguagesCard({userStats}: {userStats: UserStats}) {
 	const languages = userStats.topLanguages.slice(0, 6);
 	const accent = languages[0]?.color || defaultTheme.colors.blue;
+	const hasLanguages =
+		userStats.summary.profileMetricsComplete && languages.length > 0;
 
 	return (
 		<Panel
 			title="Language Mix"
-			subtitle={`${userStats.summary.languageCount} languages, ${formatBytes(userStats.code.codeByteTotal)} analyzed`}
+			subtitle={
+				hasLanguages
+					? `${userStats.summary.languageCount} languages, ${formatBytes(userStats.code.codeByteTotal)} analyzed`
+					: 'Profile language metrics unavailable'
+			}
 			accent={accent}
 		>
+			{hasLanguages ? (
 			<div className="flex h-[188px] flex-col gap-3">
 				<div className="flex h-3 overflow-hidden rounded-full bg-white/10">
 					{languages.map((language) => (
 						<div
 							key={language.languageName}
 							style={{
-								width: `${Math.max(2, language.percentage || 0)}%`,
+									width: `${Math.max(0, Math.min(100, language.percentage || 0))}%`,
 								backgroundColor: language.color || defaultTheme.colors.blue,
 							}}
 						/>
@@ -35,7 +42,10 @@ export function LanguagesCard({userStats}: {userStats: UserStats}) {
 								<p className="flex min-w-0 items-center gap-2 text-xs font-semibold">
 									<span
 										className="size-2 shrink-0 rounded-full"
-										style={{backgroundColor: language.color || defaultTheme.colors.blue}}
+											style={{
+												backgroundColor:
+													language.color || defaultTheme.colors.blue,
+											}}
 									/>
 									<span className="truncate">{language.languageName}</span>
 								</p>
@@ -54,6 +64,11 @@ export function LanguagesCard({userStats}: {userStats: UserStats}) {
 					))}
 				</div>
 			</div>
+			) : (
+				<div className="flex h-[188px] items-center justify-center rounded-lg border border-dashed border-white/10 bg-white/[0.025] text-sm text-[#9ba7b4]">
+					No public language data available
+				</div>
+			)}
 		</Panel>
 	);
 }

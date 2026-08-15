@@ -159,7 +159,21 @@ helpers:
 
 cache:
   ttl: 3600
+
+statsAction:
+  # Include private repositories in anonymous aggregate numbers while keeping
+  # names, URLs, topics, IDs, and per-repository records out of public JSON.
+  includePrivateRepositoryMetrics: true
+  includePrivateRepositoryDetails: false
+  includePrivateCacheDetails: false
 ```
+
+Private aggregate collection requires a token that can read the intended private
+repositories. A repository-scoped `GITHUB_TOKEN` usually cannot access private
+repositories outside its own repository; use a fine-grained PAT stored as a
+repository secret. You can also enable this mode with
+`STATS_INCLUDE_PRIVATE_REPOSITORY_METRICS=true` or
+`diffler collect --include-private-metrics`.
 
 ---
 

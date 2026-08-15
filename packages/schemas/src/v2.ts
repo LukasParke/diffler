@@ -220,8 +220,10 @@ export type RepoMetrics = {
   codeByteTotal: number;
   topLanguages: Language[];
   topTopics: TopicCount[];
-  profile: {
+  profile?: {
+    totalRepos?: number;
     publicRepos: number;
+    privateRepos?: number;
     originalRepos: number;
     forkedRepos: number;
     activeOriginalRepos: number;
@@ -262,11 +264,11 @@ export type PresentationData = {
     topLanguages: Language[];
     starsReceived: number;
     forksReceived: number;
-    totalRepos: number;
-    originalRepos: number;
+    totalRepos?: number;
+    originalRepos?: number;
     activeRepos: number;
-    languageCount: number;
-    codeByteTotal: number;
+    languageCount?: number;
+    codeByteTotal?: number;
     refreshedAt: string;
     complete: boolean;
   };
@@ -279,6 +281,7 @@ export type PresentationData = {
 };
 
 export type PrivacyReport = {
+  privateRepositoryMetricsIncluded: boolean;
   privateRepositoryDetailsIncluded: boolean;
   privateCacheDetailsIncluded: boolean;
   redactedPrivateRepositories: number;

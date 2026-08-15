@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "start": "remotion studio --props ./input.json",
-    "render": "github-readme-cards render --entry-point ./src/index.tsx --cards readme,stats --formats webp,gif --out-dir pages --props input.json"
+    "render": "github-readme-cards render --entry-point ./src/index.tsx --cards readme,stats --formats webp --out-dir pages --props input.json",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@lukasparke/diffler-remotion": "workspace:*",

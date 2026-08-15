@@ -40,7 +40,9 @@ export function MetricTile({
     >
       <div
         className="absolute inset-x-0 top-0 h-px"
-        style={{background: `linear-gradient(90deg, ${resolvedAccent}, transparent)`}}
+        style={{
+          background: `linear-gradient(90deg, ${resolvedAccent}, transparent)`,
+        }}
       />
       <div
         className={`flex h-full flex-col justify-between ${large ? 'gap-2' : 'gap-1'}`}
@@ -51,7 +53,7 @@ export function MetricTile({
               {icon}
             </span>
           ) : null}
-          <p className="truncate text-[11px] font-semibold uppercase tracking-normal">
+          <p className="truncate text-xs font-semibold uppercase tracking-normal">
             {label}
           </p>
         </div>
@@ -61,7 +63,7 @@ export function MetricTile({
           {displayValue}
         </p>
         {detail ? (
-          <p className="truncate text-[11px] leading-tight text-[#8b949e]">
+          <p className="truncate text-xs leading-tight text-[#8b949e]">
             {detail}
           </p>
         ) : null}

@@ -16,8 +16,12 @@ export function StatsCard({userStats}: {userStats: UserStats}) {
 		{
 			icon: <Sparkles size={16} />,
 			label: 'Stars received',
-			value: userStats.summary.starsReceived,
-			detail: `${formatCompactNumber(userStats.summary.forksReceived)} forks`,
+			value: userStats.summary.profileMetricsComplete
+				? userStats.summary.starsReceived
+				: 'Unavailable',
+			detail: userStats.summary.profileMetricsComplete
+				? `${formatCompactNumber(userStats.summary.forksReceived)} forks`
+				: 'Collection incomplete',
 			accent: defaultTheme.colors.yellow,
 		},
 		{
@@ -37,23 +41,34 @@ export function StatsCard({userStats}: {userStats: UserStats}) {
 		{
 			icon: <BookOpen size={16} />,
 			label: 'Public repositories',
-			value:
-				userStats.repositories.publicRepos || userStats.repositories.totalRepos,
-			detail: `${formatCompactNumber(userStats.repositories.activeRepos)} active`,
+			value: userStats.summary.profileMetricsComplete
+				? userStats.repositories.publicRepos ||
+					userStats.repositories.totalRepos
+				: 'Unavailable',
+			detail: userStats.summary.profileMetricsComplete
+				? `${formatCompactNumber(userStats.repositories.activeRepos)} active`
+				: 'Collection incomplete',
 			accent: defaultTheme.colors.blue,
 		},
 		{
 			icon: <Code2 size={16} />,
 			label: 'Languages',
-			value: userStats.summary.languageCount,
-			detail: userStats.topLanguages[0]?.languageName || 'detected',
+			value: userStats.summary.profileMetricsComplete
+				? userStats.summary.languageCount
+				: 'Unavailable',
+			detail: userStats.summary.profileMetricsComplete
+				? userStats.topLanguages[0]?.languageName || 'detected'
+				: 'Collection incomplete',
 			accent: defaultTheme.colors.red,
 		},
 		{
 			icon: <Telescope size={16} />,
 			label: 'Repo views',
-			value: userStats.repositories.repoViews,
-			detail: '14 day traffic when available',
+			value: userStats.repositories.repoViews ?? 'Unavailable',
+			detail:
+				userStats.repositories.repoViews === null
+					? 'Collection pending'
+					: '14 day traffic',
 			accent: defaultTheme.colors.cyan,
 		},
 	];

@@ -65,7 +65,7 @@ export function IssueTrackingCard({userStats}: {userStats: UserStats}) {
 								height={10}
 							/>
 						</div>
-						<p className="text-[11px] text-[#8b949e]">
+						<p className="text-xs text-[#8b949e]">
 							{opened} open, {closed} closed
 						</p>
 					</div>

@@ -80,6 +80,7 @@ export const StatsActionConfigSchema = z.object({
   minRestRemaining: z.number().int().default(750),
   includeTraffic: z.boolean().default(true),
   includeRestRepoStats: z.boolean().default(true),
+  includePrivateRepositoryMetrics: z.boolean().default(false),
   includePrivateRepositoryDetails: z.boolean().default(false),
   includePrivateCacheDetails: z.boolean().default(false),
   backfillMode: z.enum(["resume", "refresh", "off"]).default("resume"),
@@ -89,11 +90,11 @@ export type StatsActionConfig = z.infer<typeof StatsActionConfigSchema>;
 
 export const DifflerConfigSchema = z.object({
   version: z.string().default("1"),
-  github: GitHubConfigSchema.default({}),
-  templates: TemplateConfigSchema.default({}),
-  cache: CacheConfigSchema.default({}),
-  statsAction: StatsActionConfigSchema.default({}),
-  helpers: z.record(z.unknown()).default({}),
+  github: GitHubConfigSchema.prefault({}),
+  templates: TemplateConfigSchema.prefault({}),
+  cache: CacheConfigSchema.prefault({}),
+  statsAction: StatsActionConfigSchema.prefault({}),
+  helpers: z.record(z.string(), z.unknown()).default({}),
   plugins: z.array(z.string()).default([]),
 });
 
@@ -150,6 +151,10 @@ export function buildStatsActionConfig(config: DifflerConfig): StatsActionConfig
   base.minRestRemaining = envNum("min-rest-remaining", base.minRestRemaining);
   base.includeTraffic = envBool("include-traffic", base.includeTraffic);
   base.includeRestRepoStats = envBool("include-rest-repo-stats", base.includeRestRepoStats);
+  base.includePrivateRepositoryMetrics = envBool(
+    "include-private-repository-metrics",
+    base.includePrivateRepositoryMetrics
+  );
   base.includePrivateRepositoryDetails = envBool(
     "include-private-repository-details",
     base.includePrivateRepositoryDetails

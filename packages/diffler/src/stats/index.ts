@@ -116,6 +116,7 @@ export async function runStatsCollection(
   repositories = mergeRepositories(
     [
       ...Object.values(stableCache.repositories).map((entry) => entry.repository),
+      ...repositories,
       ...contributions.repositories,
     ]
   );
@@ -166,7 +167,12 @@ export async function runStatsCollection(
   });
 
   writeJsonOutput(config.outputPath, output);
-  writeStableCache(config.cachePath, stableCache, config.includePrivateCacheDetails);
+  writeStableCache(
+    config.cachePath,
+    stableCache,
+    config.includePrivateCacheDetails,
+    config.includePrivateRepositoryMetrics
+  );
   writeVolatileCache(config.volatileCachePath, volatileCache);
 
   console.log(
