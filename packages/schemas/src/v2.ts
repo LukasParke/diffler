@@ -221,7 +221,9 @@ export type RepoMetrics = {
   topLanguages: Language[];
   topTopics: TopicCount[];
   profile?: {
+    totalRepos?: number;
     publicRepos: number;
+    privateRepos?: number;
     originalRepos: number;
     forkedRepos: number;
     activeOriginalRepos: number;
@@ -279,6 +281,7 @@ export type PresentationData = {
 };
 
 export type PrivacyReport = {
+  privateRepositoryMetricsIncluded: boolean;
   privateRepositoryDetailsIncluded: boolean;
   privateCacheDetailsIncluded: boolean;
   redactedPrivateRepositories: number;

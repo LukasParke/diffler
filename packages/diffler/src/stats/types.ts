@@ -44,6 +44,7 @@ export type StatsActionConfig = {
   minRestRemaining: number;
   includeTraffic: boolean;
   includeRestRepoStats: boolean;
+  includePrivateRepositoryMetrics: boolean;
   includePrivateRepositoryDetails: boolean;
   includePrivateCacheDetails: boolean;
   backfillMode: "resume" | "refresh" | "off";

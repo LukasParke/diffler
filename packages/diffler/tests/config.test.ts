@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
   loadConfigFromFile,
   loadConfigFromEnv,
+  buildStatsActionConfig,
   getUsernames,
   getProfiles,
   type GitHubConfig,
@@ -29,6 +30,7 @@ describe("config", () => {
       expect(config.github.apiUrl).toBe("https://api.github.com");
       expect(config.templates.main).toBe("profile.md.j2");
       expect(config.cache.enabled).toBe(true);
+      expect(config.statsAction.includePrivateRepositoryMetrics).toBe(false);
     });
   });
 
@@ -154,6 +156,14 @@ describe("config", () => {
       process.env.DIFFLER_TEMPLATE_MAIN = "other.md.j2";
       const config = loadConfigFromEnv();
       expect(config.templates.main).toBe("other.md.j2");
+    });
+
+    it("enables anonymous private repository metrics", () => {
+      process.env.STATS_INCLUDE_PRIVATE_REPOSITORY_METRICS = "true";
+      const config = buildStatsActionConfig(loadConfigFromEnv());
+      expect(config.includePrivateRepositoryMetrics).toBe(true);
+      expect(config.includePrivateRepositoryDetails).toBe(false);
+      expect(config.includePrivateCacheDetails).toBe(false);
     });
   });
 });

@@ -109,6 +109,7 @@ export const defaultStats: UserStats = {
 	cards: [],
 	highlights: [],
 	privacy: {
+		privateRepositoryMetricsIncluded: false,
 		privateRepositoryDetailsIncluded: false,
 		privateCacheDetailsIncluded: false,
 		redactedPrivateRepositories: 0,
