@@ -1,8 +1,10 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import type { DifflerConfig } from "../config.js";
+import { primaryProfileUsername } from "../config.js";
 import { commitAndPush, hasChanges, README_PATH } from "./git.js";
 import { Renderer } from "./renderer.js";
 import { ContextBuilder } from "./context.js";
+import { SourceStore } from "../helpers/prefetch.js";
 
 export class Engine {
   private renderer: Renderer;
@@ -15,14 +17,20 @@ export class Engine {
 
   async render(): Promise<string> {
     const templateSource = this.renderer.readTemplateSource();
-    const context = await this.contextBuilder.build(templateSource);
-    return this.renderer.render(context);
+    const sources = new SourceStore(
+      primaryProfileUsername(this.contextBuilder.config.github)
+    );
+    const context = await this.contextBuilder.build(templateSource, sources);
+    return this.renderer.render(context, sources);
   }
 
   async validate(): Promise<void> {
     const templateSource = this.renderer.readTemplateSource();
-    const context = await this.contextBuilder.build(templateSource);
-    this.renderer.validate(context);
+    const sources = new SourceStore(
+      primaryProfileUsername(this.contextBuilder.config.github)
+    );
+    const context = await this.contextBuilder.build(templateSource, sources);
+    this.renderer.validate(context, sources);
   }
 
   async update(options: { dryRun?: boolean; message?: string } = {}): Promise<void> {

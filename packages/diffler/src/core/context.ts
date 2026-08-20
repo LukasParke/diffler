@@ -1,5 +1,7 @@
 import type { DifflerConfig, GitHubProfileConfig } from "../config.js";
 import { getProfiles } from "../config.js";
+import { GitHubClient } from "../github/client.js";
+import { prefetchSources, type SourceStore } from "../helpers/prefetch.js";
 import {
   analyzeTemplate,
   UnifiedEngine,
@@ -71,17 +73,37 @@ function mergeOutputs(
 }
 
 export class ContextBuilder {
-  private config: DifflerConfig;
+  config: DifflerConfig;
 
   constructor(config: DifflerConfig) {
     this.config = config;
   }
 
-  async build(templateSource: string): Promise<Record<string, unknown>> {
+  async build(
+    templateSource: string,
+    sources?: SourceStore
+  ): Promise<Record<string, unknown>> {
     const profiles = getProfiles(this.config.github);
     if (!profiles.length) {
       console.warn("No GitHub usernames configured; using stub data.");
       return buildStubContext(this.config) as unknown as Record<string, unknown>;
+    }
+
+    if (sources) {
+      const clients = profiles.map(
+        (profile) =>
+          new GitHubClient({
+            ...this.config.github,
+            username: profile.username,
+            token: profile.token,
+          })
+      );
+      await prefetchSources(
+        templateSource,
+        clients.map((client, index) => ({ username: profiles[index].username, client })),
+        profiles[0].username,
+        sources
+      );
     }
 
     const plan = analyzeTemplate(templateSource);

@@ -1,41 +1,17 @@
-export function devtoPosts(username: string, limit = 5): Promise<Array<Record<string, unknown>>> {
-  return fetch(`https://dev.to/api/articles?username=${username}&per_page=${limit}`)
-    .then((r) => r.json())
-    .then((data) => {
-      const articles = data as Array<Record<string, unknown>>;
-      return (articles || []).slice(0, limit).map((a) => ({
-        title: a.title || "Untitled",
-        url: a.url || "#",
-        published_at: a.published_at || "",
-        tags: a.tag_list || [],
-      }));
-    })
-    .catch(() => []);
+import type { SourceStore } from "./prefetch.js";
+
+export function devtoPosts(store: SourceStore) {
+  return (username?: string, limit = 5): Array<Record<string, unknown>> =>
+    store.slice("devto_posts", username, limit);
 }
 
-export function rssFeed(url: string, limit = 5): Promise<Array<Record<string, unknown>>> {
-  return fetch(url, { redirect: "follow" })
-    .then((r) => r.text())
-    .then((text) => {
-      const entries: Array<Record<string, unknown>> = [];
-      const itemRegex = /<item[^>]*>.*?<\/item>/gis;
-      const entryRegex = /<entry[^>]*>.*?<\/entry>/gis;
-      const items = text.match(itemRegex) || text.match(entryRegex) || [];
+export function rssFeed(store: SourceStore) {
+  return (url?: string, limit = 5): Array<Record<string, unknown>> =>
+    url ? store.slice("rss_feed", url, limit) : [];
+}
 
-      for (const item of items.slice(0, limit)) {
-        const titleMatch = item.match(/<title[^>]*>(.*?)<\/title>/is);
-        const linkMatch = item.match(/<link[^>]*href="([^"]+)"/i) || item.match(/<link[^>]*>(.*?)<\/link>/is);
-        const pubMatch = item.match(/<pubDate[^>]*>(.*?)<\/pubDate>/is) || item.match(/<published[^>]*>(.*?)<\/published>/is);
-
-        const title = titleMatch ? titleMatch[1].replace(/<!\[CDATA\[(.*?)\]\]>/, "$1").trim() : "Untitled";
-        const link = linkMatch ? linkMatch[1].trim() : "";
-        const published = pubMatch ? pubMatch[1].trim() : "";
-
-        entries.push({ title, url: link, published });
-      }
-      return entries;
-    })
-    .catch(() => []);
+export function fetchJson(store: SourceStore) {
+  return (url?: string): unknown => (url ? store.get("fetch_json", url) ?? {} : {});
 }
 
 export function profileViewsBadge(username: string, style = "flat"): string {
