@@ -106,21 +106,6 @@ export type RepositoryRecord = {
   metadataFetchedAt: number;
 };
 
-export type RepoDetails = {
-  name: string;
-  nameWithOwner: string;
-  description: string | null;
-  stars: number;
-  forks: number;
-  isArchived: boolean;
-  isFork: boolean;
-  isPrivate: boolean;
-  primaryLanguage: string | null;
-  topics: string[];
-  updatedAt: string;
-  createdAt: string;
-};
-
 export type RepoStats = {
   totalRepos: number;
   publicRepos: number;
@@ -344,47 +329,10 @@ export type CollectionStatus = {
   errors: string[];
 };
 
-export type LegacyStats = {
-  name: string;
-  username: string;
-  avatarUrl: string;
-  bio: string | null;
-  company: string | null;
-  location: string | null;
-  email: string | null;
-  twitterUsername: string | null;
-  websiteUrl: string | null;
-  createdAt: string;
-  repoViews: number;
-  linesOfCodeChanged: number;
-  linesAdded: number;
-  linesDeleted: number;
-  commitCount: number;
-  totalCommits: number;
-  totalPullRequests: number;
-  totalPullRequestReviews: number;
-  openIssues: number;
-  closedIssues: number;
-  fetchedAt: number;
-  forkCount: number;
-  starCount: number;
-  starsGiven: number;
-  followers: number;
-  following: number;
-  repositoriesContributedTo: number;
-  discussionsStarted: number;
-  discussionsAnswered: number;
-  totalContributions: number;
-  codeByteTotal: number;
-  topLanguages: Language[];
-  contributionStats: ContributionStats;
-  repoStats: RepoStats;
-  computedStats: ComputedStats;
-  contributionsCollection: ContributionsCollection;
-  topRepos: RepoDetails[];
-};
-
-export type GitHubStatsOutput = LegacyStats & {
+// The canonical v2 stats document. This is the single source of truth for the
+// JSON written by the collector and read by @lukasparke/diffler-remotion;
+// legacy top-level aliases were removed before the first public release.
+export type GitHubStatsOutput = {
   schemaVersion: typeof OUTPUT_SCHEMA_VERSION;
   generatedAt: string;
   profile: UserProfile;
@@ -396,5 +344,4 @@ export type GitHubStatsOutput = LegacyStats & {
   presentation: PresentationData;
   privacy: PrivacyReport;
   collectionStatus: CollectionStatus;
-  legacy: LegacyStats;
 };

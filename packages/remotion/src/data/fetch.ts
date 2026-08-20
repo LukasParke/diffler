@@ -1,3 +1,8 @@
+import {
+  githubStatsOutputSchema,
+  mergeStatsOutputs,
+  type GitHubStatsOutput,
+} from '@lukasparke/diffler-schemas';
 import {SourceProps, UserStats} from './schemas';
 import {normalizeGithubStats, normalizeLanguages} from './adapter';
 
@@ -17,7 +22,7 @@ export async function fetchUserStats(
   }
 
   const urls = getStatsUrls(inputProps);
-  const stats = await Promise.all(
+  const raws = await Promise.all(
     urls.map(async (url) => {
       const response = await fetch(url, {
         headers: {
@@ -30,13 +35,36 @@ export async function fetchUserStats(
           `Failed to fetch stats from ${url}: ${response.status}`,
         );
       }
-      return normalizeGithubStats(await response.json(), {
-        allowPrivateRepositoryDetails,
-      });
+      return response.json();
     }),
   );
 
-  return mergeUserStats(stats);
+  return normalizeMergedStats(raws, allowPrivateRepositoryDetails);
+}
+
+// Canonical v2 documents are merged with the shared collector merge (one
+// implementation for producer and consumer); anything older is normalized per
+// file and merged at the view level.
+function normalizeMergedStats(
+  raws: unknown[],
+  allowPrivateRepositoryDetails: boolean
+): UserStats {
+  const parsed: GitHubStatsOutput[] = [];
+  for (const raw of raws) {
+    const result = githubStatsOutputSchema.safeParse(raw);
+    if (!result.success) {
+      return mergeUserStats(
+        raws.map((raw) =>
+          normalizeGithubStats(raw, {allowPrivateRepositoryDetails})
+        ),
+      );
+    }
+    parsed.push(result.data);
+  }
+
+  return normalizeGithubStats(mergeStatsOutputs(parsed), {
+    allowPrivateRepositoryDetails,
+  });
 }
 
 function getStatsUrls(inputProps: SourceProps): string[] {

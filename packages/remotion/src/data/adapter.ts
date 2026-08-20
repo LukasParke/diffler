@@ -1,3 +1,7 @@
+import {
+  githubStatsOutputSchema,
+  type GitHubStatsOutput,
+} from '@lukasparke/diffler-schemas';
 import {RenderLanguage, UserStats, MetricCard} from './schemas';
 
 type UnknownRecord = Record<string, unknown>;
@@ -7,17 +11,190 @@ export function normalizeGithubStats(
   options: {allowPrivateRepositoryDetails: boolean}
 ): UserStats {
   const raw = asRecord(rawValue);
-  const schemaVersion = asNumber(raw.schemaVersion, null);
 
   assertPublicSafe(raw, options.allowPrivateRepositoryDetails);
 
-  if (schemaVersion === 2) {
+  // Canonical v2 documents validate strictly and map directly from typed
+  // fields. Anything older (sparse v2 files or pre-v2 legacy JSON) falls back
+  // to the defensive normalizers below.
+  const parsed = githubStatsOutputSchema.safeParse(raw);
+  if (parsed.success) {
+    return userStatsFromCanonical(parsed.data);
+  }
+
+  if (asNumber(raw.schemaVersion, null) === 2) {
     return normalizeV2Stats(raw);
   }
 
   return normalizeLegacyStats(raw);
 }
 
+// Maps a schema-validated canonical v2 output to the card view. Every field is
+// typed, so this is a plain projection — no coercion.
+function userStatsFromCanonical(output: GitHubStatsOutput): UserStats {
+  const profileMetrics = output.repoMetrics.profile;
+  const contributionStats = output.profileContributions.stats;
+  const activity = output.activity;
+  const contributorStats = output.repoMetrics.contributorStats;
+  const traffic = output.repoMetrics.traffic;
+  const generatedAt = output.generatedAt;
+  const fetchedAt =
+    Date.parse(generatedAt) ||
+    output.collectionStatus.startedAt ||
+    Date.now();
+  const totalContributions = output.profileContributions.totalContributions;
+  const starCount = profileMetrics?.starsReceived ?? 0;
+  const forkCount = profileMetrics?.forksReceived ?? 0;
+  const totalRepos = profileMetrics?.totalRepos ?? output.repoMetrics.repoStats.totalRepos;
+  const publicRepos =
+    profileMetrics?.publicRepos ?? output.repoMetrics.repoStats.publicRepos;
+  const activeRepos =
+    profileMetrics?.activeOriginalRepos ?? output.repoMetrics.repoStats.activeRepos;
+  const linesAdded = contributorStats.linesAdded;
+  const linesDeleted = contributorStats.linesDeleted;
+  const linesOfCodeChanged = contributorStats.linesOfCodeChanged;
+  const linesChanged = linesOfCodeChanged;
+  const trafficCompleted = traffic.reposCompleted;
+  const repoViews = trafficCompleted > 0 ? traffic.repoViews : null;
+  const repoViewUniques = trafficCompleted > 0 ? traffic.repoViewUniques : null;
+  const backfillPending = output.collectionStatus.backfill.pending;
+  const isComplete =
+    output.presentation.readmeSummary.complete ||
+    (output.collectionStatus.complete && backfillPending === 0);
+  const totalCommits =
+    contributorStats.totalCommits || output.profileContributions.totalCommitContributions;
+
+  return {
+    schemaVersion: 2,
+    name: output.profile.name || output.profile.login || 'GitHub User',
+    username: output.profile.login || 'unknown',
+    avatarUrl: output.profile.avatarUrl,
+    bio: output.profile.bio,
+    websiteUrl: output.profile.websiteUrl,
+    location: output.profile.location,
+    generatedAt,
+    fetchedAt,
+    isComplete,
+    summary: {
+      totalContributions,
+      currentStreak: contributionStats.currentStreak,
+      longestStreak: contributionStats.longestStreak,
+      starsReceived: starCount,
+      forksReceived: forkCount,
+      activeRepos,
+      totalRepos,
+      languageCount:
+        profileMetrics?.topLanguages.length ?? output.repoMetrics.computedStats.languageCount,
+      profileMetricsComplete: profileMetrics != null,
+      refreshedAt: output.presentation.readmeSummary.refreshedAt || generatedAt,
+    },
+    contributions: {
+      totalContributions,
+      totalCommits,
+      restrictedContributionsCount: output.profileContributions.restrictedContributionsCount,
+      currentStreak: contributionStats.currentStreak,
+      longestStreak: contributionStats.longestStreak,
+      peakDay: contributionStats.peakDay,
+      mostProductiveMonth: output.repoMetrics.computedStats.mostProductiveMonth,
+      calendar: flattenContributionCalendar(
+        output.profileContributions.contributionCalendar
+      ),
+      timeline:
+        output.presentation.timeline.length > 0
+          ? output.presentation.timeline
+          : contributionStats.yearlyBreakdown.map((year) => ({
+              period: year.year,
+              contributions: year.contributions,
+            })),
+    },
+    code: {
+      codeByteTotal: profileMetrics?.codeByteTotal ?? output.repoMetrics.codeByteTotal,
+      linesAdded,
+      linesDeleted,
+      linesChanged,
+      linesOfCodeChanged,
+      contributorReposCompleted: contributorStats.reposCompleted,
+      contributorReposPending: contributorStats.reposPending,
+      contributorReposFailed: contributorStats.reposFailed,
+    },
+    community: {
+      totalPullRequests: activity.totalPullRequests,
+      totalPullRequestReviews:
+        output.profileContributions.totalPullRequestReviewContributions,
+      openIssues: activity.openIssues,
+      closedIssues: activity.closedIssues,
+      repositoriesContributedTo: activity.repositoriesContributedTo,
+      discussionsStarted: activity.discussionsStarted,
+      discussionsAnswered: activity.discussionsAnswered,
+      starsGiven: activity.starsGiven,
+      followers: output.profile.followers,
+      following: output.profile.following,
+    },
+    repositories: {
+      totalRepos,
+      publicRepos,
+      privateRepos: profileMetrics?.privateRepos ?? Math.max(0, totalRepos - publicRepos),
+      activeRepos,
+      archivedRepos:
+        profileMetrics?.archivedOriginalRepos ?? output.repoMetrics.repoStats.archivedRepos,
+      forkedRepos: profileMetrics?.forkedRepos ?? output.repoMetrics.repoStats.forkedRepos,
+      originalRepos: profileMetrics?.originalRepos ?? output.repoMetrics.repoStats.originalRepos,
+      reposWithStars:
+        profileMetrics?.reposWithStars ?? output.repoMetrics.repoStats.reposWithStars,
+      repoViews,
+      repoViewUniques,
+      trafficReposCompleted: trafficCompleted,
+      trafficReposPending: traffic.reposPending,
+      trafficReposFailed: traffic.reposFailed,
+      starCount,
+      forkCount,
+    },
+    topLanguages: profileMetrics?.topLanguages ?? [],
+    packages: output.packageMetrics,
+    cards: output.presentation.cards,
+    highlights: output.presentation.highlights,
+    privacy: output.privacy,
+    collectionStatus: {
+      complete: isComplete,
+      coreComplete: output.collectionStatus.coreComplete,
+      backfillPending,
+      backfillCompletedThisRun: output.collectionStatus.backfill.completedThisRun,
+      backfillFailedThisRun: output.collectionStatus.backfill.failedThisRun,
+      warnings: output.collectionStatus.warnings,
+      errors: output.collectionStatus.errors,
+    },
+    repoViews,
+    linesOfCodeChanged,
+    linesAdded,
+    linesDeleted,
+    linesChanged,
+    totalCommits,
+    totalPullRequests: activity.totalPullRequests,
+    totalPullRequestReviews:
+      output.profileContributions.totalPullRequestReviewContributions,
+    openIssues: activity.openIssues,
+    closedIssues: activity.closedIssues,
+    forkCount,
+    starCount,
+    totalContributions,
+    codeByteTotal: output.repoMetrics.codeByteTotal,
+  };
+}
+
+function flattenContributionCalendar(calendar: {
+  weeks: Array<{contributionDays: Array<{contributionCount: number; date: string}>}>;
+}): Array<{contributionCount: number; date: string}> {
+  return calendar.weeks.flatMap((week) =>
+    week.contributionDays.map((day) => ({
+      contributionCount: day.contributionCount,
+      date: day.date,
+    }))
+  );
+}
+
+// Fallback for v2 documents produced before the legacy fields were removed
+// (sparse or carrying a `legacy` block). New documents always take the strict
+// canonical path above.
 function normalizeV2Stats(raw: UnknownRecord): UserStats {
   const profile = asRecord(raw.profile);
   const legacy = asRecord(raw.legacy);

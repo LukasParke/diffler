@@ -13,7 +13,6 @@ export {
   type CollectionSource,
   type RepositoryContributionCounts,
   type RepositoryRecord,
-  type RepoDetails,
   type RepoStats,
   type TopicCount,
   type ComputedStats,
@@ -28,7 +27,6 @@ export {
   type PresentationData,
   type PrivacyReport,
   type CollectionStatus,
-  type LegacyStats,
   type GitHubStatsOutput,
 } from "@lukasparke/diffler-schemas";
 

@@ -4,6 +4,7 @@ export function remotionInput(stats: Record<string, unknown>): Record<string, un
   const calendar = (contributions.contributionCalendar as Record<string, unknown>) || {};
   const statsBlock = (contributions.stats as Record<string, unknown>) || {};
   const repoMetrics = (stats.repoMetrics as Record<string, unknown>) || {};
+  const repoStats = (repoMetrics.repoStats as Record<string, unknown>) || {};
 
   return {
     username: profile.login || stats.username,
@@ -12,7 +13,7 @@ export function remotionInput(stats: Record<string, unknown>): Record<string, un
     totalContributions: contributions.totalContributions || 0,
     currentStreak: statsBlock.currentStreak || 0,
     longestStreak: statsBlock.longestStreak || 0,
-    publicRepos: repoMetrics.publicRepoCount || 0,
+    publicRepos: repoStats.publicRepos || 0,
     totalStars: repoMetrics.starCount || 0,
     totalForks: repoMetrics.forkCount || 0,
     topLanguages: ((repoMetrics.topLanguages as Array<Record<string, unknown>>) || [])
@@ -66,7 +67,7 @@ export function remotionSceneManifest(
   const repoMetrics = (stats.repoMetrics as Record<string, unknown>) || {};
   const contributions = (stats.profileContributions as Record<string, unknown>) || {};
   const activity = (stats.activity as Record<string, unknown>) || {};
-  const computed = (stats.computedStats as Record<string, unknown>) || {};
+  const computed = (repoMetrics.computedStats as Record<string, unknown>) || {};
   const streak = ((contributions.stats as Record<string, unknown>)?.currentStreak as number) || 0;
   const langCount = ((repoMetrics.topLanguages as Array<unknown>) || []).length;
 

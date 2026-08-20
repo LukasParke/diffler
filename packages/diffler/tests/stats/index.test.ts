@@ -627,7 +627,7 @@ describe("v2 collection helpers", () => {
     expect(JSON.stringify(sanitized)).not.toContain(privateRepo.defaultBranchOid);
   });
 
-  it("builds v2 output while preserving legacy top-level aliases", () => {
+  it("builds canonical v2 output without legacy aliases", () => {
     const cache = createEmptyStableCache();
     const repo = createRepository();
     cache.contributorStats[repo.id] = {
@@ -720,10 +720,14 @@ describe("v2 collection helpers", () => {
     });
 
     expect(output.schemaVersion).toBe(2);
-    expect(output.totalContributions).toBe(output.legacy.totalContributions);
+    // The canonical document carries each fact once; no flattened legacy
+    // aliases or `legacy` block exist at the top level.
+    expect(output).not.toHaveProperty("legacy");
+    expect(output).not.toHaveProperty("totalContributions");
     expect(output.profileContributions.totalContributions).toBe(5);
     expect(output.repoMetrics.contributorStats.linesOfCodeChanged).toBe(10);
     expect(output.presentation.readmeSummary.username).toBe("LukasParke");
+    expect(output.presentation.readmeSummary.totalContributions).toBe(5);
   });
 
   it("scopes profile presentation metrics to public repositories owned by the profile", () => {
@@ -993,17 +997,17 @@ describe("v2 collection helpers", () => {
       },
     });
 
-    expect(defaultOutput.repoStats).toMatchObject({
+    expect(defaultOutput.repoMetrics.repoStats).toMatchObject({
       totalRepos: 1,
       publicRepos: 1,
       privateRepos: 0,
       originalRepos: 1,
       averageStarsPerRepo: 10,
     });
-    expect(defaultOutput.topLanguages.map((lang) => lang.languageName)).not.toContain(
+    expect(defaultOutput.repoMetrics.topLanguages.map((lang) => lang.languageName)).not.toContain(
       "SecretLang"
     );
-    expect(output.repoStats.privateRepos).toBe(1);
+    expect(output.repoMetrics.repoStats.privateRepos).toBe(1);
     expect(output.repoMetrics.profile).toMatchObject({
       totalRepos: 2,
       publicRepos: 1,
@@ -1023,7 +1027,7 @@ describe("v2 collection helpers", () => {
       repoViewUniques: 12,
       reposCompleted: 1,
     });
-    expect(output.topLanguages.map((lang) => lang.languageName)).toContain(
+    expect(output.repoMetrics.topLanguages.map((lang) => lang.languageName)).toContain(
       "SecretLang"
     );
     expect(output.repoMetrics.topTopics.map((topic) => topic.name)).not.toContain(

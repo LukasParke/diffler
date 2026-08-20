@@ -2,6 +2,7 @@ import type { DifflerConfig, GitHubProfileConfig } from "../config.js";
 import { getProfiles } from "../config.js";
 import { GitHubClient } from "../github/client.js";
 import { prefetchSources, type SourceStore } from "../helpers/prefetch.js";
+import { mergeStatsOutputs } from "@lukasparke/diffler-schemas";
 import {
   analyzeTemplate,
   UnifiedEngine,
@@ -11,46 +12,9 @@ import {
 import type { GitHubStatsOutput } from "@lukasparke/diffler-schemas";
 
 function mergeOutputs(outputs: GitHubStatsOutput[]): GitHubStatsOutput {
-  if (outputs.length === 1) {
-    return outputs[0];
-  }
-
-  const [first, ...rest] = outputs;
-
-  for (const next of rest) {
-    // Merge contribution counts
-    first.profileContributions.totalContributions +=
-      next.profileContributions.totalContributions;
-    first.profileContributions.totalCommitContributions +=
-      next.profileContributions.totalCommitContributions;
-    first.profileContributions.totalIssueContributions +=
-      next.profileContributions.totalIssueContributions;
-    first.profileContributions.totalPullRequestContributions +=
-      next.profileContributions.totalPullRequestContributions;
-    first.profileContributions.totalPullRequestReviewContributions +=
-      next.profileContributions.totalPullRequestReviewContributions;
-
-    // Merge activity
-    first.activity.totalPullRequests += next.activity.totalPullRequests;
-    first.activity.openIssues += next.activity.openIssues;
-    first.activity.closedIssues += next.activity.closedIssues;
-    first.activity.repositoriesContributedTo +=
-      next.activity.repositoriesContributedTo;
-    first.activity.discussionsStarted += next.activity.discussionsStarted;
-    first.activity.discussionsAnswered += next.activity.discussionsAnswered;
-    first.activity.starsGiven += next.activity.starsGiven;
-
-    // Merge repositories (dedup by id)
-    const existingIds = new Set(first.repositories.map((r) => r.id));
-    for (const repo of next.repositories) {
-      if (!existingIds.has(repo.id)) {
-        first.repositories.push(repo);
-        existingIds.add(repo.id);
-      }
-    }
-  }
-
-  return first;
+  // Shared merge recomputes calendars, streaks, repo metrics, and presentation
+  // so multi-profile output is internally consistent.
+  return mergeStatsOutputs(outputs);
 }
 
 export class ContextBuilder {

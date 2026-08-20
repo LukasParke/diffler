@@ -2,9 +2,7 @@ import type {
   ActivityStats,
   CollectionStatus,
   GitHubStatsOutput,
-  LegacyStats,
   PackageMetrics,
-  PresentationData,
   PrivacyReport,
   ProfileContributions,
   RepoMetrics,
@@ -15,14 +13,13 @@ import type {
 } from "./types.js";
 import type { ContributionCollectionResult } from "./github.js";
 import {
+  OUTPUT_SCHEMA_VERSION,
   aggregateRepositoryLanguages,
   calculateComputedStats,
   calculateContributionStats,
   calculateRepoStats,
-  formatBytes,
-  formatNumber,
-  toTopRepos,
-} from "./aggregate.js";
+  buildPresentationData,
+} from "@lukasparke/diffler-schemas";
 import { repositoryMetricCacheKey } from "./cache.js";
 
 export function buildOutput(params: {
@@ -142,7 +139,6 @@ export function buildOutput(params: {
   );
   const starCount = ownedMetricRepos.reduce((sum, repo) => sum + repo.stars, 0);
   const forkCount = ownedMetricRepos.reduce((sum, repo) => sum + repo.forks, 0);
-  const topRepos = toTopRepos(visibleRepositories);
   const privacy = buildPrivacyReport({
     includePrivateRepositoryMetrics: includePrivateMetrics,
     includePrivateRepositoryDetails: includePrivateDetails,
@@ -222,58 +218,16 @@ export function buildOutput(params: {
     },
   };
 
-  const legacy: LegacyStats = {
-    name: params.profile.name,
-    avatarUrl: params.profile.avatarUrl,
-    username: params.profile.login,
-    bio: params.profile.bio,
-    company: params.profile.company,
-    location: params.profile.location,
-    email: params.profile.email,
-    twitterUsername: params.profile.twitterUsername,
-    websiteUrl: params.profile.websiteUrl,
-    createdAt: params.profile.createdAt,
-    repoViews,
-    linesOfCodeChanged: linesAdded + linesDeleted,
-    linesAdded,
-    linesDeleted,
-    commitCount,
-    totalCommits: params.contributions.collection.totalCommitContributions,
-    totalPullRequests: params.activity.totalPullRequests,
-    totalPullRequestReviews:
-      params.contributions.collection.totalPullRequestReviewContributions,
-    codeByteTotal,
-    topLanguages,
-    forkCount,
-    starCount,
-    starsGiven: params.activity.starsGiven,
-    followers: params.profile.followers,
-    following: params.profile.following,
-    repositoriesContributedTo: params.activity.repositoriesContributedTo,
-    discussionsStarted: params.activity.discussionsStarted,
-    discussionsAnswered: params.activity.discussionsAnswered,
-    totalContributions:
-      params.contributions.collection.contributionCalendar.totalContributions,
-    contributionStats,
-    repoStats,
-    computedStats,
-    contributionsCollection: params.contributions.collection,
-    topRepos,
-    closedIssues: params.activity.closedIssues,
-    openIssues: params.activity.openIssues,
-    fetchedAt: params.fetchedAt,
-  };
-
-  const presentation = buildPresentation({
+  const presentation = buildPresentationData({
     profile: params.profile,
-    legacy,
+    profileContributions,
     repoMetrics,
     complete: collectionStatus.complete,
+    fetchedAt: params.fetchedAt,
   });
 
   return {
-    ...legacy,
-    schemaVersion: 2,
+    schemaVersion: OUTPUT_SCHEMA_VERSION,
     generatedAt: new Date(params.fetchedAt).toISOString(),
     profile: params.profile,
     profileContributions,
@@ -284,7 +238,6 @@ export function buildOutput(params: {
     presentation,
     privacy,
     collectionStatus,
-    legacy,
   };
 }
 
@@ -378,129 +331,3 @@ function hasVisibleRepositoryId(key: string, visibleRepositoryIds: Set<string>):
   return false;
 }
 
-function buildPresentation(params: {
-  profile: UserProfile;
-  legacy: LegacyStats;
-  repoMetrics: RepoMetrics;
-  complete: boolean;
-}): PresentationData {
-  const profileMetrics = params.repoMetrics.profile;
-  if (!profileMetrics) {
-    throw new Error("Profile repository metrics are required for presentation output");
-  }
-  const topLanguage = profileMetrics.topLanguages[0];
-  const mostProductiveMonth = params.legacy.computedStats.mostProductiveMonth;
-  const peakDay = params.legacy.contributionStats.peakDay;
-
-  return {
-    readmeSummary: {
-      name: params.profile.name,
-      username: params.profile.login,
-      totalContributions: params.legacy.totalContributions,
-      currentStreak: params.legacy.contributionStats.currentStreak,
-      longestStreak: params.legacy.contributionStats.longestStreak,
-      topLanguages: profileMetrics.topLanguages.slice(0, 5),
-      starsReceived: profileMetrics.starsReceived,
-      forksReceived: profileMetrics.forksReceived,
-      totalRepos: profileMetrics.totalRepos ?? profileMetrics.publicRepos,
-      originalRepos: profileMetrics.originalRepos,
-      activeRepos: profileMetrics.activeOriginalRepos,
-      languageCount: profileMetrics.topLanguages.length,
-      codeByteTotal: profileMetrics.codeByteTotal,
-      refreshedAt: new Date(params.legacy.fetchedAt).toISOString(),
-      complete: params.complete,
-    },
-    cards: [
-      {
-        id: "total-contributions",
-        label: "Total contributions",
-        value: formatNumber(params.legacy.totalContributions),
-      },
-      {
-        id: "current-streak",
-        label: "Current streak",
-        value: `${params.legacy.contributionStats.currentStreak} days`,
-      },
-      {
-        id: "languages",
-        label: "Languages",
-        value: profileMetrics.topLanguages.length,
-        detail: topLanguage ? `${topLanguage.languageName} leads` : undefined,
-      },
-      {
-        id: "code-volume",
-        label: "Code volume",
-        value: formatBytes(profileMetrics.codeByteTotal),
-      },
-      {
-        id: "stars",
-        label: "Stars received",
-        value: formatNumber(profileMetrics.starsReceived),
-      },
-    ],
-    timeline: params.legacy.contributionStats.yearlyBreakdown.map((year) => ({
-      period: year.year,
-      contributions: year.contributions,
-    })),
-    highlights: [
-      ...(peakDay
-        ? [
-            {
-              id: "peak-day",
-              label: "Peak day",
-              value: peakDay.contributions,
-              detail: peakDay.date,
-            },
-          ]
-        : []),
-      ...(mostProductiveMonth
-        ? [
-            {
-              id: "top-month",
-              label: "Most productive month",
-              value: mostProductiveMonth.contributions,
-              detail: mostProductiveMonth.month,
-            },
-          ]
-        : []),
-      ...(topLanguage
-        ? [
-            {
-              id: "top-language",
-              label: "Top language",
-              value: topLanguage.languageName,
-              detail: `${topLanguage.percentage}%`,
-            },
-          ]
-        : []),
-    ],
-    remotion: {
-      scenes: [
-        {
-          id: "intro",
-          title: params.profile.name || params.profile.login,
-          metric: params.profile.login,
-          supportingText: "GitHub profile activity",
-        },
-        {
-          id: "contributions",
-          title: "Contribution history",
-          metric: formatNumber(params.legacy.totalContributions),
-          supportingText: `${params.legacy.contributionStats.longestStreak} day longest streak`,
-        },
-        {
-          id: "repositories",
-          title: "Repository footprint",
-          metric: profileMetrics.totalRepos ?? profileMetrics.publicRepos,
-          supportingText: `${profileMetrics.originalRepos} original repositories`,
-        },
-        {
-          id: "languages",
-          title: "Language mix",
-          metric: topLanguage?.languageName || "N/A",
-          supportingText: `${profileMetrics.topLanguages.length} languages detected`,
-        },
-      ],
-    },
-  };
-}
