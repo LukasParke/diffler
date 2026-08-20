@@ -19387,9 +19387,9 @@ var require_nodefs_handler = __commonJS({
         if (this.fsw.closed) {
           return;
         }
-        const dirname4 = sysPath.dirname(file2);
+        const dirname3 = sysPath.dirname(file2);
         const basename = sysPath.basename(file2);
-        const parent = this.fsw._getWatchedDir(dirname4);
+        const parent = this.fsw._getWatchedDir(dirname3);
         let prevStats = stats;
         if (parent.has(basename)) return;
         const listener = async (path, newStats) => {
@@ -19411,7 +19411,7 @@ var require_nodefs_handler = __commonJS({
                 prevStats = newStats2;
               }
             } catch (error51) {
-              this.fsw._remove(dirname4, basename);
+              this.fsw._remove(dirname3, basename);
             }
           } else if (parent.has(basename)) {
             const at = newStats.atimeMs;
@@ -22117,7 +22117,7 @@ var require_nunjucks = __commonJS({
 });
 
 // src/cli.ts
-import { writeFileSync as writeFileSync5, mkdirSync as mkdirSync4, existsSync as existsSync4, unlinkSync } from "node:fs";
+import { writeFileSync as writeFileSync4, mkdirSync as mkdirSync3, existsSync as existsSync3, unlinkSync } from "node:fs";
 import { resolve as resolve3 } from "node:path";
 
 // ../../node_modules/.pnpm/commander@14.0.3/node_modules/commander/esm.mjs
@@ -36946,23 +36946,23 @@ var GitHubClient = class {
 };
 
 // src/core/engine.ts
-import { existsSync as existsSync3, readFileSync as readFileSync4, writeFileSync as writeFileSync4 } from "node:fs";
+import { existsSync as existsSync2, readFileSync as readFileSync3, writeFileSync as writeFileSync3 } from "node:fs";
 
 // src/core/git.ts
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 var README_PATH = "README.md";
 function hasChanges(path = README_PATH) {
   try {
-    execSync(`git diff --quiet ${path}`, { stdio: "pipe" });
+    execFileSync("git", ["diff", "--quiet", path], { stdio: "pipe" });
     return false;
   } catch {
     return true;
   }
 }
 function commitAndPush(message, path = README_PATH) {
-  execSync(`git add ${path}`, { stdio: "inherit" });
-  execSync(`git commit -m "${message}"`, { stdio: "inherit" });
-  execSync("git push", { stdio: "inherit" });
+  execFileSync("git", ["add", path], { stdio: "inherit" });
+  execFileSync("git", ["commit", "-m", message], { stdio: "inherit" });
+  execFileSync("git", ["push"], { stdio: "inherit" });
 }
 
 // src/helpers/prefetch.ts
@@ -37313,85 +37313,471 @@ function lookupPath(variables, path) {
   return current;
 }
 
-// src/engine/plan.ts
-var VAR_REF = /\{\{[\s\-]*([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
-var FUNC_CALL = /\{\{[\s\-]*([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g;
-var TAG_VAR_REF = /\{%[\+\s\-]*(?:for\s+\w+\s+in|if|elif|set\s+\w+\s*=)\s+([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
-var REF_MAP = {
-  profile: ["needsProfile"],
-  github: ["needsProfile", "needsActivity", "needsDiscussions", "needsStarsGiven"],
-  user: ["needsProfile"],
-  contributions: ["needsContributions"],
-  streak: ["needsContributions"],
-  calendar: ["needsContributions"],
-  repositories: ["needsRepositories"],
-  repos: ["needsRepositories"],
-  organizations: ["needsOrganizations"],
-  orgs: ["needsOrganizations"],
-  gists: ["needsGists"],
-  traffic: ["needsTraffic"],
-  contributor_stats: ["needsContributorStats"],
-  activity: ["needsActivity"],
-  discussions: ["needsDiscussions"],
-  stars_given: ["needsStarsGiven"],
-  repo_stats: ["needsRepoStats"],
-  computed_stats: ["needsComputedStats"]
-};
-function analyzeTemplate(templateSource) {
-  const refs = /* @__PURE__ */ new Set();
-  let m;
-  VAR_REF.lastIndex = 0;
-  while ((m = VAR_REF.exec(templateSource)) !== null) {
-    refs.add(m[1]);
-  }
-  FUNC_CALL.lastIndex = 0;
-  while ((m = FUNC_CALL.exec(templateSource)) !== null) {
-    refs.add(m[1]);
-  }
-  TAG_VAR_REF.lastIndex = 0;
-  while ((m = TAG_VAR_REF.exec(templateSource)) !== null) {
-    refs.add(m[1]);
-  }
-  const plan = {
-    needsProfile: false,
-    needsContributions: false,
-    needsRepositories: false,
-    needsOrganizations: false,
-    needsGists: false,
-    needsTraffic: false,
-    needsContributorStats: false,
-    needsActivity: false,
-    needsDiscussions: false,
-    needsStarsGiven: false,
-    needsRepoStats: false,
-    needsComputedStats: false
-  };
-  for (const ref of refs) {
-    const keys = REF_MAP[ref];
-    if (keys) {
-      for (const key of keys) {
-        plan[key] = true;
-      }
-    }
-  }
-  const anyNeeded = Object.values(plan).some(Boolean);
-  if (anyNeeded) {
-    plan.needsProfile = true;
-    plan.needsContributions = true;
-    plan.needsRepositories = true;
-  }
-  return plan;
-}
+// ../schemas/src/v2.ts
+var OUTPUT_SCHEMA_VERSION = 2;
+var CACHE_SCHEMA_VERSION = 1;
 
-// src/engine/unified.ts
-import { readFileSync as readFileSync3, writeFileSync as writeFileSync3, existsSync as existsSync2, mkdirSync as mkdirSync3 } from "node:fs";
-import { dirname as dirname3, resolve } from "node:path";
+// ../schemas/src/zod.ts
+var renderLanguageSchema = external_exports.object({
+  languageName: external_exports.string(),
+  color: external_exports.string().nullable(),
+  value: external_exports.number(),
+  percentage: external_exports.number().optional()
+});
+var contributionDaySchema = external_exports.object({
+  contributionCount: external_exports.number(),
+  date: external_exports.string()
+});
+var timelinePointSchema = external_exports.object({
+  period: external_exports.string(),
+  contributions: external_exports.number()
+});
+var metricCardSchema = external_exports.object({
+  id: external_exports.string(),
+  label: external_exports.string(),
+  value: external_exports.union([external_exports.string(), external_exports.number()]),
+  detail: external_exports.string().optional()
+});
+var packageDownloadCountsSchema = external_exports.object({
+  lastDay: external_exports.number(),
+  lastWeek: external_exports.number(),
+  lastMonth: external_exports.number(),
+  lastYear: external_exports.number(),
+  allTime: external_exports.number()
+});
+var packageMetricSchema = external_exports.object({
+  provider: external_exports.string(),
+  name: external_exports.string(),
+  url: external_exports.string(),
+  latestVersion: external_exports.string().nullable(),
+  latestPublishedAt: external_exports.string().nullable(),
+  downloads: packageDownloadCountsSchema
+});
+var userStatsSchema = external_exports.object({
+  schemaVersion: external_exports.number().nullable(),
+  name: external_exports.string(),
+  username: external_exports.string(),
+  avatarUrl: external_exports.string(),
+  bio: external_exports.string().nullable(),
+  websiteUrl: external_exports.string().nullable(),
+  location: external_exports.string().nullable(),
+  generatedAt: external_exports.string(),
+  fetchedAt: external_exports.number(),
+  isComplete: external_exports.boolean(),
+  summary: external_exports.object({
+    totalContributions: external_exports.number(),
+    currentStreak: external_exports.number(),
+    longestStreak: external_exports.number(),
+    starsReceived: external_exports.number(),
+    forksReceived: external_exports.number(),
+    activeRepos: external_exports.number(),
+    totalRepos: external_exports.number(),
+    languageCount: external_exports.number(),
+    profileMetricsComplete: external_exports.boolean(),
+    refreshedAt: external_exports.string()
+  }),
+  contributions: external_exports.object({
+    totalContributions: external_exports.number(),
+    totalCommits: external_exports.number(),
+    restrictedContributionsCount: external_exports.number(),
+    currentStreak: external_exports.number(),
+    longestStreak: external_exports.number(),
+    peakDay: external_exports.object({
+      date: external_exports.string(),
+      contributions: external_exports.number()
+    }).nullable(),
+    mostProductiveMonth: external_exports.object({
+      month: external_exports.string(),
+      contributions: external_exports.number()
+    }).nullable(),
+    calendar: external_exports.array(contributionDaySchema),
+    timeline: external_exports.array(timelinePointSchema)
+  }),
+  code: external_exports.object({
+    codeByteTotal: external_exports.number(),
+    linesAdded: external_exports.number(),
+    linesDeleted: external_exports.number(),
+    linesChanged: external_exports.number(),
+    linesOfCodeChanged: external_exports.number(),
+    contributorReposCompleted: external_exports.number(),
+    contributorReposPending: external_exports.number(),
+    contributorReposFailed: external_exports.number()
+  }),
+  community: external_exports.object({
+    totalPullRequests: external_exports.number(),
+    totalPullRequestReviews: external_exports.number(),
+    openIssues: external_exports.number(),
+    closedIssues: external_exports.number(),
+    repositoriesContributedTo: external_exports.number(),
+    discussionsStarted: external_exports.number(),
+    discussionsAnswered: external_exports.number(),
+    starsGiven: external_exports.number(),
+    followers: external_exports.number(),
+    following: external_exports.number()
+  }),
+  repositories: external_exports.object({
+    totalRepos: external_exports.number(),
+    publicRepos: external_exports.number(),
+    privateRepos: external_exports.number(),
+    activeRepos: external_exports.number(),
+    archivedRepos: external_exports.number(),
+    forkedRepos: external_exports.number(),
+    originalRepos: external_exports.number(),
+    reposWithStars: external_exports.number(),
+    repoViews: external_exports.number().nullable(),
+    repoViewUniques: external_exports.number().nullable(),
+    trafficReposCompleted: external_exports.number(),
+    trafficReposPending: external_exports.number(),
+    trafficReposFailed: external_exports.number(),
+    starCount: external_exports.number(),
+    forkCount: external_exports.number()
+  }),
+  topLanguages: external_exports.array(renderLanguageSchema),
+  packages: external_exports.object({
+    packageCount: external_exports.number(),
+    providers: external_exports.array(external_exports.string()),
+    downloads: packageDownloadCountsSchema,
+    packages: external_exports.array(packageMetricSchema),
+    complete: external_exports.boolean(),
+    warnings: external_exports.array(external_exports.string())
+  }),
+  cards: external_exports.array(metricCardSchema),
+  highlights: external_exports.array(metricCardSchema),
+  privacy: external_exports.object({
+    privateRepositoryMetricsIncluded: external_exports.boolean(),
+    privateRepositoryDetailsIncluded: external_exports.boolean(),
+    privateCacheDetailsIncluded: external_exports.boolean(),
+    redactedPrivateRepositories: external_exports.number(),
+    redactedRepositoryContributions: external_exports.number(),
+    redactedOptionalMetrics: external_exports.number()
+  }),
+  collectionStatus: external_exports.object({
+    complete: external_exports.boolean(),
+    coreComplete: external_exports.boolean(),
+    backfillPending: external_exports.number(),
+    backfillCompletedThisRun: external_exports.number(),
+    backfillFailedThisRun: external_exports.number(),
+    warnings: external_exports.array(external_exports.string()),
+    errors: external_exports.array(external_exports.string())
+  }),
+  repoViews: external_exports.number().nullable(),
+  linesOfCodeChanged: external_exports.number(),
+  linesAdded: external_exports.number(),
+  linesDeleted: external_exports.number(),
+  linesChanged: external_exports.number(),
+  totalCommits: external_exports.number(),
+  totalPullRequests: external_exports.number(),
+  totalPullRequestReviews: external_exports.number(),
+  openIssues: external_exports.number(),
+  closedIssues: external_exports.number(),
+  forkCount: external_exports.number(),
+  starCount: external_exports.number(),
+  totalContributions: external_exports.number(),
+  codeByteTotal: external_exports.number()
+});
+var sourcePropsSchema = external_exports.object({
+  username: external_exports.string().optional(),
+  usernames: external_exports.array(external_exports.string()).optional(),
+  statsUrl: external_exports.string().optional(),
+  stats: external_exports.unknown().optional(),
+  allowPrivateRepositoryDetails: external_exports.boolean().optional()
+});
+var mainSchema = external_exports.object({
+  userStats: userStatsSchema
+});
+var languageSchema = external_exports.object({
+  languageName: external_exports.string(),
+  color: external_exports.string().nullable(),
+  value: external_exports.number(),
+  percentage: external_exports.number()
+});
+var contributionDay = external_exports.object({
+  contributionCount: external_exports.number(),
+  date: external_exports.string()
+});
+var contributionWeek = external_exports.object({ contributionDays: external_exports.array(contributionDay) });
+var contributionStatsSchema = external_exports.object({
+  longestStreak: external_exports.number(),
+  currentStreak: external_exports.number(),
+  mostActiveDay: external_exports.string(),
+  averagePerDay: external_exports.number(),
+  averagePerWeek: external_exports.number(),
+  averagePerMonth: external_exports.number(),
+  monthlyBreakdown: external_exports.array(
+    external_exports.object({ month: external_exports.string(), contributions: external_exports.number() })
+  ),
+  yearlyBreakdown: external_exports.array(
+    external_exports.object({ year: external_exports.string(), contributions: external_exports.number() })
+  ),
+  peakDay: external_exports.object({ date: external_exports.string(), contributions: external_exports.number() }).nullable()
+});
+var repositoryContributionCountsSchema = external_exports.object({
+  commits: external_exports.number(),
+  issues: external_exports.number(),
+  pullRequests: external_exports.number(),
+  pullRequestReviews: external_exports.number(),
+  repositoryCreations: external_exports.number()
+});
+var repositoryRecordSchema = external_exports.object({
+  id: external_exports.string(),
+  name: external_exports.string(),
+  nameWithOwner: external_exports.string(),
+  owner: external_exports.string(),
+  ownerType: external_exports.string().nullable(),
+  description: external_exports.string().nullable(),
+  url: external_exports.string().nullable(),
+  isArchived: external_exports.boolean(),
+  isFork: external_exports.boolean(),
+  isPrivate: external_exports.boolean(),
+  visibility: external_exports.string().nullable(),
+  viewerPermission: external_exports.string().nullable(),
+  createdAt: external_exports.string(),
+  updatedAt: external_exports.string(),
+  pushedAt: external_exports.string().nullable(),
+  defaultBranchOid: external_exports.string().nullable(),
+  stars: external_exports.number(),
+  forks: external_exports.number(),
+  primaryLanguage: external_exports.string().nullable(),
+  topics: external_exports.array(external_exports.string()),
+  languages: external_exports.array(languageSchema),
+  codeByteTotal: external_exports.number(),
+  sources: external_exports.array(
+    external_exports.enum(["owned", "affiliated", "contributed", "profile-contribution", "cache"])
+  ),
+  contributionCounts: repositoryContributionCountsSchema,
+  metadataFetchedAt: external_exports.number()
+});
+var repoStatsSchema = external_exports.object({
+  totalRepos: external_exports.number(),
+  publicRepos: external_exports.number(),
+  privateRepos: external_exports.number(),
+  archivedRepos: external_exports.number(),
+  forkedRepos: external_exports.number(),
+  originalRepos: external_exports.number(),
+  activeRepos: external_exports.number(),
+  reposWithStars: external_exports.number(),
+  reposCreatedThisYear: external_exports.number(),
+  averageStarsPerRepo: external_exports.number()
+});
+var computedStatsSchema = repoStatsSchema.extend({
+  languageCount: external_exports.number(),
+  primaryLanguage: external_exports.string().nullable(),
+  primaryLanguageThisYear: external_exports.string().nullable(),
+  topLanguagesThisYear: external_exports.array(languageSchema),
+  totalTopics: external_exports.number(),
+  topTopics: external_exports.array(external_exports.object({ name: external_exports.string(), count: external_exports.number() })),
+  allTopics: external_exports.array(external_exports.string()),
+  contributionsThisYear: external_exports.number(),
+  contributionsLastYear: external_exports.number(),
+  yearOverYearGrowth: external_exports.number().nullable(),
+  mostProductiveMonth: external_exports.object({ month: external_exports.string(), contributions: external_exports.number() }).nullable()
+});
+var userProfileSchema = external_exports.object({
+  name: external_exports.string(),
+  login: external_exports.string(),
+  bio: external_exports.string().nullable(),
+  company: external_exports.string().nullable(),
+  location: external_exports.string().nullable(),
+  email: external_exports.string().nullable(),
+  twitterUsername: external_exports.string().nullable(),
+  websiteUrl: external_exports.string().nullable(),
+  avatarUrl: external_exports.string(),
+  createdAt: external_exports.string(),
+  followers: external_exports.number(),
+  following: external_exports.number()
+});
+var activityStatsSchema = external_exports.object({
+  totalPullRequests: external_exports.number(),
+  openIssues: external_exports.number(),
+  closedIssues: external_exports.number(),
+  repositoriesContributedTo: external_exports.number(),
+  discussionsStarted: external_exports.number(),
+  discussionsAnswered: external_exports.number(),
+  starsGiven: external_exports.number()
+});
+var repoMetricsSchema = external_exports.object({
+  starCount: external_exports.number(),
+  forkCount: external_exports.number(),
+  codeByteTotal: external_exports.number(),
+  topLanguages: external_exports.array(languageSchema),
+  topTopics: external_exports.array(external_exports.object({ name: external_exports.string(), count: external_exports.number() })),
+  profile: external_exports.object({
+    totalRepos: external_exports.number().optional(),
+    publicRepos: external_exports.number(),
+    privateRepos: external_exports.number().optional(),
+    originalRepos: external_exports.number(),
+    forkedRepos: external_exports.number(),
+    activeOriginalRepos: external_exports.number(),
+    archivedOriginalRepos: external_exports.number(),
+    reposWithStars: external_exports.number(),
+    starsReceived: external_exports.number(),
+    forksReceived: external_exports.number(),
+    codeByteTotal: external_exports.number(),
+    topLanguages: external_exports.array(languageSchema)
+  }).optional(),
+  contributorStats: external_exports.object({
+    totalCommits: external_exports.number(),
+    linesAdded: external_exports.number(),
+    linesDeleted: external_exports.number(),
+    linesOfCodeChanged: external_exports.number(),
+    reposCompleted: external_exports.number(),
+    reposPending: external_exports.number(),
+    reposFailed: external_exports.number()
+  }),
+  traffic: external_exports.object({
+    repoViews: external_exports.number(),
+    repoViewUniques: external_exports.number(),
+    reposCompleted: external_exports.number(),
+    reposPending: external_exports.number(),
+    reposFailed: external_exports.number()
+  }),
+  repoStats: repoStatsSchema,
+  computedStats: computedStatsSchema
+});
+var packageDownloadCountsSchema2 = external_exports.object({
+  lastDay: external_exports.number(),
+  lastWeek: external_exports.number(),
+  lastMonth: external_exports.number(),
+  lastYear: external_exports.number(),
+  allTime: external_exports.number()
+});
+var packageMetricsSchema2 = external_exports.object({
+  packageCount: external_exports.number(),
+  providers: external_exports.array(external_exports.string()),
+  downloads: packageDownloadCountsSchema2,
+  packages: external_exports.array(
+    external_exports.object({
+      provider: external_exports.string(),
+      name: external_exports.string(),
+      url: external_exports.string(),
+      latestVersion: external_exports.string().nullable(),
+      latestPublishedAt: external_exports.string().nullable(),
+      downloads: packageDownloadCountsSchema2
+    })
+  ),
+  complete: external_exports.boolean(),
+  warnings: external_exports.array(external_exports.string())
+});
+var presentationDataSchema = external_exports.object({
+  readmeSummary: external_exports.object({
+    name: external_exports.string(),
+    username: external_exports.string(),
+    totalContributions: external_exports.number(),
+    currentStreak: external_exports.number(),
+    longestStreak: external_exports.number(),
+    topLanguages: external_exports.array(languageSchema),
+    starsReceived: external_exports.number(),
+    forksReceived: external_exports.number(),
+    totalRepos: external_exports.number().optional(),
+    originalRepos: external_exports.number().optional(),
+    activeRepos: external_exports.number(),
+    languageCount: external_exports.number().optional(),
+    codeByteTotal: external_exports.number().optional(),
+    refreshedAt: external_exports.string(),
+    complete: external_exports.boolean()
+  }),
+  cards: external_exports.array(metricCardSchema),
+  timeline: external_exports.array(timelinePointSchema),
+  highlights: external_exports.array(metricCardSchema),
+  remotion: external_exports.object({
+    scenes: external_exports.array(
+      external_exports.object({
+        id: external_exports.string(),
+        title: external_exports.string(),
+        metric: external_exports.union([external_exports.string(), external_exports.number()]),
+        supportingText: external_exports.string().optional()
+      })
+    )
+  })
+});
+var privacyReportSchema = external_exports.object({
+  privateRepositoryMetricsIncluded: external_exports.boolean(),
+  privateRepositoryDetailsIncluded: external_exports.boolean(),
+  privateCacheDetailsIncluded: external_exports.boolean(),
+  redactedPrivateRepositories: external_exports.number(),
+  redactedRepositoryContributions: external_exports.number(),
+  redactedOptionalMetrics: external_exports.number()
+});
+var collectionStatusSchema = external_exports.object({
+  startedAt: external_exports.number(),
+  finishedAt: external_exports.number(),
+  durationMs: external_exports.number(),
+  complete: external_exports.boolean(),
+  coreComplete: external_exports.boolean(),
+  cache: external_exports.object({
+    stablePath: external_exports.string(),
+    volatilePath: external_exports.string(),
+    contributionYearsFromCache: external_exports.number(),
+    contributionYearsFetched: external_exports.number(),
+    repositoriesFromCache: external_exports.number(),
+    repositoriesFetched: external_exports.number()
+  }),
+  backfill: external_exports.object({
+    enabled: external_exports.boolean(),
+    completedThisRun: external_exports.number(),
+    pending: external_exports.number(),
+    failedThisRun: external_exports.number(),
+    skippedThisRun: external_exports.number()
+  }),
+  rateLimit: external_exports.object({
+    graphql: external_exports.object({
+      limit: external_exports.number(),
+      remaining: external_exports.number(),
+      used: external_exports.number(),
+      resetAt: external_exports.string()
+    }).nullable(),
+    rest: external_exports.object({
+      limit: external_exports.number(),
+      remaining: external_exports.number(),
+      used: external_exports.number(),
+      resetAt: external_exports.string()
+    }).nullable()
+  }),
+  warnings: external_exports.array(external_exports.string()),
+  errors: external_exports.array(external_exports.string())
+});
+var githubStatsOutputSchema = external_exports.object({
+  schemaVersion: external_exports.literal(OUTPUT_SCHEMA_VERSION),
+  generatedAt: external_exports.string(),
+  profile: userProfileSchema,
+  profileContributions: external_exports.object({
+    totalContributions: external_exports.number(),
+    totalCommitContributions: external_exports.number(),
+    restrictedContributionsCount: external_exports.number(),
+    totalIssueContributions: external_exports.number(),
+    totalRepositoryContributions: external_exports.number(),
+    totalPullRequestContributions: external_exports.number(),
+    totalPullRequestReviewContributions: external_exports.number(),
+    contributionCalendar: external_exports.object({
+      totalContributions: external_exports.number(),
+      weeks: external_exports.array(contributionWeek)
+    }),
+    stats: contributionStatsSchema,
+    repositoryContributions: external_exports.array(
+      external_exports.object({
+        repositoryId: external_exports.string(),
+        nameWithOwner: external_exports.string(),
+        owner: external_exports.string(),
+        counts: repositoryContributionCountsSchema
+      })
+    ),
+    completeness: external_exports.object({
+      complete: external_exports.boolean(),
+      yearsFetched: external_exports.array(external_exports.string()),
+      yearsFromCache: external_exports.array(external_exports.string()),
+      missingYears: external_exports.array(external_exports.string())
+    })
+  }),
+  activity: activityStatsSchema,
+  repositories: external_exports.array(repositoryRecordSchema),
+  repoMetrics: repoMetricsSchema,
+  packageMetrics: packageMetricsSchema2,
+  presentation: presentationDataSchema,
+  privacy: privacyReportSchema,
+  collectionStatus: collectionStatusSchema
+});
 
-// src/stats/index.ts
-import { mkdirSync as mkdirSync2, writeFileSync as writeFileSync2 } from "node:fs";
-import { dirname as dirname2 } from "node:path";
-
-// src/stats/aggregate.ts
+// ../schemas/src/aggregate.ts
 function emptyContributionsCollection() {
   return {
     totalCommitContributions: 0,
@@ -37621,22 +38007,6 @@ function calculateComputedStats(repoInfoList, topLanguages, contributionStats) {
     mostProductiveMonth
   };
 }
-function toTopRepos(repositories, limit = 10) {
-  return repositories.filter((r) => r.sources.includes("owned") && !r.isArchived).sort((a, b) => b.stars - a.stars || a.nameWithOwner.localeCompare(b.nameWithOwner)).slice(0, limit).map((r) => ({
-    name: r.name,
-    nameWithOwner: r.nameWithOwner,
-    description: r.description,
-    stars: r.stars,
-    forks: r.forks,
-    isArchived: r.isArchived,
-    isFork: r.isFork,
-    isPrivate: r.isPrivate,
-    primaryLanguage: r.primaryLanguage,
-    topics: r.topics,
-    updatedAt: r.updatedAt,
-    createdAt: r.createdAt
-  }));
-}
 function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -37649,184 +38019,567 @@ function formatNumber(num) {
   return `${(num / 1e6).toFixed(1)}M`;
 }
 
+// ../schemas/src/presentation.ts
+function buildPresentationData(params) {
+  const profileMetrics = params.repoMetrics.profile;
+  if (!profileMetrics) {
+    throw new Error("Profile repository metrics are required for presentation output");
+  }
+  const topLanguage = profileMetrics.topLanguages[0];
+  const contributionStats = params.profileContributions.stats;
+  const mostProductiveMonth = params.repoMetrics.computedStats.mostProductiveMonth;
+  const peakDay = contributionStats.peakDay;
+  const totalContributions = params.profileContributions.totalContributions;
+  return {
+    readmeSummary: {
+      name: params.profile.name,
+      username: params.profile.login,
+      totalContributions,
+      currentStreak: contributionStats.currentStreak,
+      longestStreak: contributionStats.longestStreak,
+      topLanguages: profileMetrics.topLanguages.slice(0, 5),
+      starsReceived: profileMetrics.starsReceived,
+      forksReceived: profileMetrics.forksReceived,
+      totalRepos: profileMetrics.totalRepos ?? profileMetrics.publicRepos,
+      originalRepos: profileMetrics.originalRepos,
+      activeRepos: profileMetrics.activeOriginalRepos,
+      languageCount: profileMetrics.topLanguages.length,
+      codeByteTotal: profileMetrics.codeByteTotal,
+      refreshedAt: new Date(params.fetchedAt).toISOString(),
+      complete: params.complete
+    },
+    cards: [
+      {
+        id: "total-contributions",
+        label: "Total contributions",
+        value: formatNumber(totalContributions)
+      },
+      {
+        id: "current-streak",
+        label: "Current streak",
+        value: `${contributionStats.currentStreak} days`
+      },
+      {
+        id: "languages",
+        label: "Languages",
+        value: profileMetrics.topLanguages.length,
+        detail: topLanguage ? `${topLanguage.languageName} leads` : void 0
+      },
+      {
+        id: "code-volume",
+        label: "Code volume",
+        value: formatBytes(profileMetrics.codeByteTotal)
+      },
+      {
+        id: "stars",
+        label: "Stars received",
+        value: formatNumber(profileMetrics.starsReceived)
+      }
+    ],
+    timeline: contributionStats.yearlyBreakdown.map((year) => ({
+      period: year.year,
+      contributions: year.contributions
+    })),
+    highlights: [
+      ...peakDay ? [
+        {
+          id: "peak-day",
+          label: "Peak day",
+          value: peakDay.contributions,
+          detail: peakDay.date
+        }
+      ] : [],
+      ...mostProductiveMonth ? [
+        {
+          id: "top-month",
+          label: "Most productive month",
+          value: mostProductiveMonth.contributions,
+          detail: mostProductiveMonth.month
+        }
+      ] : [],
+      ...topLanguage ? [
+        {
+          id: "top-language",
+          label: "Top language",
+          value: topLanguage.languageName,
+          detail: `${topLanguage.percentage}%`
+        }
+      ] : []
+    ],
+    remotion: {
+      scenes: [
+        {
+          id: "intro",
+          title: params.profile.name || params.profile.login,
+          metric: params.profile.login,
+          supportingText: "GitHub profile activity"
+        },
+        {
+          id: "contributions",
+          title: "Contribution history",
+          metric: formatNumber(totalContributions),
+          supportingText: `${contributionStats.longestStreak} day longest streak`
+        },
+        {
+          id: "repositories",
+          title: "Repository footprint",
+          metric: profileMetrics.totalRepos ?? profileMetrics.publicRepos,
+          supportingText: `${profileMetrics.originalRepos} original repositories`
+        },
+        {
+          id: "languages",
+          title: "Language mix",
+          metric: topLanguage?.languageName || "N/A",
+          supportingText: `${profileMetrics.topLanguages.length} languages detected`
+        }
+      ]
+    }
+  };
+}
+
+// ../schemas/src/merge.ts
+function mergeStatsOutputs(outputs) {
+  if (outputs.length === 0) {
+    throw new Error("mergeStatsOutputs requires at least one output");
+  }
+  if (outputs.length === 1) {
+    return outputs[0];
+  }
+  const repositories = mergeRepositories(outputs.flatMap((output) => output.repositories));
+  const profileContributions = mergeProfileContributions(
+    outputs.map((output) => output.profileContributions)
+  );
+  const activity = mergeActivity(outputs.map((output) => output.activity));
+  const repoMetrics = mergeRepoMetrics(outputs, repositories);
+  const privacy = mergePrivacy(outputs);
+  const collectionStatus = mergeCollectionStatus(outputs);
+  const packageMetrics = mergePackageMetrics(outputs.map((output) => output.packageMetrics));
+  const generatedAt = outputs.map((output) => output.generatedAt).reduce((latest, at) => at > latest ? at : latest);
+  const fetchedAt = Date.parse(generatedAt);
+  const profile = pickPrimaryProfile(outputs);
+  const presentation = buildPresentationData({
+    profile,
+    profileContributions,
+    repoMetrics,
+    complete: outputs.every((output) => output.collectionStatus.complete),
+    fetchedAt
+  });
+  return {
+    schemaVersion: outputs[0].schemaVersion,
+    generatedAt,
+    profile,
+    profileContributions,
+    activity,
+    repositories,
+    repoMetrics,
+    packageMetrics,
+    presentation,
+    privacy,
+    collectionStatus
+  };
+}
+function pickPrimaryProfile(outputs) {
+  return outputs[0].profile;
+}
+function mergeProfileContributions(contributions) {
+  const calendar = mergeContributionCalendars(
+    contributions.map((c) => c.contributionCalendar)
+  );
+  const collection = {
+    totalCommitContributions: contributions.reduce(
+      (sum, c) => sum + c.totalCommitContributions,
+      0
+    ),
+    restrictedContributionsCount: contributions.reduce(
+      (sum, c) => sum + c.restrictedContributionsCount,
+      0
+    ),
+    totalIssueContributions: contributions.reduce(
+      (sum, c) => sum + c.totalIssueContributions,
+      0
+    ),
+    totalRepositoryContributions: contributions.reduce(
+      (sum, c) => sum + c.totalRepositoryContributions,
+      0
+    ),
+    totalPullRequestContributions: contributions.reduce(
+      (sum, c) => sum + c.totalPullRequestContributions,
+      0
+    ),
+    totalPullRequestReviewContributions: contributions.reduce(
+      (sum, c) => sum + c.totalPullRequestReviewContributions,
+      0
+    ),
+    contributionCalendar: calendar
+  };
+  return {
+    totalContributions: calendar.totalContributions,
+    totalCommitContributions: collection.totalCommitContributions,
+    restrictedContributionsCount: collection.restrictedContributionsCount,
+    totalIssueContributions: collection.totalIssueContributions,
+    totalRepositoryContributions: collection.totalRepositoryContributions,
+    totalPullRequestContributions: collection.totalPullRequestContributions,
+    totalPullRequestReviewContributions: collection.totalPullRequestReviewContributions,
+    contributionCalendar: calendar,
+    stats: calculateContributionStats(collection),
+    repositoryContributions: mergeRepositoryContributionSummaries(
+      contributions.flatMap((c) => c.repositoryContributions)
+    ),
+    completeness: {
+      complete: contributions.every((c) => c.completeness.complete),
+      yearsFetched: unionSorted(contributions.map((c) => c.completeness.yearsFetched)),
+      yearsFromCache: unionSorted(contributions.map((c) => c.completeness.yearsFromCache)),
+      // A year is only missing when every output is missing it.
+      missingYears: intersectSorted(contributions.map((c) => c.completeness.missingYears))
+    }
+  };
+}
+function mergeContributionCalendars(calendars) {
+  const byDate = /* @__PURE__ */ new Map();
+  for (const calendar of calendars) {
+    for (const week of calendar.weeks) {
+      for (const day of week.contributionDays) {
+        byDate.set(day.date, (byDate.get(day.date) || 0) + day.contributionCount);
+      }
+    }
+  }
+  const days = Array.from(byDate.entries()).map(([date5, contributionCount]) => ({ date: date5, contributionCount })).sort((a, b) => a.date.localeCompare(b.date));
+  const weeks = [];
+  let currentWeek = [];
+  for (const day of days) {
+    const weekday = (/* @__PURE__ */ new Date(`${day.date}T00:00:00.000Z`)).getUTCDay();
+    if (weekday === 0 && currentWeek.length > 0) {
+      weeks.push({ contributionDays: currentWeek });
+      currentWeek = [];
+    }
+    currentWeek.push(day);
+  }
+  if (currentWeek.length > 0) {
+    weeks.push({ contributionDays: currentWeek });
+  }
+  return {
+    totalContributions: days.reduce((sum, day) => sum + day.contributionCount, 0),
+    weeks
+  };
+}
+function mergeActivity(activities) {
+  const sum = (pick2) => activities.reduce((total, activity) => total + pick2(activity), 0);
+  return {
+    totalPullRequests: sum((a) => a.totalPullRequests),
+    openIssues: sum((a) => a.openIssues),
+    closedIssues: sum((a) => a.closedIssues),
+    repositoriesContributedTo: sum((a) => a.repositoriesContributedTo),
+    discussionsStarted: sum((a) => a.discussionsStarted),
+    discussionsAnswered: sum((a) => a.discussionsAnswered),
+    starsGiven: sum((a) => a.starsGiven)
+  };
+}
+function mergeRepositories(repositories) {
+  const byId = /* @__PURE__ */ new Map();
+  for (const repository of repositories) {
+    const current = byId.get(repository.id);
+    if (!current) {
+      byId.set(repository.id, { ...repository, sources: [...new Set(repository.sources)] });
+      continue;
+    }
+    const newer = repository.metadataFetchedAt >= current.metadataFetchedAt ? repository : current;
+    byId.set(repository.id, {
+      ...newer,
+      sources: [.../* @__PURE__ */ new Set([...current.sources, ...repository.sources])],
+      contributionCounts: {
+        commits: current.contributionCounts.commits + repository.contributionCounts.commits,
+        issues: current.contributionCounts.issues + repository.contributionCounts.issues,
+        pullRequests: current.contributionCounts.pullRequests + repository.contributionCounts.pullRequests,
+        pullRequestReviews: current.contributionCounts.pullRequestReviews + repository.contributionCounts.pullRequestReviews,
+        repositoryCreations: current.contributionCounts.repositoryCreations + repository.contributionCounts.repositoryCreations
+      },
+      metadataFetchedAt: Math.max(current.metadataFetchedAt, repository.metadataFetchedAt)
+    });
+  }
+  return Array.from(byId.values()).sort(
+    (a, b) => a.nameWithOwner.localeCompare(b.nameWithOwner)
+  );
+}
+function mergeRepositoryContributionSummaries(summaries) {
+  const byId = /* @__PURE__ */ new Map();
+  for (const summary of summaries) {
+    const current = byId.get(summary.repositoryId);
+    if (!current) {
+      byId.set(summary.repositoryId, { ...summary, counts: { ...summary.counts } });
+      continue;
+    }
+    current.counts = {
+      commits: current.counts.commits + summary.counts.commits,
+      issues: current.counts.issues + summary.counts.issues,
+      pullRequests: current.counts.pullRequests + summary.counts.pullRequests,
+      pullRequestReviews: current.counts.pullRequestReviews + summary.counts.pullRequestReviews,
+      repositoryCreations: current.counts.repositoryCreations + summary.counts.repositoryCreations
+    };
+  }
+  return Array.from(byId.values()).sort(
+    (a, b) => a.nameWithOwner.localeCompare(b.nameWithOwner)
+  );
+}
+function mergeRepoMetrics(outputs, repositories) {
+  const ownedOriginal = repositories.filter(
+    (repo) => repo.sources.includes("owned") && !repo.isFork
+  );
+  const { languages: topLanguages, codeByteTotal } = aggregateRepositoryLanguages(repositories);
+  const profileLanguages = aggregateRepositoryLanguages(ownedOriginal);
+  const computedRepos = repositories.map(toComputedRepo);
+  const mergedCalendar = mergeContributionCalendars(
+    outputs.map((output) => output.profileContributions.contributionCalendar)
+  );
+  const contributionStats = calculateContributionStats({
+    totalCommitContributions: 0,
+    restrictedContributionsCount: 0,
+    totalIssueContributions: 0,
+    totalRepositoryContributions: 0,
+    totalPullRequestContributions: 0,
+    totalPullRequestReviewContributions: 0,
+    contributionCalendar: mergedCalendar
+  });
+  const computedStats = calculateComputedStats(computedRepos, topLanguages, contributionStats);
+  const sumOver = (key, field) => outputs.reduce(
+    (total, output) => total + (output.repoMetrics[key][field] ?? 0),
+    0
+  );
+  return {
+    starCount: ownedOriginal.reduce((sum, repo) => sum + repo.stars, 0),
+    forkCount: ownedOriginal.reduce((sum, repo) => sum + repo.forks, 0),
+    codeByteTotal,
+    topLanguages,
+    topTopics: computedStats.topTopics,
+    profile: {
+      totalRepos: sumOver("profile", "totalRepos") || void 0,
+      publicRepos: sumOver("profile", "publicRepos"),
+      privateRepos: sumOver("profile", "privateRepos"),
+      originalRepos: sumOver("profile", "originalRepos"),
+      forkedRepos: sumOver("profile", "forkedRepos"),
+      activeOriginalRepos: sumOver("profile", "activeOriginalRepos"),
+      archivedOriginalRepos: sumOver("profile", "archivedOriginalRepos"),
+      reposWithStars: sumOver("profile", "reposWithStars"),
+      starsReceived: sumOver("profile", "starsReceived"),
+      forksReceived: sumOver("profile", "forksReceived"),
+      codeByteTotal: profileLanguages.codeByteTotal,
+      topLanguages: profileLanguages.languages
+    },
+    contributorStats: {
+      totalCommits: sumOver("contributorStats", "totalCommits"),
+      linesAdded: sumOver("contributorStats", "linesAdded"),
+      linesDeleted: sumOver("contributorStats", "linesDeleted"),
+      linesOfCodeChanged: sumOver("contributorStats", "linesOfCodeChanged"),
+      reposCompleted: sumOver("contributorStats", "reposCompleted"),
+      reposPending: sumOver("contributorStats", "reposPending"),
+      reposFailed: sumOver("contributorStats", "reposFailed")
+    },
+    traffic: {
+      repoViews: sumOver("traffic", "repoViews"),
+      repoViewUniques: sumOver("traffic", "repoViewUniques"),
+      reposCompleted: sumOver("traffic", "reposCompleted"),
+      reposPending: sumOver("traffic", "reposPending"),
+      reposFailed: sumOver("traffic", "reposFailed")
+    },
+    repoStats: calculateRepoStats(computedRepos),
+    computedStats
+  };
+}
+function toComputedRepo(repo) {
+  return {
+    ...repo,
+    languages: {
+      edges: repo.languages.map((language) => ({
+        size: language.value,
+        node: {
+          name: language.languageName,
+          color: language.color
+        }
+      }))
+    }
+  };
+}
+function mergePrivacy(outputs) {
+  const sum = (pick2) => outputs.reduce((total, output) => total + pick2(output.privacy), 0);
+  return {
+    privateRepositoryMetricsIncluded: outputs.some(
+      (output) => output.privacy.privateRepositoryMetricsIncluded
+    ),
+    privateRepositoryDetailsIncluded: outputs.some(
+      (output) => output.privacy.privateRepositoryDetailsIncluded
+    ),
+    privateCacheDetailsIncluded: outputs.some(
+      (output) => output.privacy.privateCacheDetailsIncluded
+    ),
+    redactedPrivateRepositories: sum((p) => p.redactedPrivateRepositories),
+    redactedRepositoryContributions: sum((p) => p.redactedRepositoryContributions),
+    redactedOptionalMetrics: sum((p) => p.redactedOptionalMetrics)
+  };
+}
+function mergeCollectionStatus(outputs) {
+  const [first] = outputs;
+  const startedAt = Math.min(...outputs.map((output) => output.collectionStatus.startedAt));
+  const finishedAt = Math.max(...outputs.map((output) => output.collectionStatus.finishedAt));
+  return {
+    startedAt,
+    finishedAt,
+    durationMs: finishedAt - startedAt,
+    complete: outputs.every((output) => output.collectionStatus.complete),
+    coreComplete: outputs.every((output) => output.collectionStatus.coreComplete),
+    cache: {
+      stablePath: first.collectionStatus.cache.stablePath,
+      volatilePath: first.collectionStatus.cache.volatilePath,
+      contributionYearsFromCache: outputs.reduce(
+        (sum, output) => sum + output.collectionStatus.cache.contributionYearsFromCache,
+        0
+      ),
+      contributionYearsFetched: outputs.reduce(
+        (sum, output) => sum + output.collectionStatus.cache.contributionYearsFetched,
+        0
+      ),
+      repositoriesFromCache: outputs.reduce(
+        (sum, output) => sum + output.collectionStatus.cache.repositoriesFromCache,
+        0
+      ),
+      repositoriesFetched: outputs.reduce(
+        (sum, output) => sum + output.collectionStatus.cache.repositoriesFetched,
+        0
+      )
+    },
+    backfill: {
+      enabled: outputs.some((output) => output.collectionStatus.backfill.enabled),
+      completedThisRun: outputs.reduce(
+        (sum, output) => sum + output.collectionStatus.backfill.completedThisRun,
+        0
+      ),
+      pending: outputs.reduce(
+        (sum, output) => sum + output.collectionStatus.backfill.pending,
+        0
+      ),
+      failedThisRun: outputs.reduce(
+        (sum, output) => sum + output.collectionStatus.backfill.failedThisRun,
+        0
+      ),
+      skippedThisRun: outputs.reduce(
+        (sum, output) => sum + output.collectionStatus.backfill.skippedThisRun,
+        0
+      )
+    },
+    rateLimit: first.collectionStatus.rateLimit,
+    warnings: unionSorted(outputs.map((output) => output.collectionStatus.warnings)),
+    errors: unionSorted(outputs.map((output) => output.collectionStatus.errors))
+  };
+}
+function mergePackageMetrics(metrics) {
+  const packages = new Map(
+    metrics.flatMap((metric) => metric.packages).map((item) => [`${item.provider}:${item.name}`, item])
+  );
+  const values = Array.from(packages.values());
+  const sumDownloads2 = (period) => values.reduce((total, item) => total + item.downloads[period], 0);
+  return {
+    packageCount: values.length,
+    providers: [...new Set(metrics.flatMap((metric) => metric.providers))].sort(),
+    downloads: {
+      lastDay: sumDownloads2("lastDay"),
+      lastWeek: sumDownloads2("lastWeek"),
+      lastMonth: sumDownloads2("lastMonth"),
+      lastYear: sumDownloads2("lastYear"),
+      allTime: sumDownloads2("allTime")
+    },
+    packages: values.sort((a, b) => b.downloads.lastMonth - a.downloads.lastMonth),
+    complete: metrics.every((metric) => metric.complete),
+    warnings: [...new Set(metrics.flatMap((metric) => metric.warnings))]
+  };
+}
+function unionSorted(lists) {
+  return [...new Set(lists.flat())].sort((a, b) => a.localeCompare(b));
+}
+function intersectSorted(lists) {
+  if (lists.length === 0) return [];
+  const [first, ...rest] = lists;
+  return first.filter((value) => rest.every((list) => list.includes(value))).sort((a, b) => a.localeCompare(b));
+}
+
+// src/engine/plan.ts
+var VAR_REF = /\{\{[\s\-]*([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)/g;
+var FUNC_CALL = /\{\{[\s\-]*([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g;
+var TAG_VAR_REF = /\{%[\+\s\-]*(?:for\s+\w+\s+in|if|elif|set\s+\w+\s*=)\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)/g;
+var REF_MAP = {
+  profile: ["needsProfile"],
+  github: ["needsProfile", "needsActivity", "needsDiscussions", "needsStarsGiven"],
+  user: ["needsProfile"],
+  contributions: ["needsContributions"],
+  streak: ["needsContributions"],
+  calendar: ["needsContributions"],
+  repositories: ["needsRepositories"],
+  repos: ["needsRepositories"],
+  traffic: ["needsTraffic"],
+  contributor_stats: ["needsContributorStats"],
+  activity: ["needsActivity"],
+  discussions: ["needsDiscussions"],
+  stars_given: ["needsStarsGiven"],
+  repo_stats: ["needsRepoStats"],
+  computed_stats: ["needsComputedStats"]
+};
+function analyzeTemplate(templateSource) {
+  const refs = /* @__PURE__ */ new Set();
+  let m;
+  VAR_REF.lastIndex = 0;
+  while ((m = VAR_REF.exec(templateSource)) !== null) {
+    refs.add(m[1]);
+  }
+  FUNC_CALL.lastIndex = 0;
+  while ((m = FUNC_CALL.exec(templateSource)) !== null) {
+    refs.add(m[1]);
+  }
+  TAG_VAR_REF.lastIndex = 0;
+  while ((m = TAG_VAR_REF.exec(templateSource)) !== null) {
+    refs.add(m[1]);
+  }
+  const plan = {
+    needsProfile: false,
+    needsContributions: false,
+    needsRepositories: false,
+    needsTraffic: false,
+    needsContributorStats: false,
+    needsActivity: false,
+    needsDiscussions: false,
+    needsStarsGiven: false,
+    needsRepoStats: false,
+    needsComputedStats: false
+  };
+  for (const ref of refs) {
+    const segments = ref.split(".");
+    const keys = REF_MAP[segments[0]];
+    if (keys) {
+      for (const key of keys) {
+        plan[key] = true;
+      }
+    }
+    if (segments.includes("traffic")) plan.needsTraffic = true;
+    if (segments.includes("contributorStats") || segments.includes("contributor_stats")) {
+      plan.needsContributorStats = true;
+    }
+  }
+  const anyNeeded = Object.values(plan).some(Boolean);
+  if (anyNeeded) {
+    plan.needsProfile = true;
+    plan.needsContributions = true;
+    plan.needsRepositories = true;
+  }
+  return plan;
+}
+
+// src/engine/unified.ts
+import { resolve } from "node:path";
+
+// src/stats/index.ts
+import { mkdirSync as mkdirSync2, writeFileSync as writeFileSync2 } from "node:fs";
+import { dirname as dirname2 } from "node:path";
+
 // src/stats/cache.ts
 import { existsSync, mkdirSync, readFileSync as readFileSync2, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname } from "node:path";
-
-// ../schemas/src/v2.ts
-var CACHE_SCHEMA_VERSION = 1;
-
-// ../schemas/src/zod.ts
-var renderLanguageSchema = external_exports.object({
-  languageName: external_exports.string(),
-  color: external_exports.string().nullable(),
-  value: external_exports.number(),
-  percentage: external_exports.number().optional()
-});
-var contributionDaySchema = external_exports.object({
-  contributionCount: external_exports.number(),
-  date: external_exports.string()
-});
-var timelinePointSchema = external_exports.object({
-  period: external_exports.string(),
-  contributions: external_exports.number()
-});
-var metricCardSchema = external_exports.object({
-  id: external_exports.string(),
-  label: external_exports.string(),
-  value: external_exports.union([external_exports.string(), external_exports.number()]),
-  detail: external_exports.string().optional()
-});
-var packageDownloadCountsSchema = external_exports.object({
-  lastDay: external_exports.number(),
-  lastWeek: external_exports.number(),
-  lastMonth: external_exports.number(),
-  lastYear: external_exports.number(),
-  allTime: external_exports.number()
-});
-var packageMetricSchema = external_exports.object({
-  provider: external_exports.string(),
-  name: external_exports.string(),
-  url: external_exports.string(),
-  latestVersion: external_exports.string().nullable(),
-  latestPublishedAt: external_exports.string().nullable(),
-  downloads: packageDownloadCountsSchema
-});
-var userStatsSchema = external_exports.object({
-  schemaVersion: external_exports.number().nullable(),
-  name: external_exports.string(),
-  username: external_exports.string(),
-  avatarUrl: external_exports.string(),
-  bio: external_exports.string().nullable(),
-  websiteUrl: external_exports.string().nullable(),
-  location: external_exports.string().nullable(),
-  generatedAt: external_exports.string(),
-  fetchedAt: external_exports.number(),
-  isComplete: external_exports.boolean(),
-  summary: external_exports.object({
-    totalContributions: external_exports.number(),
-    currentStreak: external_exports.number(),
-    longestStreak: external_exports.number(),
-    starsReceived: external_exports.number(),
-    forksReceived: external_exports.number(),
-    activeRepos: external_exports.number(),
-    totalRepos: external_exports.number(),
-    languageCount: external_exports.number(),
-    profileMetricsComplete: external_exports.boolean(),
-    refreshedAt: external_exports.string()
-  }),
-  contributions: external_exports.object({
-    totalContributions: external_exports.number(),
-    totalCommits: external_exports.number(),
-    restrictedContributionsCount: external_exports.number(),
-    currentStreak: external_exports.number(),
-    longestStreak: external_exports.number(),
-    peakDay: external_exports.object({
-      date: external_exports.string(),
-      contributions: external_exports.number()
-    }).nullable(),
-    mostProductiveMonth: external_exports.object({
-      month: external_exports.string(),
-      contributions: external_exports.number()
-    }).nullable(),
-    calendar: external_exports.array(contributionDaySchema),
-    timeline: external_exports.array(timelinePointSchema)
-  }),
-  code: external_exports.object({
-    codeByteTotal: external_exports.number(),
-    linesAdded: external_exports.number(),
-    linesDeleted: external_exports.number(),
-    linesChanged: external_exports.number(),
-    linesOfCodeChanged: external_exports.number(),
-    contributorReposCompleted: external_exports.number(),
-    contributorReposPending: external_exports.number(),
-    contributorReposFailed: external_exports.number()
-  }),
-  community: external_exports.object({
-    totalPullRequests: external_exports.number(),
-    totalPullRequestReviews: external_exports.number(),
-    openIssues: external_exports.number(),
-    closedIssues: external_exports.number(),
-    repositoriesContributedTo: external_exports.number(),
-    discussionsStarted: external_exports.number(),
-    discussionsAnswered: external_exports.number(),
-    starsGiven: external_exports.number(),
-    followers: external_exports.number(),
-    following: external_exports.number()
-  }),
-  repositories: external_exports.object({
-    totalRepos: external_exports.number(),
-    publicRepos: external_exports.number(),
-    privateRepos: external_exports.number(),
-    activeRepos: external_exports.number(),
-    archivedRepos: external_exports.number(),
-    forkedRepos: external_exports.number(),
-    originalRepos: external_exports.number(),
-    reposWithStars: external_exports.number(),
-    repoViews: external_exports.number().nullable(),
-    repoViewUniques: external_exports.number().nullable(),
-    trafficReposCompleted: external_exports.number(),
-    trafficReposPending: external_exports.number(),
-    trafficReposFailed: external_exports.number(),
-    starCount: external_exports.number(),
-    forkCount: external_exports.number()
-  }),
-  topLanguages: external_exports.array(renderLanguageSchema),
-  packages: external_exports.object({
-    packageCount: external_exports.number(),
-    providers: external_exports.array(external_exports.string()),
-    downloads: packageDownloadCountsSchema,
-    packages: external_exports.array(packageMetricSchema),
-    complete: external_exports.boolean(),
-    warnings: external_exports.array(external_exports.string())
-  }),
-  cards: external_exports.array(metricCardSchema),
-  highlights: external_exports.array(metricCardSchema),
-  privacy: external_exports.object({
-    privateRepositoryMetricsIncluded: external_exports.boolean(),
-    privateRepositoryDetailsIncluded: external_exports.boolean(),
-    privateCacheDetailsIncluded: external_exports.boolean(),
-    redactedPrivateRepositories: external_exports.number(),
-    redactedRepositoryContributions: external_exports.number(),
-    redactedOptionalMetrics: external_exports.number()
-  }),
-  collectionStatus: external_exports.object({
-    complete: external_exports.boolean(),
-    coreComplete: external_exports.boolean(),
-    backfillPending: external_exports.number(),
-    backfillCompletedThisRun: external_exports.number(),
-    backfillFailedThisRun: external_exports.number(),
-    warnings: external_exports.array(external_exports.string()),
-    errors: external_exports.array(external_exports.string())
-  }),
-  repoViews: external_exports.number().nullable(),
-  linesOfCodeChanged: external_exports.number(),
-  linesAdded: external_exports.number(),
-  linesDeleted: external_exports.number(),
-  linesChanged: external_exports.number(),
-  totalCommits: external_exports.number(),
-  totalPullRequests: external_exports.number(),
-  totalPullRequestReviews: external_exports.number(),
-  openIssues: external_exports.number(),
-  closedIssues: external_exports.number(),
-  forkCount: external_exports.number(),
-  starCount: external_exports.number(),
-  totalContributions: external_exports.number(),
-  codeByteTotal: external_exports.number()
-});
-var sourcePropsSchema = external_exports.object({
-  username: external_exports.string().optional(),
-  usernames: external_exports.array(external_exports.string()).optional(),
-  statsUrl: external_exports.string().optional(),
-  stats: external_exports.unknown().optional(),
-  allowPrivateRepositoryDetails: external_exports.boolean().optional()
-});
-var mainSchema = external_exports.object({
-  userStats: userStatsSchema
-});
-
-// src/stats/cache.ts
 function createEmptyStableCache(now = Date.now()) {
   return {
     schemaVersion: CACHE_SCHEMA_VERSION,
@@ -38400,7 +39153,7 @@ async function collectRepositoryUniverse(client, scheduler, cache, includePrivat
     discoveredRepositories,
     fetchedAt
   );
-  const merged = mergeRepositories([
+  const merged = mergeRepositories2([
     ...Object.values(cache.repositories).map((entry) => ({
       ...entry.repository,
       sources: addSource(entry.repository.sources, "cache")
@@ -38460,7 +39213,7 @@ async function collectContributionYears(client, scheduler, cache, createdAt, inc
   const repositoryContributions = mergeRepositoryContributions(
     orderedYears.flatMap((year) => year.repositoryContributions)
   );
-  const repositories = mergeRepositories(
+  const repositories = mergeRepositories2(
     orderedYears.flatMap((year) => year.repositories || [])
   );
   for (const repository of repositories) {
@@ -38596,7 +39349,7 @@ async function processBackfillQueue(client, scheduler, cache, volatileCache, rep
     pending: cache.backfill.pending
   };
 }
-function mergeRepositories(repositories) {
+function mergeRepositories2(repositories) {
   const byId = /* @__PURE__ */ new Map();
   for (const repository of repositories) {
     const current = byId.get(repository.id);
@@ -38824,7 +39577,7 @@ function extractContributionRepositories(collection, fetchedAt) {
     summaries: Array.from(summaryMap.values()).sort(
       (a, b) => a.nameWithOwner.localeCompare(b.nameWithOwner)
     ),
-    repositories: mergeRepositories(repositories)
+    repositories: mergeRepositories2(repositories)
   };
 }
 async function materializeDiscoveredRepositories(client, scheduler, cache, discovered, fetchedAt) {
@@ -39111,8 +39864,8 @@ function buildOutput(params) {
   );
   const contributionStats = calculateContributionStats(params.contributions.collection);
   const { languages: topLanguages, codeByteTotal } = aggregateRepositoryLanguages(metricRepositories);
-  const visibleComputedRepos = visibleRepositories.map(toComputedRepo);
-  const metricComputedRepos = metricRepositories.map(toComputedRepo);
+  const visibleComputedRepos = visibleRepositories.map(toComputedRepo2);
+  const metricComputedRepos = metricRepositories.map(toComputedRepo2);
   const repoStats = calculateRepoStats(metricComputedRepos);
   const visibleComputedStats = calculateComputedStats(
     visibleComputedRepos,
@@ -39184,7 +39937,6 @@ function buildOutput(params) {
   );
   const starCount = ownedMetricRepos.reduce((sum, repo) => sum + repo.stars, 0);
   const forkCount = ownedMetricRepos.reduce((sum, repo) => sum + repo.forks, 0);
-  const topRepos = toTopRepos(visibleRepositories);
   const privacy = buildPrivacyReport({
     includePrivateRepositoryMetrics: includePrivateMetrics,
     includePrivateRepositoryDetails: includePrivateDetails,
@@ -39252,54 +40004,15 @@ function buildOutput(params) {
       missingYears: params.contributions.missingYears
     }
   };
-  const legacy = {
-    name: params.profile.name,
-    avatarUrl: params.profile.avatarUrl,
-    username: params.profile.login,
-    bio: params.profile.bio,
-    company: params.profile.company,
-    location: params.profile.location,
-    email: params.profile.email,
-    twitterUsername: params.profile.twitterUsername,
-    websiteUrl: params.profile.websiteUrl,
-    createdAt: params.profile.createdAt,
-    repoViews,
-    linesOfCodeChanged: linesAdded + linesDeleted,
-    linesAdded,
-    linesDeleted,
-    commitCount,
-    totalCommits: params.contributions.collection.totalCommitContributions,
-    totalPullRequests: params.activity.totalPullRequests,
-    totalPullRequestReviews: params.contributions.collection.totalPullRequestReviewContributions,
-    codeByteTotal,
-    topLanguages,
-    forkCount,
-    starCount,
-    starsGiven: params.activity.starsGiven,
-    followers: params.profile.followers,
-    following: params.profile.following,
-    repositoriesContributedTo: params.activity.repositoriesContributedTo,
-    discussionsStarted: params.activity.discussionsStarted,
-    discussionsAnswered: params.activity.discussionsAnswered,
-    totalContributions: params.contributions.collection.contributionCalendar.totalContributions,
-    contributionStats,
-    repoStats,
-    computedStats,
-    contributionsCollection: params.contributions.collection,
-    topRepos,
-    closedIssues: params.activity.closedIssues,
-    openIssues: params.activity.openIssues,
-    fetchedAt: params.fetchedAt
-  };
-  const presentation = buildPresentation({
+  const presentation = buildPresentationData({
     profile: params.profile,
-    legacy,
+    profileContributions,
     repoMetrics,
-    complete: collectionStatus.complete
+    complete: collectionStatus.complete,
+    fetchedAt: params.fetchedAt
   });
   return {
-    ...legacy,
-    schemaVersion: 2,
+    schemaVersion: OUTPUT_SCHEMA_VERSION,
     generatedAt: new Date(params.fetchedAt).toISOString(),
     profile: params.profile,
     profileContributions,
@@ -39309,8 +40022,7 @@ function buildOutput(params) {
     packageMetrics: params.packageMetrics ?? emptyPackageMetrics(),
     presentation,
     privacy,
-    collectionStatus,
-    legacy
+    collectionStatus
   };
 }
 function emptyPackageMetrics() {
@@ -39329,7 +40041,7 @@ function emptyPackageMetrics() {
     warnings: []
   };
 }
-function toComputedRepo(repo) {
+function toComputedRepo2(repo) {
   return {
     ...repo,
     languages: {
@@ -39379,120 +40091,6 @@ function hasVisibleRepositoryId(key, visibleRepositoryIds) {
     if (key.includes(repoId)) return true;
   }
   return false;
-}
-function buildPresentation(params) {
-  const profileMetrics = params.repoMetrics.profile;
-  if (!profileMetrics) {
-    throw new Error("Profile repository metrics are required for presentation output");
-  }
-  const topLanguage = profileMetrics.topLanguages[0];
-  const mostProductiveMonth = params.legacy.computedStats.mostProductiveMonth;
-  const peakDay = params.legacy.contributionStats.peakDay;
-  return {
-    readmeSummary: {
-      name: params.profile.name,
-      username: params.profile.login,
-      totalContributions: params.legacy.totalContributions,
-      currentStreak: params.legacy.contributionStats.currentStreak,
-      longestStreak: params.legacy.contributionStats.longestStreak,
-      topLanguages: profileMetrics.topLanguages.slice(0, 5),
-      starsReceived: profileMetrics.starsReceived,
-      forksReceived: profileMetrics.forksReceived,
-      totalRepos: profileMetrics.totalRepos ?? profileMetrics.publicRepos,
-      originalRepos: profileMetrics.originalRepos,
-      activeRepos: profileMetrics.activeOriginalRepos,
-      languageCount: profileMetrics.topLanguages.length,
-      codeByteTotal: profileMetrics.codeByteTotal,
-      refreshedAt: new Date(params.legacy.fetchedAt).toISOString(),
-      complete: params.complete
-    },
-    cards: [
-      {
-        id: "total-contributions",
-        label: "Total contributions",
-        value: formatNumber(params.legacy.totalContributions)
-      },
-      {
-        id: "current-streak",
-        label: "Current streak",
-        value: `${params.legacy.contributionStats.currentStreak} days`
-      },
-      {
-        id: "languages",
-        label: "Languages",
-        value: profileMetrics.topLanguages.length,
-        detail: topLanguage ? `${topLanguage.languageName} leads` : void 0
-      },
-      {
-        id: "code-volume",
-        label: "Code volume",
-        value: formatBytes(profileMetrics.codeByteTotal)
-      },
-      {
-        id: "stars",
-        label: "Stars received",
-        value: formatNumber(profileMetrics.starsReceived)
-      }
-    ],
-    timeline: params.legacy.contributionStats.yearlyBreakdown.map((year) => ({
-      period: year.year,
-      contributions: year.contributions
-    })),
-    highlights: [
-      ...peakDay ? [
-        {
-          id: "peak-day",
-          label: "Peak day",
-          value: peakDay.contributions,
-          detail: peakDay.date
-        }
-      ] : [],
-      ...mostProductiveMonth ? [
-        {
-          id: "top-month",
-          label: "Most productive month",
-          value: mostProductiveMonth.contributions,
-          detail: mostProductiveMonth.month
-        }
-      ] : [],
-      ...topLanguage ? [
-        {
-          id: "top-language",
-          label: "Top language",
-          value: topLanguage.languageName,
-          detail: `${topLanguage.percentage}%`
-        }
-      ] : []
-    ],
-    remotion: {
-      scenes: [
-        {
-          id: "intro",
-          title: params.profile.name || params.profile.login,
-          metric: params.profile.login,
-          supportingText: "GitHub profile activity"
-        },
-        {
-          id: "contributions",
-          title: "Contribution history",
-          metric: formatNumber(params.legacy.totalContributions),
-          supportingText: `${params.legacy.contributionStats.longestStreak} day longest streak`
-        },
-        {
-          id: "repositories",
-          title: "Repository footprint",
-          metric: profileMetrics.totalRepos ?? profileMetrics.publicRepos,
-          supportingText: `${profileMetrics.originalRepos} original repositories`
-        },
-        {
-          id: "languages",
-          title: "Language mix",
-          metric: topLanguage?.languageName || "N/A",
-          supportingText: `${profileMetrics.topLanguages.length} languages detected`
-        }
-      ]
-    }
-  };
 }
 
 // src/packages/npm.ts
@@ -39828,7 +40426,7 @@ async function runStatsCollection(config2, client) {
     config2.includePrivateCacheDetails,
     profile.login
   );
-  let repositories = mergeRepositories([
+  let repositories = mergeRepositories2([
     ...repositoryUniverse.repositories,
     ...contributions.repositories
   ]);
@@ -39851,7 +40449,7 @@ async function runStatsCollection(config2, client) {
     profile.login,
     config2
   );
-  repositories = mergeRepositories(
+  repositories = mergeRepositories2(
     [
       ...Object.values(stableCache.repositories).map((entry) => entry.repository),
       ...repositories,
@@ -39922,24 +40520,6 @@ function writeJsonOutput(path, value) {
 
 // src/engine/unified.ts
 var DIFFLER_DIR = ".diffler";
-function ensureDir(path) {
-  const dir = dirname3(path);
-  if (dir && dir !== "." && !existsSync2(dir)) {
-    mkdirSync3(dir, { recursive: true });
-  }
-}
-function readJsonCache(path) {
-  if (!existsSync2(path)) return void 0;
-  try {
-    return JSON.parse(readFileSync3(path, "utf-8"));
-  } catch {
-    return void 0;
-  }
-}
-function writeJsonCache(path, data) {
-  ensureDir(path);
-  writeFileSync3(path, JSON.stringify(data, null, 2), "utf-8");
-}
 function buildStatsConfig(config2, plan) {
   const statsConfig = buildStatsActionConfig(config2);
   if (statsConfig.cachePath.includes(".github-profile-stats")) {
@@ -39951,68 +40531,9 @@ function buildStatsConfig(config2, plan) {
   if (statsConfig.outputPath === "github-user-stats.json") {
     statsConfig.outputPath = resolve(DIFFLER_DIR, "stats.json");
   }
-  if (!plan.needsTraffic && !plan.needsContributorStats) {
-    statsConfig.backfillMode = "off";
-  }
+  statsConfig.includeTraffic = statsConfig.includeTraffic && plan.needsTraffic;
+  statsConfig.includeRestRepoStats = statsConfig.includeRestRepoStats && plan.needsContributorStats;
   return statsConfig;
-}
-async function fetchOrganizations(client, username) {
-  const cachePath = resolve(DIFFLER_DIR, `orgs-${username}.json`);
-  const cached2 = readJsonCache(cachePath);
-  if (cached2) return cached2;
-  const orgs = [];
-  let page = 1;
-  while (true) {
-    const data = await client.restGet(`/users/${username}/orgs`, {
-      per_page: 100,
-      page
-    });
-    if (!Array.isArray(data) || data.length === 0) break;
-    for (const org of data) {
-      orgs.push({
-        login: org.login ?? "",
-        id: org.id ?? null,
-        url: org.url ?? "",
-        avatar_url: org.avatar_url ?? "",
-        description: org.description ?? null
-      });
-    }
-    if (data.length < 100) break;
-    page++;
-    if (page > 10) break;
-  }
-  writeJsonCache(cachePath, orgs);
-  return orgs;
-}
-async function fetchGists(client, username) {
-  const cachePath = resolve(DIFFLER_DIR, `gists-${username}.json`);
-  const cached2 = readJsonCache(cachePath);
-  if (cached2) return cached2;
-  const allGists = [];
-  let page = 1;
-  while (true) {
-    const data = await client.restGet(`/users/${username}/gists`, {
-      per_page: 100,
-      page
-    });
-    if (!Array.isArray(data) || data.length === 0) break;
-    for (const gist of data) {
-      allGists.push({
-        id: gist.id ?? "",
-        description: gist.description ?? null,
-        html_url: gist.html_url ?? "",
-        public: gist.public ?? true,
-        created_at: gist.created_at ?? null,
-        updated_at: gist.updated_at ?? null,
-        files: Object.keys(gist.files ?? {})
-      });
-    }
-    if (data.length < 100) break;
-    page++;
-    if (page > 10) break;
-  }
-  writeJsonCache(cachePath, allGists);
-  return allGists;
 }
 var UnifiedEngine = class {
   async collect(plan, config2, profile) {
@@ -40022,20 +40543,12 @@ var UnifiedEngine = class {
       username: profile.username,
       token: profile.token
     });
-    const output = await runStatsCollection(statsConfig, client);
-    const extras = {};
-    if (plan.needsOrganizations) {
-      extras.organizations = await fetchOrganizations(client, profile.username);
-    }
-    if (plan.needsGists) {
-      extras.gists = await fetchGists(client, profile.username);
-    }
-    return { output, extras };
+    return runStatsCollection(statsConfig, client);
   }
 };
 
 // src/engine/derive.ts
-function deriveContext(output, config2, extra = {}, multiProfile = false) {
+function deriveContext(output, config2, multiProfile = false) {
   const profile = output.profile;
   const contributions = output.profileContributions;
   const repos = output.repositories;
@@ -40074,7 +40587,6 @@ function deriveContext(output, config2, extra = {}, multiProfile = false) {
     profiles: [],
     contributions,
     repositories: repos,
-    gists: extra.gists ?? [],
     traffic: output.repoMetrics.traffic ?? {},
     contributor_stats: output.repoMetrics.contributorStats ? [output.repoMetrics.contributorStats] : [],
     activity,
@@ -40126,7 +40638,6 @@ function buildStubContext(config2) {
     profiles: [],
     contributions: {},
     repositories: [],
-    gists: [],
     traffic: {},
     contributor_stats: [],
     activity: {},
@@ -40141,45 +40652,8 @@ function buildStubContext(config2) {
 }
 
 // src/core/context.ts
-function mergeOutputs(outputs, extrasList) {
-  if (outputs.length === 1) {
-    return { output: outputs[0], extras: extrasList[0] };
-  }
-  const [first, ...rest] = outputs;
-  const mergedExtras = {
-    organizations: [...extrasList[0].organizations ?? []],
-    gists: [...extrasList[0].gists ?? []]
-  };
-  for (let i = 1; i < rest.length; i++) {
-    const next = rest[i];
-    const extra = extrasList[i];
-    first.profileContributions.totalContributions += next.profileContributions.totalContributions;
-    first.profileContributions.totalCommitContributions += next.profileContributions.totalCommitContributions;
-    first.profileContributions.totalIssueContributions += next.profileContributions.totalIssueContributions;
-    first.profileContributions.totalPullRequestContributions += next.profileContributions.totalPullRequestContributions;
-    first.profileContributions.totalPullRequestReviewContributions += next.profileContributions.totalPullRequestReviewContributions;
-    first.activity.totalPullRequests += next.activity.totalPullRequests;
-    first.activity.openIssues += next.activity.openIssues;
-    first.activity.closedIssues += next.activity.closedIssues;
-    first.activity.repositoriesContributedTo += next.activity.repositoriesContributedTo;
-    first.activity.discussionsStarted += next.activity.discussionsStarted;
-    first.activity.discussionsAnswered += next.activity.discussionsAnswered;
-    first.activity.starsGiven += next.activity.starsGiven;
-    const existingIds = new Set(first.repositories.map((r) => r.id));
-    for (const repo of next.repositories) {
-      if (!existingIds.has(repo.id)) {
-        first.repositories.push(repo);
-        existingIds.add(repo.id);
-      }
-    }
-    if (extra.organizations) {
-      mergedExtras.organizations.push(...extra.organizations);
-    }
-    if (extra.gists) {
-      mergedExtras.gists.push(...extra.gists);
-    }
-  }
-  return { output: first, extras: mergedExtras };
+function mergeOutputs(outputs) {
+  return mergeStatsOutputs(outputs);
 }
 var ContextBuilder = class {
   config;
@@ -40210,20 +40684,18 @@ var ContextBuilder = class {
     const plan = analyzeTemplate(templateSource);
     const engine = new UnifiedEngine();
     if (profiles.length === 1) {
-      const { output, extras } = await engine.collect(plan, this.config, profiles[0]);
-      return deriveContext(output, this.config, extras, false);
+      const output = await engine.collect(plan, this.config, profiles[0]);
+      return deriveContext(output, this.config, false);
     }
     return this.buildMultiUser(plan, engine, profiles);
   }
   async buildMultiUser(plan, engine, profiles) {
     const outputs = [];
-    const extrasList = [];
     for (const profile of profiles) {
       console.info("Collecting data for %s", profile.username);
       try {
-        const { output: output2, extras: extras2 } = await engine.collect(plan, this.config, profile);
+        const output2 = await engine.collect(plan, this.config, profile);
         outputs.push(output2);
-        extrasList.push(extras2);
       } catch (err) {
         console.error("Failed to collect data for %s:", profile.username, err);
       }
@@ -40231,8 +40703,8 @@ var ContextBuilder = class {
     if (outputs.length === 0) {
       return buildStubContext(this.config);
     }
-    const { output, extras } = mergeOutputs(outputs, extrasList);
-    return deriveContext(output, this.config, extras, true);
+    const output = mergeOutputs(outputs);
+    return deriveContext(output, this.config, true);
   }
 };
 
@@ -40267,14 +40739,14 @@ var Engine = class {
       return;
     }
     let current = "";
-    if (existsSync3(README_PATH)) {
-      current = readFileSync4(README_PATH, "utf-8");
+    if (existsSync2(README_PATH)) {
+      current = readFileSync3(README_PATH, "utf-8");
     }
     if (rendered === current) {
       console.info("No changes detected; skipping commit.");
       return;
     }
-    writeFileSync4(README_PATH, rendered, "utf-8");
+    writeFileSync3(README_PATH, rendered, "utf-8");
     console.info("README.md updated locally.");
     if (hasChanges(README_PATH)) {
       commitAndPush(options.message || "\u{1F916} Auto-update profile README", README_PATH);
@@ -40286,7 +40758,7 @@ var Engine = class {
 
 // src/core/renderer.ts
 var import_nunjucks = __toESM(require_nunjucks(), 1);
-import { readFileSync as readFileSync5, readdirSync } from "node:fs";
+import { readFileSync as readFileSync4, readdirSync } from "node:fs";
 import { resolve as resolve2 } from "node:path";
 
 // src/helpers/badges.ts
@@ -40532,6 +41004,7 @@ function remotionInput(stats) {
   const calendar = contributions.contributionCalendar || {};
   const statsBlock = contributions.stats || {};
   const repoMetrics = stats.repoMetrics || {};
+  const repoStats = repoMetrics.repoStats || {};
   return {
     username: profile.login || stats.username,
     name: profile.name || stats.name,
@@ -40539,7 +41012,7 @@ function remotionInput(stats) {
     totalContributions: contributions.totalContributions || 0,
     currentStreak: statsBlock.currentStreak || 0,
     longestStreak: statsBlock.longestStreak || 0,
-    publicRepos: repoMetrics.publicRepoCount || 0,
+    publicRepos: repoStats.publicRepos || 0,
     totalStars: repoMetrics.starCount || 0,
     totalForks: repoMetrics.forkCount || 0,
     topLanguages: (repoMetrics.topLanguages || []).slice(0, 10).map((lang) => ({
@@ -40582,7 +41055,7 @@ function remotionSceneManifest(stats, sceneTemplate) {
   const repoMetrics = stats.repoMetrics || {};
   const contributions = stats.profileContributions || {};
   const activity = stats.activity || {};
-  const computed = stats.computedStats || {};
+  const computed = repoMetrics.computedStats || {};
   const streak = contributions.stats?.currentStreak || 0;
   const langCount = (repoMetrics.topLanguages || []).length;
   const scenes = [
@@ -40698,7 +41171,7 @@ var Renderer = class {
     ];
     for (const path of paths) {
       try {
-        return readFileSync5(path, "utf-8");
+        return readFileSync4(path, "utf-8");
       } catch {
       }
     }
@@ -40723,11 +41196,11 @@ var program2 = new Command();
 program2.name("diffler").description("A powerful engine for generating GitHub profile READMEs").version("0.1.0");
 program2.command("init").description("Scaffold a new Diffler project").option("-d, --dir <directory>", "Template directory", ".github/diffler").option("-c, --config <path>", "Config file path", ".github/diffler.yml").action((options) => {
   const dir = resolve3(options.dir);
-  mkdirSync4(dir, { recursive: true });
+  mkdirSync3(dir, { recursive: true });
   const configPath = resolve3(options.config);
-  mkdirSync4(resolve3(configPath, ".."), { recursive: true });
-  if (!existsSync4(configPath)) {
-    writeFileSync5(
+  mkdirSync3(resolve3(configPath, ".."), { recursive: true });
+  if (!existsSync3(configPath)) {
+    writeFileSync4(
       configPath,
       'version: "1"\n\ngithub:\n  username: "your-username"\n  token: "${GITHUB_TOKEN}"\n  # For multi-profile aggregation with separate tokens:\n  # profiles:\n  #   - username: "personal"\n  #     token: "${GITHUB_TOKEN_PERSONAL}"\n  #   - username: "work"\n  #     token: "${GITHUB_TOKEN_WORK}"\n\ntemplates:\n  main: "profile.md.j2"\n  directory: ".github/diffler"\n\ncache:\n  enabled: true\n  ttl: 3600\n',
       "utf-8"
@@ -40737,8 +41210,8 @@ program2.command("init").description("Scaffold a new Diffler project").option("-
     console.log(`Skipped ${configPath} (already exists)`);
   }
   const mainTemplate = resolve3(dir, "profile.md.j2");
-  if (!existsSync4(mainTemplate)) {
-    writeFileSync5(
+  if (!existsSync3(mainTemplate)) {
+    writeFileSync4(
       mainTemplate,
       `<div align="center">
 
@@ -40830,7 +41303,7 @@ program2.command("render").description("Render the profile README").option("-c, 
   const engine = new Engine(config2, renderer);
   const result = await engine.render();
   if (options.output) {
-    writeFileSync5(options.output, result, "utf-8");
+    writeFileSync4(options.output, result, "utf-8");
     console.log(`Rendered to ${options.output}`);
   } else {
     console.log(result);
@@ -40863,7 +41336,7 @@ program2.command("cache-clear").description("Clear the local API response cache"
   ];
   let removed = 0;
   for (const path of paths) {
-    if (existsSync4(path)) {
+    if (existsSync3(path)) {
       unlinkSync(path);
       removed++;
       console.log(`Removed ${path}`);
@@ -40875,29 +41348,9 @@ program2.command("cache-clear").description("Clear the local API response cache"
     console.log(`Cache cleared (${removed} files).`);
   }
 });
-program2.command("export-remotion").description("Generate remotion input.json").option("-c, --config <path>", "Config file path").option("-o, --output <path>", "Output path", "remotion-input.json").action(async (options) => {
-  const config2 = loadConfig(options.config);
-  const renderer = new Renderer(config2);
-  const engine = new Engine(config2, renderer);
-  const templateSource = renderer.readTemplateSource();
-  const context = await engine.contextBuilder.build(templateSource);
-  const stats = context.stats || {};
-  const remotion = remotionInput(stats);
-  writeFileSync5(options.output, JSON.stringify(remotion, null, 2), "utf-8");
-  console.log(`Remotion config written to ${options.output}`);
-});
-program2.command("export-remotion-scenes").description("Generate remotion scene manifest").option("-c, --config <path>", "Config file path").option("-o, --output <path>", "Output path", "remotion-scenes.json").action(async (options) => {
-  const config2 = loadConfig(options.config);
-  const renderer = new Renderer(config2);
-  const engine = new Engine(config2, renderer);
-  const templateSource = renderer.readTemplateSource();
-  const context = await engine.contextBuilder.build(templateSource);
-  const stats = context.stats || {};
-  const manifest = remotionSceneManifest(stats);
-  writeFileSync5(options.output, JSON.stringify(manifest, null, 2), "utf-8");
-  console.log(`Remotion scene manifest written to ${options.output}`);
-});
-program2.command("export-remotion-input").description("Generate remotion input.json with inline stats for local dev").option("-c, --config <path>", "Config file path").option("-t, --target <path>", "Output path", "../github-stats-remotion/input.json").option("--allow-private", "Include private repository details", false).action(async (options) => {
+program2.command("export-remotion").description(
+  "Generate a Remotion input.json with inline stats (optionally a scene manifest)"
+).option("-c, --config <path>", "Config file path").option("-o, --output <path>", "Output path", "remotion-input.json").option("--scenes <path>", "Also write a scene manifest to this path").option("--allow-private", "Include private repository details", false).action(async (options) => {
   const config2 = loadConfig(options.config);
   const renderer = new Renderer(config2);
   const engine = new Engine(config2, renderer);
@@ -40914,13 +41367,18 @@ program2.command("export-remotion-input").description("Generate remotion input.j
   if (profiles.length > 1) {
     output.usernames = profiles.map((p) => p.username);
   }
-  writeFileSync5(options.target, JSON.stringify(output, null, 2), "utf-8");
-  console.log(`Remotion input written to ${options.target}`);
-  if (profiles.length > 1) {
-    console.log(`Multi-profile: ${profiles.map((p) => p.username).join(", ")}`);
+  writeFileSync4(options.output, JSON.stringify(output, null, 2), "utf-8");
+  console.log(`Remotion input written to ${options.output}`);
+  if (options.scenes) {
+    const manifest = remotionSceneManifest(stats);
+    writeFileSync4(options.scenes, JSON.stringify(manifest, null, 2), "utf-8");
+    console.log(`Remotion scene manifest written to ${options.scenes}`);
   }
 });
-program2.parse();
+program2.parseAsync().catch((error51) => {
+  console.error(error51 instanceof Error ? error51.message : error51);
+  process.exit(1);
+});
 /*! Bundled license information:
 
 normalize-path/index.js:

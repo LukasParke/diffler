@@ -6,7 +6,7 @@ import { loadConfig, getProfiles, buildStatsActionConfig } from "./config.js";
 import { GitHubClient } from "./github/client.js";
 import { Engine } from "./core/engine.js";
 import { Renderer } from "./core/renderer.js";
-import { remotionInput, remotionSceneManifest } from "./helpers/remotion.js";
+import { remotionSceneManifest } from "./helpers/remotion.js";
 import { runStatsCollection } from "./stats/index.js";
 
 const program = new Command();
@@ -224,43 +224,12 @@ program
 
 program
   .command("export-remotion")
-  .description("Generate remotion input.json")
+  .description(
+    "Generate a Remotion input.json with inline stats (optionally a scene manifest)"
+  )
   .option("-c, --config <path>", "Config file path")
   .option("-o, --output <path>", "Output path", "remotion-input.json")
-  .action(async (options) => {
-    const config = loadConfig(options.config);
-    const renderer = new Renderer(config);
-    const engine = new Engine(config, renderer);
-    const templateSource = renderer.readTemplateSource();
-    const context = await engine.contextBuilder.build(templateSource);
-    const stats = (context.stats as Record<string, unknown>) || {};
-    const remotion = remotionInput(stats);
-    writeFileSync(options.output, JSON.stringify(remotion, null, 2), "utf-8");
-    console.log(`Remotion config written to ${options.output}`);
-  });
-
-program
-  .command("export-remotion-scenes")
-  .description("Generate remotion scene manifest")
-  .option("-c, --config <path>", "Config file path")
-  .option("-o, --output <path>", "Output path", "remotion-scenes.json")
-  .action(async (options) => {
-    const config = loadConfig(options.config);
-    const renderer = new Renderer(config);
-    const engine = new Engine(config, renderer);
-    const templateSource = renderer.readTemplateSource();
-    const context = await engine.contextBuilder.build(templateSource);
-    const stats = (context.stats as Record<string, unknown>) || {};
-    const manifest = remotionSceneManifest(stats);
-    writeFileSync(options.output, JSON.stringify(manifest, null, 2), "utf-8");
-    console.log(`Remotion scene manifest written to ${options.output}`);
-  });
-
-program
-  .command("export-remotion-input")
-  .description("Generate remotion input.json with inline stats for local dev")
-  .option("-c, --config <path>", "Config file path")
-  .option("-t, --target <path>", "Output path", "../github-stats-remotion/input.json")
+  .option("--scenes <path>", "Also write a scene manifest to this path")
   .option("--allow-private", "Include private repository details", false)
   .action(async (options) => {
     const config = loadConfig(options.config);
@@ -282,11 +251,17 @@ program
       output.usernames = profiles.map((p) => p.username);
     }
 
-    writeFileSync(options.target, JSON.stringify(output, null, 2), "utf-8");
-    console.log(`Remotion input written to ${options.target}`);
-    if (profiles.length > 1) {
-      console.log(`Multi-profile: ${profiles.map((p) => p.username).join(", ")}`);
+    writeFileSync(options.output, JSON.stringify(output, null, 2), "utf-8");
+    console.log(`Remotion input written to ${options.output}`);
+
+    if (options.scenes) {
+      const manifest = remotionSceneManifest(stats);
+      writeFileSync(options.scenes, JSON.stringify(manifest, null, 2), "utf-8");
+      console.log(`Remotion scene manifest written to ${options.scenes}`);
     }
   });
 
-program.parse();
+program.parseAsync().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+});

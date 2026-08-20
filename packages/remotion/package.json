@@ -76,10 +76,8 @@
   "dependencies": {
     "@lukasparke/diffler-schemas": "workspace:*",
     "@remotion/cli": "4.0.509",
-    "axios": "^1.16.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.446.0",
-    "octokit": "^4.0.2",
     "tailwind-merge": "^2.5.2",
     "zod": "4.4.3"
   },

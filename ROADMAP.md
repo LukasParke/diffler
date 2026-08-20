@@ -12,6 +12,10 @@ rendering.
 - [x] Scoped, independently publishable npm packages
 - [x] GitHub Pages asset deployment
 - [x] Packed CLI smoke test
+- [x] Canonical v2 output schema (no legacy aliases), shared merge, and a
+      schema-validated renderer adapter
+- [x] Hermetic GitHub Action (committed bundle, git identity configured)
+- [x] Template data-source helpers render prefetched data synchronously
 - [ ] Publish the first npm release from a version tag
 - [ ] Move the `v1` tag after the release workflow succeeds
 - [ ] Migrate `LukasParke/LukasParke` from readme-scribe to Diffler
@@ -20,7 +24,8 @@ rendering.
 ## Next
 
 - Add a PyPI package-stats adapter using the normalized package metrics seam.
-- Add a consumer fixture that exercises the released GitHub Action.
-- Consolidate the three Remotion export commands.
+- Add a consumer fixture that exercises the released GitHub Action end to end
+  (the render smoke test already runs from a committed fixture).
+- Measure and reduce stats collection and animation render time; templates now
+  opt out of traffic/contributor backfill they do not reference.
 - Add image-link validation to the profile repository.
-- Measure and reduce stats collection and animation render time.
