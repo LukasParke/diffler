@@ -27,6 +27,11 @@ jobs:
       - run: pnpm verify
       - run: pnpm test:package
 
+      - name: Verify committed action bundle is fresh
+        run: |
+          pnpm --filter @lukasparke/diffler build:action
+          git diff --exit-code packages/diffler/dist-action
+
       - name: Install ffmpeg
         run: |
           sudo apt-get update
