@@ -1,0 +1,884 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-14T00:00:00.000Z",
+  "profile": {
+    "name": "Luke Parke",
+    "login": "LukasParke",
+    "bio": "Building developer tools.",
+    "company": "@parke-dev",
+    "location": "Portland, OR",
+    "email": null,
+    "twitterUsername": null,
+    "websiteUrl": "https://parke.dev",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/1?v=4",
+    "createdAt": "2016-04-02T00:00:00.000Z",
+    "followers": 240,
+    "following": 85
+  },
+  "profileContributions": {
+    "totalContributions": 223,
+    "totalCommitContributions": 178,
+    "restrictedContributionsCount": 4,
+    "totalIssueContributions": 21,
+    "totalRepositoryContributions": 6,
+    "totalPullRequestContributions": 38,
+    "totalPullRequestReviewContributions": 17,
+    "contributionCalendar": {
+      "totalContributions": 223,
+      "weeks": [
+        {
+          "contributionDays": [
+            {
+              "date": "2026-06-01",
+              "contributionCount": 0
+            },
+            {
+              "date": "2026-06-02",
+              "contributionCount": 7
+            },
+            {
+              "date": "2026-06-03",
+              "contributionCount": 5
+            },
+            {
+              "date": "2026-06-04",
+              "contributionCount": 3
+            },
+            {
+              "date": "2026-06-05",
+              "contributionCount": 1
+            },
+            {
+              "date": "2026-06-06",
+              "contributionCount": 8
+            },
+            {
+              "date": "2026-06-07",
+              "contributionCount": 6
+            }
+          ]
+        },
+        {
+          "contributionDays": [
+            {
+              "date": "2026-06-08",
+              "contributionCount": 4
+            },
+            {
+              "date": "2026-06-09",
+              "contributionCount": 2
+            },
+            {
+              "date": "2026-06-10",
+              "contributionCount": 0
+            },
+            {
+              "date": "2026-06-11",
+              "contributionCount": 7
+            },
+            {
+              "date": "2026-06-12",
+              "contributionCount": 5
+            },
+            {
+              "date": "2026-06-13",
+              "contributionCount": 3
+            },
+            {
+              "date": "2026-06-14",
+              "contributionCount": 1
+            }
+          ]
+        },
+        {
+          "contributionDays": [
+            {
+              "date": "2026-06-15",
+              "contributionCount": 8
+            },
+            {
+              "date": "2026-06-16",
+              "contributionCount": 6
+            },
+            {
+              "date": "2026-06-17",
+              "contributionCount": 4
+            },
+            {
+              "date": "2026-06-18",
+              "contributionCount": 2
+            },
+            {
+              "date": "2026-06-19",
+              "contributionCount": 0
+            },
+            {
+              "date": "2026-06-20",
+              "contributionCount": 7
+            },
+            {
+              "date": "2026-06-21",
+              "contributionCount": 5
+            }
+          ]
+        },
+        {
+          "contributionDays": [
+            {
+              "date": "2026-06-22",
+              "contributionCount": 3
+            },
+            {
+              "date": "2026-06-23",
+              "contributionCount": 1
+            },
+            {
+              "date": "2026-06-24",
+              "contributionCount": 8
+            },
+            {
+              "date": "2026-06-25",
+              "contributionCount": 6
+            },
+            {
+              "date": "2026-06-26",
+              "contributionCount": 4
+            },
+            {
+              "date": "2026-06-27",
+              "contributionCount": 2
+            },
+            {
+              "date": "2026-06-28",
+              "contributionCount": 0
+            }
+          ]
+        },
+        {
+          "contributionDays": [
+            {
+              "date": "2026-06-29",
+              "contributionCount": 7
+            },
+            {
+              "date": "2026-06-30",
+              "contributionCount": 5
+            },
+            {
+              "date": "2026-07-01",
+              "contributionCount": 3
+            },
+            {
+              "date": "2026-07-02",
+              "contributionCount": 1
+            },
+            {
+              "date": "2026-07-03",
+              "contributionCount": 8
+            },
+            {
+              "date": "2026-07-04",
+              "contributionCount": 6
+            },
+            {
+              "date": "2026-07-05",
+              "contributionCount": 4
+            }
+          ]
+        },
+        {
+          "contributionDays": [
+            {
+              "date": "2026-07-06",
+              "contributionCount": 2
+            },
+            {
+              "date": "2026-07-07",
+              "contributionCount": 0
+            },
+            {
+              "date": "2026-07-08",
+              "contributionCount": 7
+            },
+            {
+              "date": "2026-07-09",
+              "contributionCount": 5
+            },
+            {
+              "date": "2026-07-10",
+              "contributionCount": 3
+            },
+            {
+              "date": "2026-07-11",
+              "contributionCount": 1
+            },
+            {
+              "date": "2026-07-12",
+              "contributionCount": 8
+            }
+          ]
+        },
+        {
+          "contributionDays": [
+            {
+              "date": "2026-07-13",
+              "contributionCount": 6
+            },
+            {
+              "date": "2026-07-14",
+              "contributionCount": 4
+            },
+            {
+              "date": "2026-07-15",
+              "contributionCount": 2
+            },
+            {
+              "date": "2026-07-16",
+              "contributionCount": 0
+            },
+            {
+              "date": "2026-07-17",
+              "contributionCount": 7
+            },
+            {
+              "date": "2026-07-18",
+              "contributionCount": 5
+            },
+            {
+              "date": "2026-07-19",
+              "contributionCount": 3
+            }
+          ]
+        },
+        {
+          "contributionDays": [
+            {
+              "date": "2026-07-20",
+              "contributionCount": 1
+            },
+            {
+              "date": "2026-07-21",
+              "contributionCount": 8
+            },
+            {
+              "date": "2026-07-22",
+              "contributionCount": 6
+            },
+            {
+              "date": "2026-07-23",
+              "contributionCount": 4
+            },
+            {
+              "date": "2026-07-24",
+              "contributionCount": 2
+            },
+            {
+              "date": "2026-07-25",
+              "contributionCount": 0
+            },
+            {
+              "date": "2026-07-26",
+              "contributionCount": 7
+            }
+          ]
+        }
+      ]
+    },
+    "stats": {
+      "longestStreak": 23,
+      "currentStreak": 6,
+      "mostActiveDay": "Wednesday",
+      "averagePerDay": 3.98,
+      "averagePerWeek": 27.88,
+      "averagePerMonth": 119.46,
+      "monthlyBreakdown": [
+        {
+          "month": "2026-06",
+          "contributions": 123
+        },
+        {
+          "month": "2026-07",
+          "contributions": 100
+        }
+      ],
+      "yearlyBreakdown": [
+        {
+          "year": "2026",
+          "contributions": 223
+        }
+      ],
+      "peakDay": {
+        "date": "2026-06-17",
+        "contributions": 8
+      }
+    },
+    "repositoryContributions": [
+      {
+        "repositoryId": "R_1",
+        "nameWithOwner": "LukasParke/diffler",
+        "owner": "LukasParke",
+        "counts": {
+          "commits": 352,
+          "issues": 3,
+          "pullRequests": 5,
+          "pullRequestReviews": 2,
+          "repositoryCreations": 1
+        }
+      },
+      {
+        "repositoryId": "R_2",
+        "nameWithOwner": "LukasParke/pi",
+        "owner": "LukasParke",
+        "counts": {
+          "commits": 227,
+          "issues": 3,
+          "pullRequests": 5,
+          "pullRequestReviews": 2,
+          "repositoryCreations": 1
+        }
+      },
+      {
+        "repositoryId": "R_3",
+        "nameWithOwner": "LukasParke/openrouter-sdk",
+        "owner": "LukasParke",
+        "counts": {
+          "commits": 136,
+          "issues": 3,
+          "pullRequests": 5,
+          "pullRequestReviews": 2,
+          "repositoryCreations": 1
+        }
+      }
+    ],
+    "completeness": {
+      "complete": true,
+      "yearsFetched": [
+        "2026"
+      ],
+      "yearsFromCache": [],
+      "missingYears": []
+    }
+  },
+  "activity": {
+    "totalPullRequests": 142,
+    "openIssues": 3,
+    "closedIssues": 41,
+    "repositoriesContributedTo": 27,
+    "discussionsStarted": 8,
+    "discussionsAnswered": 15,
+    "starsGiven": 512
+  },
+  "repositories": [
+    {
+      "id": "R_1",
+      "name": "diffler",
+      "nameWithOwner": "LukasParke/diffler",
+      "owner": "LukasParke",
+      "ownerType": "User",
+      "description": "diffler description",
+      "url": "https://github.com/LukasParke/diffler",
+      "isArchived": false,
+      "isFork": false,
+      "isPrivate": false,
+      "visibility": "PUBLIC",
+      "viewerPermission": "ADMIN",
+      "createdAt": "2021-03-04T00:00:00.000Z",
+      "updatedAt": "2026-08-01T00:00:00.000Z",
+      "pushedAt": "2026-08-01T00:00:00.000Z",
+      "defaultBranchOid": "bR_1",
+      "stars": 312,
+      "forks": 24,
+      "primaryLanguage": "TypeScript",
+      "topics": [
+        "github",
+        "automation"
+      ],
+      "languages": [
+        {
+          "languageName": "TypeScript",
+          "color": "#3178c6",
+          "value": 520000,
+          "percentage": 52
+        },
+        {
+          "languageName": "Rust",
+          "color": "#dea584",
+          "value": 280000,
+          "percentage": 28
+        }
+      ],
+      "codeByteTotal": 800000,
+      "sources": [
+        "owned"
+      ],
+      "contributionCounts": {
+        "commits": 352,
+        "issues": 3,
+        "pullRequests": 5,
+        "pullRequestReviews": 2,
+        "repositoryCreations": 1
+      },
+      "metadataFetchedAt": 1755100000000
+    },
+    {
+      "id": "R_2",
+      "name": "pi",
+      "nameWithOwner": "LukasParke/pi",
+      "owner": "LukasParke",
+      "ownerType": "User",
+      "description": "pi description",
+      "url": "https://github.com/LukasParke/pi",
+      "isArchived": false,
+      "isFork": false,
+      "isPrivate": false,
+      "visibility": "PUBLIC",
+      "viewerPermission": "ADMIN",
+      "createdAt": "2021-03-04T00:00:00.000Z",
+      "updatedAt": "2026-08-01T00:00:00.000Z",
+      "pushedAt": "2026-08-01T00:00:00.000Z",
+      "defaultBranchOid": "bR_2",
+      "stars": 187,
+      "forks": 11,
+      "primaryLanguage": "Rust",
+      "topics": [
+        "agents",
+        "cli"
+      ],
+      "languages": [
+        {
+          "languageName": "Rust",
+          "color": "#dea584",
+          "value": 280000,
+          "percentage": 28
+        },
+        {
+          "languageName": "Go",
+          "color": "#00ADD8",
+          "value": 200000,
+          "percentage": 20
+        }
+      ],
+      "codeByteTotal": 480000,
+      "sources": [
+        "owned"
+      ],
+      "contributionCounts": {
+        "commits": 227,
+        "issues": 3,
+        "pullRequests": 5,
+        "pullRequestReviews": 2,
+        "repositoryCreations": 1
+      },
+      "metadataFetchedAt": 1755100000000
+    },
+    {
+      "id": "R_3",
+      "name": "openrouter-sdk",
+      "nameWithOwner": "LukasParke/openrouter-sdk",
+      "owner": "LukasParke",
+      "ownerType": "User",
+      "description": "openrouter-sdk description",
+      "url": "https://github.com/LukasParke/openrouter-sdk",
+      "isArchived": false,
+      "isFork": false,
+      "isPrivate": false,
+      "visibility": "PUBLIC",
+      "viewerPermission": "ADMIN",
+      "createdAt": "2021-03-04T00:00:00.000Z",
+      "updatedAt": "2026-08-01T00:00:00.000Z",
+      "pushedAt": "2026-08-01T00:00:00.000Z",
+      "defaultBranchOid": "bR_3",
+      "stars": 96,
+      "forks": 9,
+      "primaryLanguage": "TypeScript",
+      "topics": [
+        "sdk",
+        "ai"
+      ],
+      "languages": [
+        {
+          "languageName": "TypeScript",
+          "color": "#3178c6",
+          "value": 520000,
+          "percentage": 52
+        },
+        {
+          "languageName": "Go",
+          "color": "#00ADD8",
+          "value": 200000,
+          "percentage": 20
+        }
+      ],
+      "codeByteTotal": 720000,
+      "sources": [
+        "owned"
+      ],
+      "contributionCounts": {
+        "commits": 136,
+        "issues": 3,
+        "pullRequests": 5,
+        "pullRequestReviews": 2,
+        "repositoryCreations": 1
+      },
+      "metadataFetchedAt": 1755100000000
+    }
+  ],
+  "repoMetrics": {
+    "starCount": 595,
+    "forkCount": 44,
+    "codeByteTotal": 2000000,
+    "topLanguages": [
+      {
+        "languageName": "TypeScript",
+        "color": "#3178c6",
+        "value": 520000,
+        "percentage": 52
+      },
+      {
+        "languageName": "Rust",
+        "color": "#dea584",
+        "value": 280000,
+        "percentage": 28
+      },
+      {
+        "languageName": "Go",
+        "color": "#00ADD8",
+        "value": 200000,
+        "percentage": 20
+      }
+    ],
+    "topTopics": [
+      {
+        "name": "github",
+        "count": 1
+      },
+      {
+        "name": "agents",
+        "count": 1
+      },
+      {
+        "name": "sdk",
+        "count": 1
+      },
+      {
+        "name": "automation",
+        "count": 1
+      },
+      {
+        "name": "cli",
+        "count": 1
+      },
+      {
+        "name": "ai",
+        "count": 1
+      }
+    ],
+    "profile": {
+      "totalRepos": 42,
+      "publicRepos": 38,
+      "privateRepos": 4,
+      "originalRepos": 31,
+      "forkedRepos": 7,
+      "activeOriginalRepos": 12,
+      "archivedOriginalRepos": 3,
+      "reposWithStars": 9,
+      "starsReceived": 595,
+      "forksReceived": 44,
+      "codeByteTotal": 2000000,
+      "topLanguages": [
+        {
+          "languageName": "TypeScript",
+          "color": "#3178c6",
+          "value": 520000,
+          "percentage": 52
+        },
+        {
+          "languageName": "Rust",
+          "color": "#dea584",
+          "value": 280000,
+          "percentage": 28
+        },
+        {
+          "languageName": "Go",
+          "color": "#00ADD8",
+          "value": 200000,
+          "percentage": 20
+        }
+      ]
+    },
+    "contributorStats": {
+      "totalCommits": 1840,
+      "linesAdded": 214500,
+      "linesDeleted": 96200,
+      "linesOfCodeChanged": 310700,
+      "reposCompleted": 3,
+      "reposPending": 0,
+      "reposFailed": 0
+    },
+    "traffic": {
+      "repoViews": 4820,
+      "repoViewUniques": 1911,
+      "reposCompleted": 3,
+      "reposPending": 0,
+      "reposFailed": 0
+    },
+    "repoStats": {
+      "totalRepos": 42,
+      "publicRepos": 38,
+      "privateRepos": 4,
+      "archivedRepos": 3,
+      "forkedRepos": 7,
+      "originalRepos": 31,
+      "activeRepos": 12,
+      "reposWithStars": 9,
+      "reposCreatedThisYear": 2,
+      "averageStarsPerRepo": 14.17
+    },
+    "computedStats": {
+      "totalRepos": 42,
+      "publicRepos": 38,
+      "privateRepos": 4,
+      "archivedRepos": 3,
+      "forkedRepos": 7,
+      "originalRepos": 31,
+      "activeRepos": 12,
+      "reposWithStars": 9,
+      "reposCreatedThisYear": 2,
+      "averageStarsPerRepo": 14.17,
+      "languageCount": 3,
+      "primaryLanguage": "TypeScript",
+      "primaryLanguageThisYear": "TypeScript",
+      "topLanguagesThisYear": [
+        {
+          "languageName": "TypeScript",
+          "color": "#3178c6",
+          "value": 520000,
+          "percentage": 52
+        },
+        {
+          "languageName": "Rust",
+          "color": "#dea584",
+          "value": 280000,
+          "percentage": 28
+        },
+        {
+          "languageName": "Go",
+          "color": "#00ADD8",
+          "value": 200000,
+          "percentage": 20
+        }
+      ],
+      "totalTopics": 6,
+      "topTopics": [
+        {
+          "name": "github",
+          "count": 1
+        },
+        {
+          "name": "agents",
+          "count": 1
+        },
+        {
+          "name": "sdk",
+          "count": 1
+        },
+        {
+          "name": "automation",
+          "count": 1
+        },
+        {
+          "name": "cli",
+          "count": 1
+        },
+        {
+          "name": "ai",
+          "count": 1
+        }
+      ],
+      "allTopics": [
+        "agents",
+        "ai",
+        "automation",
+        "cli",
+        "github",
+        "sdk"
+      ],
+      "contributionsThisYear": 223,
+      "contributionsLastYear": 1180,
+      "yearOverYearGrowth": 32.2,
+      "mostProductiveMonth": {
+        "month": "2026-06",
+        "contributions": 123
+      }
+    }
+  },
+  "packageMetrics": {
+    "packageCount": 1,
+    "providers": [
+      "npm"
+    ],
+    "downloads": {
+      "lastDay": 312,
+      "lastWeek": 1904,
+      "lastMonth": 7420,
+      "lastYear": 61300,
+      "allTime": 88400
+    },
+    "packages": [
+      {
+        "provider": "npm",
+        "name": "@lukasparke/diffler",
+        "url": "https://www.npmjs.com/package/@lukasparke/diffler",
+        "latestVersion": "0.1.0",
+        "latestPublishedAt": "2026-08-01T00:00:00.000Z",
+        "downloads": {
+          "lastDay": 312,
+          "lastWeek": 1904,
+          "lastMonth": 7420,
+          "lastYear": 61300,
+          "allTime": 88400
+        }
+      }
+    ],
+    "complete": true,
+    "warnings": []
+  },
+  "presentation": {
+    "readmeSummary": {
+      "name": "Luke Parke",
+      "username": "LukasParke",
+      "totalContributions": 223,
+      "currentStreak": 6,
+      "longestStreak": 23,
+      "topLanguages": [
+        {
+          "languageName": "TypeScript",
+          "color": "#3178c6",
+          "value": 520000,
+          "percentage": 52
+        },
+        {
+          "languageName": "Rust",
+          "color": "#dea584",
+          "value": 280000,
+          "percentage": 28
+        },
+        {
+          "languageName": "Go",
+          "color": "#00ADD8",
+          "value": 200000,
+          "percentage": 20
+        }
+      ],
+      "starsReceived": 595,
+      "forksReceived": 44,
+      "totalRepos": 42,
+      "originalRepos": 31,
+      "activeRepos": 12,
+      "languageCount": 3,
+      "codeByteTotal": 2000000,
+      "refreshedAt": "2026-08-14T00:00:00.000Z",
+      "complete": true
+    },
+    "cards": [
+      {
+        "id": "total-contributions",
+        "label": "Total contributions",
+        "value": "223"
+      },
+      {
+        "id": "current-streak",
+        "label": "Current streak",
+        "value": "6 days"
+      },
+      {
+        "id": "languages",
+        "label": "Languages",
+        "value": 3,
+        "detail": "TypeScript leads"
+      },
+      {
+        "id": "code-volume",
+        "label": "Code volume",
+        "value": "1.0 MB"
+      },
+      {
+        "id": "stars",
+        "label": "Stars received",
+        "value": "595"
+      }
+    ],
+    "timeline": [
+      {
+        "period": "2026",
+        "contributions": 223
+      }
+    ],
+    "highlights": [
+      {
+        "id": "peak-day",
+        "label": "Peak day",
+        "value": 8,
+        "detail": "2026-06-17"
+      },
+      {
+        "id": "top-language",
+        "label": "Top language",
+        "value": "TypeScript",
+        "detail": "52%"
+      }
+    ],
+    "remotion": {
+      "scenes": [
+        {
+          "id": "intro",
+          "title": "Luke Parke",
+          "metric": "LukasParke",
+          "supportingText": "GitHub profile activity"
+        },
+        {
+          "id": "contributions",
+          "title": "Contribution history",
+          "metric": "223",
+          "supportingText": "23 day longest streak"
+        }
+      ]
+    }
+  },
+  "privacy": {
+    "privateRepositoryMetricsIncluded": false,
+    "privateRepositoryDetailsIncluded": false,
+    "privateCacheDetailsIncluded": false,
+    "redactedPrivateRepositories": 0,
+    "redactedRepositoryContributions": 0,
+    "redactedOptionalMetrics": 0
+  },
+  "collectionStatus": {
+    "startedAt": 1755100000000,
+    "finishedAt": 1755100009000,
+    "durationMs": 9000,
+    "complete": true,
+    "coreComplete": true,
+    "cache": {
+      "stablePath": ".diffler/cache-stable.json",
+      "volatilePath": ".diffler/cache-volatile.json",
+      "contributionYearsFromCache": 9,
+      "contributionYearsFetched": 1,
+      "repositoriesFromCache": 40,
+      "repositoriesFetched": 2
+    },
+    "backfill": {
+      "enabled": true,
+      "completedThisRun": 2,
+      "pending": 0,
+      "failedThisRun": 0,
+      "skippedThisRun": 0
+    },
+    "rateLimit": {
+      "graphql": null,
+      "rest": null
+    },
+    "warnings": [],
+    "errors": []
+  }
+}
