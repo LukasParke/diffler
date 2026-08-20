@@ -5,6 +5,7 @@ export {
   timelinePointSchema,
   metricCardSchema,
   userStatsSchema,
+  githubStatsOutputSchema,
   sourcePropsSchema,
   mainSchema,
   type RenderLanguage,
@@ -12,4 +13,5 @@ export {
   type SourceProps,
   type MainProps,
   type UserStats,
+  type GitHubStatsOutput,
 } from "@lukasparke/diffler-schemas";

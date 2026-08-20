@@ -60,6 +60,7 @@ describe("GitHubClient", () => {
     });
 
     it("retries on 502 and succeeds", async () => {
+      vi.useFakeTimers();
       fetchSpy
         .mockResolvedValueOnce(new Response("Bad Gateway", { status: 502 }))
         .mockResolvedValueOnce(
@@ -67,21 +68,31 @@ describe("GitHubClient", () => {
         );
 
       const client = new GitHubClient(mockConfig);
-      const result = await client.restGet("/users/test");
+      const pending = client.restGet("/users/test");
+      const result = await vi.waitFor(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+        return pending;
+      });
 
       expect(result).toEqual({ login: "test" });
       expect(fetchSpy).toHaveBeenCalledTimes(2);
+      vi.useRealTimers();
     });
 
     it("throws after exhausting retries", async () => {
+      vi.useFakeTimers();
       fetchSpy.mockResolvedValue(
         new Response("Bad Gateway", { status: 502 })
       );
 
       const client = new GitHubClient(mockConfig);
-      await expect(client.restGet("/users/test")).rejects.toThrow("HTTP 502");
+      const pending = client.restGet("/users/test");
+      const assertion = expect(pending).rejects.toThrow("HTTP 502");
+      await vi.advanceTimersByTimeAsync(20000);
+      await assertion;
       expect(fetchSpy).toHaveBeenCalledTimes(4); // initial + 3 retries
-    }, 20000);
+      vi.useRealTimers();
+    });
   });
 
   describe("graphqlQuery", () => {

@@ -127,6 +127,10 @@ export function getProfiles(github: GitHubConfig): GitHubProfileConfig[] {
   return [];
 }
 
+export function primaryProfileUsername(github: GitHubConfig): string {
+  return getProfiles(github)[0]?.username ?? github.username ?? "unknown";
+}
+
 // Build StatsActionConfig with environment variable overrides (STATS_* prefix)
 export function buildStatsActionConfig(config: DifflerConfig): StatsActionConfig {
   const base = { ...config.statsAction };

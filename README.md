@@ -16,14 +16,14 @@ Self-contained monorepo for generating animated GitHub profile READMEs with live
 # Install all workspace dependencies
 pnpm install --frozen-lockfile
 
+# Run tests (resolves workspace sources directly; no build needed)
+pnpm test
+
 # Build all packages
 pnpm build
 
 # Run diffler CLI
 pnpm diffler -- collect --config .github/diffler.yml
-
-# Run tests across all packages
-pnpm test
 ```
 
 ## Workspaces
@@ -50,9 +50,31 @@ pnpm --filter @lukasparke/diffler-remotion test
 └─────────────────┘     └──────────────────┘     └─────────────────┘
 ```
 
-1. **diffler** collects comprehensive GitHub stats via GraphQL + REST and package install stats through registry adapters
-2. Provider-specific package data is normalized alongside GitHub data in the v2 JSON schema
-3. **@lukasparke/diffler-remotion** reads the JSON and renders animated profile cards
+1. **diffler** collects comprehensive GitHub stats via GraphQL + REST and package install stats through registry adapters, writing the canonical v2 schema defined in `@lukasparke/diffler-schemas`
+2. Provider-specific package data is normalized alongside GitHub data in the v2 JSON schema; multi-profile outputs are merged by the shared `mergeStatsOutputs` in the schemas package
+3. **@lukasparke/diffler-remotion** validates the JSON against the shared Zod schema and renders animated profile cards
+
+## Using the GitHub Action
+
+The action runs a committed single-file bundle (`packages/diffler/dist-action/`), so consumer workflows need no install or build step. Because the action commits and pushes README updates, the consuming workflow needs:
+
+```yaml
+permissions:
+  contents: write
+```
+
+The bundle is verified against its sources in CI; run `pnpm --filter @lukasparke/diffler build:action` after CLI changes and commit the result.
+
+## Releasing
+
+Package versions move in lockstep (enforced by `scripts/publish-release.mjs`):
+
+```bash
+node scripts/bump-version.mjs 1.0.0   # bumps all packages + refreshes the lockfile
+git commit -am "release: v1.0.0" && git tag v1.0.0 && git push --tags
+```
+
+Pushing a `v*` tag runs the release workflow, which publishes all packages to npm.
 
 ## GitHub Actions
 

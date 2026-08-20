@@ -68,6 +68,10 @@ outputs:
     description: Whether the README was changed
     value: ${{ steps.render.outputs.changed }}
 
+# Composite action that runs the committed single-file CLI bundle
+# (dist-action/index.js). CI verifies the bundle is fresh on every change, so
+# no install/build steps are needed here — the action is hermetic and fast.
+# Consumer workflows need `permissions: contents: write` to allow the push.
 runs:
   using: composite
   steps:
@@ -75,17 +79,6 @@ runs:
       uses: actions/setup-node@v4
       with:
         node-version: "20"
-
-    - name: Install pnpm
-      uses: pnpm/action-setup@v4
-      with:
-        version: 10.34.5
-
-    - name: Build Diffler action
-      shell: bash
-      run: |
-        pnpm --dir "$GITHUB_ACTION_PATH/../.." install --frozen-lockfile
-        pnpm --dir "$GITHUB_ACTION_PATH/../.." --filter @lukasparke/diffler... build
 
     - name: Collect stats (optional)
       id: collect
@@ -98,13 +91,20 @@ runs:
           export DIFFLER_GITHUB_USERNAME="${{ inputs.username }}"
         fi
 
-        node "$GITHUB_ACTION_PATH/dist/cli.js" collect \
+        node "$GITHUB_ACTION_PATH/dist-action/index.js" collect \
           --config "${{ inputs.config }}" \
           --output-path "${{ inputs.stats-output-path }}" \
           --cache-path "${{ inputs.stats-cache-path }}" \
           --volatile-cache-path "${{ inputs.stats-volatile-cache-path }}" \
           --backfill-mode "${{ inputs.stats-backfill-mode }}" \
           ${{ inputs.stats-include-private == 'true' && '--include-private' || '' }}
+
+    - name: Configure git identity
+      if: inputs.dry-run != 'true'
+      shell: bash
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
     - name: Render profile README
       id: render
@@ -116,11 +116,11 @@ runs:
           export DIFFLER_GITHUB_USERNAME="${{ inputs.username }}"
         fi
 
-        node "$GITHUB_ACTION_PATH/dist/cli.js" render --config "${{ inputs.config }}" --output "${{ inputs.output }}"
+        node "$GITHUB_ACTION_PATH/dist-action/index.js" render --config "${{ inputs.config }}" --output "${{ inputs.output }}"
 
         if [ -n "${{ inputs.remotion-output }}" ]; then
           echo "Generating remotion config..."
-          node "$GITHUB_ACTION_PATH/dist/cli.js" export-remotion --config "${{ inputs.config }}" --output "${{ inputs.remotion-output }}"
+          node "$GITHUB_ACTION_PATH/dist-action/index.js" export-remotion --config "${{ inputs.config }}" --output "${{ inputs.remotion-output }}"
         fi
 
         if [ "${{ inputs.dry-run }}" = "true" ]; then
