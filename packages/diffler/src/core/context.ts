@@ -7,28 +7,17 @@ import {
   UnifiedEngine,
   deriveContext,
   buildStubContext,
-  type CollectionExtras,
 } from "../engine/index.js";
 import type { GitHubStatsOutput } from "@lukasparke/diffler-schemas";
 
-function mergeOutputs(
-  outputs: GitHubStatsOutput[],
-  extrasList: CollectionExtras[]
-): { output: GitHubStatsOutput; extras: CollectionExtras } {
+function mergeOutputs(outputs: GitHubStatsOutput[]): GitHubStatsOutput {
   if (outputs.length === 1) {
-    return { output: outputs[0], extras: extrasList[0] };
+    return outputs[0];
   }
 
   const [first, ...rest] = outputs;
-  const mergedExtras: CollectionExtras = {
-    organizations: [...(extrasList[0].organizations ?? [])],
-    gists: [...(extrasList[0].gists ?? [])],
-  };
 
-  for (let i = 1; i < rest.length; i++) {
-    const next = rest[i];
-    const extra = extrasList[i];
-
+  for (const next of rest) {
     // Merge contribution counts
     first.profileContributions.totalContributions +=
       next.profileContributions.totalContributions;
@@ -59,17 +48,9 @@ function mergeOutputs(
         existingIds.add(repo.id);
       }
     }
-
-    // Merge extras
-    if (extra.organizations) {
-      mergedExtras.organizations!.push(...extra.organizations);
-    }
-    if (extra.gists) {
-      mergedExtras.gists!.push(...extra.gists);
-    }
   }
 
-  return { output: first, extras: mergedExtras };
+  return first;
 }
 
 export class ContextBuilder {
@@ -110,8 +91,8 @@ export class ContextBuilder {
     const engine = new UnifiedEngine();
 
     if (profiles.length === 1) {
-      const { output, extras } = await engine.collect(plan, this.config, profiles[0]);
-      return deriveContext(output, this.config, extras, false) as unknown as Record<string, unknown>;
+      const output = await engine.collect(plan, this.config, profiles[0]);
+      return deriveContext(output, this.config, false) as unknown as Record<string, unknown>;
     }
 
     return this.buildMultiUser(plan, engine, profiles);
@@ -123,14 +104,12 @@ export class ContextBuilder {
     profiles: GitHubProfileConfig[]
   ): Promise<Record<string, unknown>> {
     const outputs: GitHubStatsOutput[] = [];
-    const extrasList: CollectionExtras[] = [];
 
     for (const profile of profiles) {
       console.info("Collecting data for %s", profile.username);
       try {
-        const { output, extras } = await engine.collect(plan, this.config, profile);
+        const output = await engine.collect(plan, this.config, profile);
         outputs.push(output);
-        extrasList.push(extras);
       } catch (err) {
         console.error("Failed to collect data for %s:", profile.username, err);
       }
@@ -140,7 +119,7 @@ export class ContextBuilder {
       return buildStubContext(this.config) as unknown as Record<string, unknown>;
     }
 
-    const { output, extras } = mergeOutputs(outputs, extrasList);
-    return deriveContext(output, this.config, extras, true) as unknown as Record<string, unknown>;
+    const output = mergeOutputs(outputs);
+    return deriveContext(output, this.config, true) as unknown as Record<string, unknown>;
   }
 }

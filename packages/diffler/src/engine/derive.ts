@@ -34,7 +34,6 @@ export interface DerivedContext {
   profiles: Record<string, unknown>[];
   contributions: Record<string, unknown>;
   repositories: unknown[];
-  gists: unknown[];
   traffic: Record<string, unknown>;
   contributor_stats: unknown[];
   activity: Record<string, unknown>;
@@ -50,10 +49,6 @@ export interface DerivedContext {
 export function deriveContext(
   output: GitHubStatsOutput,
   config: DifflerConfig,
-  extra: {
-    organizations?: Record<string, unknown>[];
-    gists?: Record<string, unknown>[];
-  } = {},
   multiProfile = false
 ): DerivedContext {
   const profile = output.profile;
@@ -94,7 +89,6 @@ export function deriveContext(
     profiles: [],
     contributions: contributions as unknown as Record<string, unknown>,
     repositories: repos,
-    gists: extra.gists ?? [],
     traffic: output.repoMetrics.traffic as Record<string, unknown> ?? {},
     contributor_stats: output.repoMetrics.contributorStats
       ? [output.repoMetrics.contributorStats]
@@ -148,7 +142,6 @@ export function buildStubContext(config: DifflerConfig): DerivedContext {
     profiles: [],
     contributions: {},
     repositories: [],
-    gists: [],
     traffic: {},
     contributor_stats: [],
     activity: {},

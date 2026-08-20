@@ -1,15 +1,15 @@
-// Regexes to find Jinja2/Nunjucks variable references and function calls
-const VAR_REF = /\{\{[\s\-]*([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
+// Regexes to find Jinja2/Nunjucks variable references and function calls.
+// Dotted paths are captured in full so `stats.repoMetrics.traffic` can be
+// distinguished from a bare `stats` reference.
+const VAR_REF = /\{\{[\s\-]*([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)/g;
 const FUNC_CALL = /\{\{[\s\-]*([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g;
 const TAG_VAR_REF =
-  /\{%[\+\s\-]*(?:for\s+\w+\s+in|if|elif|set\s+\w+\s*=)\s+([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
+  /\{%[\+\s\-]*(?:for\s+\w+\s+in|if|elif|set\s+\w+\s*=)\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)/g;
 
 export interface CollectionPlan {
   needsProfile: boolean;
   needsContributions: boolean;
   needsRepositories: boolean;
-  needsOrganizations: boolean;
-  needsGists: boolean;
   needsTraffic: boolean;
   needsContributorStats: boolean;
   needsActivity: boolean;
@@ -28,9 +28,6 @@ const REF_MAP: Record<string, Array<keyof CollectionPlan>> = {
   calendar: ["needsContributions"],
   repositories: ["needsRepositories"],
   repos: ["needsRepositories"],
-  organizations: ["needsOrganizations"],
-  orgs: ["needsOrganizations"],
-  gists: ["needsGists"],
   traffic: ["needsTraffic"],
   contributor_stats: ["needsContributorStats"],
   activity: ["needsActivity"],
@@ -64,8 +61,6 @@ export function analyzeTemplate(templateSource: string): CollectionPlan {
     needsProfile: false,
     needsContributions: false,
     needsRepositories: false,
-    needsOrganizations: false,
-    needsGists: false,
     needsTraffic: false,
     needsContributorStats: false,
     needsActivity: false,
@@ -76,11 +71,19 @@ export function analyzeTemplate(templateSource: string): CollectionPlan {
   };
 
   for (const ref of refs) {
-    const keys = REF_MAP[ref];
+    const segments = ref.split(".");
+    const keys = REF_MAP[segments[0]];
     if (keys) {
       for (const key of keys) {
         plan[key] = true;
       }
+    }
+
+    // Optional REST metrics can be referenced anywhere inside the v2 output
+    // (e.g. stats.repoMetrics.traffic), so match on any path segment.
+    if (segments.includes("traffic")) plan.needsTraffic = true;
+    if (segments.includes("contributorStats") || segments.includes("contributor_stats")) {
+      plan.needsContributorStats = true;
     }
   }
 
