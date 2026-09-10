@@ -5,21 +5,20 @@ import {
   FPS,
   defaultStats,
   fetchUserStats,
-  mainSchema,
+  sourcePropsSchema,
 } from '@lukasparke/diffler-remotion';
-import type {MainProps, SourceProps} from '@lukasparke/diffler-remotion';
+import type {SourceProps} from '@lukasparke/diffler-remotion';
 import {cards} from '@lukasparke/diffler-remotion/cards';
 import {defaultTheme, ThemeProvider} from '@lukasparke/diffler-remotion/themes';
 import '@lukasparke/diffler-remotion/styles.css';
 
 // Metadata receives the render's input props, not a second global data source.
-const calculateMetadata: CalculateMetadataFunction<MainProps> = async ({props}) => {
-  const source = props as MainProps & SourceProps;
-  const hasSource = source.stats !== undefined || source.statsUrl ||
-    source.username || source.usernames?.length;
+type InputProps = SourceProps & Record<string, unknown>;
+export const calculateMetadata: CalculateMetadataFunction<InputProps> = async ({props}) => {
   return {
     props: {
-      userStats: hasSource ? await fetchUserStats(source) : props.userStats,
+      userStats: await fetchUserStats(props),
+      allowPrivateRepositoryDetails: props.allowPrivateRepositoryDetails,
     },
   };
 };
@@ -36,18 +35,21 @@ export const RemotionRoot = () => (
       <Composition
         key={id}
         id={id}
-        component={(props: MainProps) => (
-          <ThemeProvider theme={defaultTheme}>
-            <div style={{height: '100%', width: '100%', padding: 4}}>
-              <Component userStats={props.userStats} />
-            </div>
-          </ThemeProvider>
-        )}
+        component={(props: InputProps) => {
+          if (!props.userStats) throw new Error('Metadata must resolve a stats source before rendering');
+          return (
+            <ThemeProvider theme={defaultTheme}>
+              <div style={{height: '100%', width: '100%', padding: 4}}>
+                <Component userStats={props.userStats} />
+              </div>
+            </ThemeProvider>
+          );
+        }}
         durationInFrames={durationInFrames}
         fps={FPS}
         width={width}
         height={height}
-        schema={mainSchema}
+        schema={sourcePropsSchema.passthrough()}
         calculateMetadata={calculateMetadata}
         defaultProps={{userStats: defaultStats}}
       />

@@ -127,6 +127,10 @@ export function mergeUserStats(stats: readonly UserStats[]): UserStats {
 	merged.collectionStatus = {
 		...merged.collectionStatus,
 		complete: merged.isComplete,
+		coverageKnown: {
+			contributors: sources.every((stat) => stat.collectionStatus.coverageKnown?.contributors === true),
+			traffic: sources.every((stat) => stat.collectionStatus.coverageKnown?.traffic === true),
+		},
 		coreComplete:
 			sources.every((stat) => stat.collectionStatus.coreComplete) &&
 			calendarComplete &&

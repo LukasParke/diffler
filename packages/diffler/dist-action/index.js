@@ -37199,6 +37199,7 @@ var userStatsSchema = external_exports.object({
   collectionStatus: external_exports.object({
     complete: external_exports.boolean(),
     coreComplete: external_exports.boolean(),
+    coverageKnown: external_exports.object({ contributors: external_exports.boolean(), traffic: external_exports.boolean() }).optional(),
     backfillPending: countSchema,
     backfillCompletedThisRun: countSchema,
     backfillFailedThisRun: countSchema,
@@ -37630,9 +37631,16 @@ function buildPresentationData(params) {
 
 // ../schemas/src/merge.ts
 function mergeProfileContributions(contributions, throughDate) {
-  const calendar = mergeContributionCalendars(
+  const observedCalendar = mergeContributionCalendars(
     contributions.map((c) => c.contributionCalendar),
     throughDate
+  );
+  const calendar = {
+    ...observedCalendar,
+    totalContributions: contributions.reduce((sum2, c) => sum2 + c.contributionCalendar.totalContributions, 0)
+  };
+  const calendarsComplete = contributions.every(
+    (c) => [...observedCalendarDays(c.contributionCalendar, throughDate).values()].reduce((sum2, count) => sum2 + count, 0) === c.contributionCalendar.totalContributions
   );
   const collection = {
     totalCommitContributions: contributions.reduce(
@@ -37675,7 +37683,7 @@ function mergeProfileContributions(contributions, throughDate) {
       contributions.flatMap((c) => c.repositoryContributions)
     ),
     completeness: {
-      complete: contributions.every((c) => c.completeness.complete && c.completeness.missingYears.length === 0 && c.contributionCalendar.weeks.some((week) => week.contributionDays.length > 0)),
+      complete: calendarsComplete && contributions.every((c) => c.completeness.complete && c.completeness.missingYears.length === 0 && c.contributionCalendar.weeks.some((week) => week.contributionDays.length > 0)),
       yearsFetched: unionSorted(contributions.map((c) => c.completeness.yearsFetched)),
       yearsFromCache: unionSorted(contributions.map((c) => c.completeness.yearsFromCache)),
       // Coverage is per account: one account cannot fill another account's missing year.
@@ -37686,15 +37694,7 @@ function mergeProfileContributions(contributions, throughDate) {
 function mergeContributionCalendars(calendars, throughDate) {
   const byDate = /* @__PURE__ */ new Map();
   for (const calendar of calendars) {
-    const accountDays = /* @__PURE__ */ new Map();
-    for (const week of calendar.weeks) {
-      for (const day of week.contributionDays) {
-        if (!throughDate || day.date <= throughDate) {
-          accountDays.set(day.date, Math.max(accountDays.get(day.date) ?? 0, day.contributionCount));
-        }
-      }
-    }
-    for (const [date5, count] of accountDays) byDate.set(date5, (byDate.get(date5) ?? 0) + count);
+    for (const [date5, count] of observedCalendarDays(calendar, throughDate)) byDate.set(date5, (byDate.get(date5) ?? 0) + count);
   }
   const dates = [...byDate.keys()].sort();
   const days = [];
@@ -37724,6 +37724,17 @@ function mergeContributionCalendars(calendars, throughDate) {
     totalContributions: days.reduce((sum2, day) => sum2 + day.contributionCount, 0),
     weeks
   };
+}
+function observedCalendarDays(calendar, throughDate) {
+  const days = /* @__PURE__ */ new Map();
+  for (const week of calendar.weeks) {
+    for (const day of week.contributionDays) {
+      if (!throughDate || day.date <= throughDate) {
+        days.set(day.date, Math.max(days.get(day.date) ?? 0, day.contributionCount));
+      }
+    }
+  }
+  return days;
 }
 function mergeRepositories(repositories) {
   const byId = /* @__PURE__ */ new Map();
@@ -41101,7 +41112,7 @@ function aggregateOutputs(outputs, caches, config2) {
     (output) => output.profileContributions.completeness.missingYears
   ));
   const emptyCalendars = outputs.filter((output) => !output.profileContributions.contributionCalendar.weeks.some((week) => week.contributionDays.length > 0));
-  const contributionsComplete = emptyCalendars.length === 0 && missingYears.length === 0 && outputs.every(
+  const contributionsComplete = collection.completeness.complete && emptyCalendars.length === 0 && missingYears.length === 0 && outputs.every(
     (output) => output.profileContributions.completeness.complete
   );
   const { cache, warnings: metricWarnings, repositoryCoverageComplete } = aggregateMetricCaches(outputs, caches);

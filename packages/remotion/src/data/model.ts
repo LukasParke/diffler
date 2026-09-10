@@ -55,15 +55,19 @@ export function finalizeUserStats(stats: UserStatsCore): UserStats {
 		warnings.push('Language data does not cover the reported totals.');
 	}
 	const contributorCoverageUnknown =
-		stats.repositories.totalRepos > 0 &&
+		(stats.repositories.totalRepos > 0 || stats.code.linesOfCodeChanged > 0) &&
 		stats.code.contributorReposCompleted === 0 &&
 		stats.code.contributorReposPending === 0 &&
 		stats.code.contributorReposFailed === 0;
 	const trafficCoverageUnknown =
-		stats.repositories.totalRepos > 0 &&
+		(stats.repositories.totalRepos > 0 || stats.repositories.repoViews > 0) &&
 		stats.repositories.trafficReposCompleted === 0 &&
 		stats.repositories.trafficReposPending === 0 &&
 		stats.repositories.trafficReposFailed === 0;
+	const coverageKnown = {
+		contributors: stats.collectionStatus.coverageKnown?.contributors !== false && !contributorCoverageUnknown,
+		traffic: stats.collectionStatus.coverageKnown?.traffic !== false && !trafficCoverageUnknown,
+	};
 
 	if (contributorCoverageUnknown) {
 		warnings.push('Contributor metrics have no completed repository coverage.');
@@ -89,8 +93,8 @@ export function finalizeUserStats(stats: UserStatsCore): UserStats {
 		stats.code.contributorReposFailed === 0 &&
 		stats.repositories.trafficReposPending === 0 &&
 		stats.repositories.trafficReposFailed === 0 &&
-		!contributorCoverageUnknown &&
-		!trafficCoverageUnknown;
+		coverageKnown.contributors &&
+		coverageKnown.traffic;
 
 	return userStatsSchema.parse({
 		...stats,
@@ -110,6 +114,7 @@ export function finalizeUserStats(stats: UserStatsCore): UserStats {
 		code: {...stats.code, linesChanged: stats.code.linesOfCodeChanged},
 		collectionStatus: {
 			...stats.collectionStatus,
+			coverageKnown,
 			complete: isComplete,
 			coreComplete,
 			warnings: [...new Set(warnings)],

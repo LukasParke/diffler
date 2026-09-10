@@ -37,8 +37,8 @@ export function mergeStatsOutputs(outputs: GitHubStatsOutput[]): GitHubStatsOutp
     throw new Error("Cannot merge multiple snapshots of the same GitHub profile");
   }
 
-  const generatedAt = outputs.map((output) => output.generatedAt).sort().at(-1)!;
-  const fetchedAt = Date.parse(generatedAt);
+  const fetchedAt = Math.max(...outputs.map((output) => Date.parse(output.generatedAt)));
+  const generatedAt = new Date(fetchedAt).toISOString();
   const repositories = mergeRepositories(outputs.flatMap((output) => output.repositories))
     .map((repository) => ({ ...repository, viewerPermission: null }));
   const profileContributions = mergeProfileContributions(
@@ -116,8 +116,17 @@ export function mergeProfileContributions(
   contributions: ProfileContributions[],
   throughDate?: string
 ): ProfileContributions {
-  const calendar = mergeContributionCalendars(
+  const observedCalendar = mergeContributionCalendars(
     contributions.map((c) => c.contributionCalendar), throughDate
+  );
+  // GitHub's reported total remains useful when some daily observations are absent.
+  const calendar = {
+    ...observedCalendar,
+    totalContributions: contributions.reduce((sum, c) => sum + c.contributionCalendar.totalContributions, 0),
+  };
+  const calendarsComplete = contributions.every((c) =>
+    [...observedCalendarDays(c.contributionCalendar, throughDate).values()].reduce((sum, count) => sum + count, 0) ===
+      c.contributionCalendar.totalContributions
   );
   const collection: ContributionsCollection = {
     totalCommitContributions: contributions.reduce(
@@ -161,7 +170,7 @@ export function mergeProfileContributions(
       contributions.flatMap((c) => c.repositoryContributions)
     ),
     completeness: {
-      complete: contributions.every((c) => c.completeness.complete && c.completeness.missingYears.length === 0 &&
+      complete: calendarsComplete && contributions.every((c) => c.completeness.complete && c.completeness.missingYears.length === 0 &&
         c.contributionCalendar.weeks.some((week) => week.contributionDays.length > 0)),
       yearsFetched: unionSorted(contributions.map((c) => c.completeness.yearsFetched)),
       yearsFromCache: unionSorted(contributions.map((c) => c.completeness.yearsFromCache)),
@@ -180,15 +189,7 @@ export function mergeContributionCalendars(
 ) {
   const byDate = new Map<string, number>();
   for (const calendar of calendars) {
-    const accountDays = new Map<string, number>();
-    for (const week of calendar.weeks) {
-      for (const day of week.contributionDays) {
-        if (!throughDate || day.date <= throughDate) {
-          accountDays.set(day.date, Math.max(accountDays.get(day.date) ?? 0, day.contributionCount));
-        }
-      }
-    }
-    for (const [date, count] of accountDays) byDate.set(date, (byDate.get(date) ?? 0) + count);
+    for (const [date, count] of observedCalendarDays(calendar, throughDate)) byDate.set(date, (byDate.get(date) ?? 0) + count);
   }
 
   const dates = [...byDate.keys()].sort();
@@ -221,6 +222,18 @@ export function mergeContributionCalendars(
     totalContributions: days.reduce((sum, day) => sum + day.contributionCount, 0),
     weeks,
   };
+}
+
+function observedCalendarDays(calendar: ContributionsCollection["contributionCalendar"], throughDate?: string) {
+  const days = new Map<string, number>();
+  for (const week of calendar.weeks) {
+    for (const day of week.contributionDays) {
+      if (!throughDate || day.date <= throughDate) {
+        days.set(day.date, Math.max(days.get(day.date) ?? 0, day.contributionCount));
+      }
+    }
+  }
+  return days;
 }
 
 function mergeActivity(activities: ActivityStats[]): ActivityStats {

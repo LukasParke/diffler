@@ -118,7 +118,7 @@ sparse.repositories.originalRepos = 1;
 const long = structuredClone(normal);
 long.name = 'Alexandria Maximiliana von Example — Developer of extraordinarily long-lived software';
 long.username = 'a'.repeat(39);
-long.packages.packages = long.packages.packages.map((item) => ({...item, name: '@example/' + 'extraordinarily-long-package-name-'.repeat(3)}));
+long.packages.packages = long.packages.packages.map((item, index) => ({...item, name: '@example/' + 'extraordinarily-long-package-name-'.repeat(3) + index}));
 long.topLanguages = normal.topLanguages.map((language, index) => ({
   ...language,
   languageName: [

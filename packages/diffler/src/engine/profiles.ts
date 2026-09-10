@@ -85,7 +85,7 @@ function aggregateOutputs(
   ));
   const emptyCalendars = outputs.filter((output) => !output.profileContributions.contributionCalendar.weeks
     .some((week) => week.contributionDays.length > 0));
-  const contributionsComplete = emptyCalendars.length === 0 && missingYears.length === 0 && outputs.every(
+  const contributionsComplete = collection.completeness.complete && emptyCalendars.length === 0 && missingYears.length === 0 && outputs.every(
     (output) => output.profileContributions.completeness.complete
   );
   const { cache, warnings: metricWarnings, repositoryCoverageComplete } = aggregateMetricCaches(outputs, caches);

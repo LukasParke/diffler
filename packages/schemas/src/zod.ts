@@ -112,6 +112,7 @@ export const userStatsSchema = z.object({
   collectionStatus: z.object({
     complete: z.boolean(),
     coreComplete: z.boolean(),
+    coverageKnown: z.object({contributors: z.boolean(), traffic: z.boolean()}).optional(),
     backfillPending: countSchema,
     backfillCompletedThisRun: countSchema,
     backfillFailedThisRun: countSchema,

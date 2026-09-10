@@ -125,6 +125,7 @@ export const demoStats: UserStats = {
 	collectionStatus: {
 		complete: false,
 		coreComplete: false,
+		coverageKnown: {contributors: true, traffic: false},
 		backfillPending: 144,
 		backfillCompletedThisRun: 0,
 		backfillFailedThisRun: 0,

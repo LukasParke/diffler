@@ -8,7 +8,6 @@ export type OptionalMetricCoverage = {
 	completed: number;
 	pending: number;
 	failed: number;
-	total: number;
 	label: string;
 	detail: string;
 };
@@ -41,11 +40,10 @@ export function getOptionalMetricCoverage(
 					stats.repositories.repoViews,
 					stats.repositories.repoViewUniques,
 				);
-	const total = completed + pending + failed;
 	const available = completed > 0 || reportedValue > 0;
-	const counts = {completed, pending, failed, total, available};
+	const counts = {completed, pending, failed, available};
 
-	if (total === 0) {
+	if (completed === 0 && pending === 0 && failed === 0) {
 		return {
 			...counts,
 			state: available ? 'unknown' : 'unavailable',
@@ -55,7 +53,8 @@ export function getOptionalMetricCoverage(
 	}
 
 	const detail = [
-		`${formatMetricValue(completed)} of ${formatMetricValue(total)} repos collected`,
+		// Retry queues and retained cache successes may refer to the same repositories.
+		`${formatMetricValue(completed)} repos collected`,
 		pending > 0 ? `${formatMetricValue(pending)} pending` : '',
 		failed > 0 ? `${formatMetricValue(failed)} unavailable` : '',
 	]
@@ -72,6 +71,10 @@ export function getOptionalMetricCoverage(
 	}
 	if (pending > 0 || failed > 0) {
 		return {...counts, state: 'partial', label: 'Partial total', detail};
+	}
+	const coverageKnown = stats.collectionStatus.coverageKnown?.[metric === 'lines' ? 'contributors' : 'traffic'];
+	if (coverageKnown === false) {
+		return {...counts, state: 'partial', label: 'Partial total', detail: `${detail} · some account coverage unreported`};
 	}
 	if (!stats.collectionStatus.coreComplete) {
 		return {
@@ -106,6 +109,8 @@ export function getCollectionLabel(stats: UserStats): string {
 		stats.repositories.trafficReposFailed > 0
 	)
 		return 'Some optional metrics unavailable';
+	if (stats.collectionStatus.coverageKnown?.contributors === false ||
+		stats.collectionStatus.coverageKnown?.traffic === false) return 'Partial collection';
 	if (stats.isComplete && stats.collectionStatus.complete)
 		return 'Collection complete';
 	return 'Partial collection';

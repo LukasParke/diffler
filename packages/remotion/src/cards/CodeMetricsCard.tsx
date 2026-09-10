@@ -34,16 +34,16 @@ export function CodeMetricsCard({userStats}: {userStats: UserStats}) {
 						Line history · {coverage.label.toLowerCase()}
 					</p>
 					<p style={{margin: '4px 0 0'}}>{coverage.detail}</p>
-					{coverage.total > 0 ? (
+					{coverage.state === 'complete' ? (
 						<ProgressBar
 							value={coverage.completed}
-							max={coverage.total}
+							max={coverage.completed}
 							color={theme.colors.cyan}
 							height={3}
 							label="Line history repository coverage"
 							style={{marginTop: 8}}
 						/>
-					) : null}
+					) : <div aria-hidden="true" style={{marginTop: 8, borderTop: `1px dashed ${theme.colors.border}`}} />}
 				</div>
 			}
 		>

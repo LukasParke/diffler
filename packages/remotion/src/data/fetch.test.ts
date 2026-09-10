@@ -1,5 +1,6 @@
 import {afterEach, expect, it, vi} from 'vitest';
 import {createFullV2} from '../../../schemas/tests/fixtures';
+import {getOptionalMetricCoverage} from '../components/primitives/MetricCoverage';
 import {
 	defaultStats,
 	demoStats,
@@ -112,6 +113,40 @@ it('deduplicates shared package metrics and preserves incomplete registry covera
 	expect(stats.packages.packages).toHaveLength(1);
 	expect(stats.packages.warnings).toContain('Historical download window missing');
 	expect(stats.isComplete).toBe(false);
+});
+
+it('preserves unknown traffic coverage from one canonical account when another account has known views', async () => {
+	const first = createFullV2();
+	first.repoMetrics.traffic = {repoViews: 0, repoViewUniques: 0, reposCompleted: 0, reposPending: 0, reposFailed: 0};
+	const second = createFullV2();
+	second.profile.login = 'hubot';
+	second.repositories[0] = {...second.repositories[0], id: 'R_HUBOT', owner: 'hubot', nameWithOwner: 'hubot/hello'};
+	vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>()
+		.mockResolvedValueOnce(Response.json(first))
+		.mockResolvedValueOnce(Response.json(second)));
+	const stats = await fetchUserStats({usernames: ['octocat', 'hubot']});
+	expect(stats.repoViews).toBe(5);
+	expect(stats.isComplete).toBe(false);
+	expect(stats.collectionStatus.coreComplete).toBe(true);
+	expect(stats.collectionStatus.warnings.join(' ')).toContain('Traffic metrics have no completed repository coverage');
+	expect(getOptionalMetricCoverage(stats, 'traffic').state).not.toBe('complete');
+});
+
+it('retains reported contribution totals and incomplete source calendars through canonical merging', async () => {
+	const first = createFullV2();
+	first.profileContributions.contributionCalendar.weeks[0].contributionDays =
+		first.profileContributions.contributionCalendar.weeks[0].contributionDays.filter((day) => day.date !== '2024-01-03');
+	const second = createFullV2();
+	second.profile.login = 'hubot';
+	second.repositories[0].id = 'R_HUBOT';
+	vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>()
+		.mockResolvedValueOnce(Response.json(first))
+		.mockResolvedValueOnce(Response.json(second)));
+	const stats = await fetchUserStats({usernames: ['octocat', 'hubot']});
+	expect(stats.totalContributions).toBe(24);
+	expect(stats.contributions.calendar.reduce((sum, day) => sum + day.contributionCount, 0)).toBe(19);
+	expect(stats.collectionStatus).toMatchObject({complete: false, coreComplete: false});
+	expect(stats.collectionStatus.warnings.join(' ')).toContain('calendar');
 });
 
 it('rejects missing source props before attempting a default fetch', async () => {

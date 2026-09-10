@@ -310,6 +310,23 @@ describe("mergeContributionCalendars", () => {
 });
 
 describe("mergeStatsOutputs", () => {
+  it.each(["2026-08-14T22:30:00-05:00", "2026-08-15T03:45:00Z"])(
+    "selects the newest instant and preserves the UTC calendar day across offsets (%s)",
+    (secondTimestamp) => {
+      const calendar = week([["2026-08-14", 1], ["2026-08-15", 1]]);
+      const first = buildOutputFixture({ login: "alice", totalContributions: 2, stars: 10, calendar });
+      const second = buildOutputFixture({ login: "bob", totalContributions: 2, stars: 5, calendar });
+      first.generatedAt = "2026-08-14T23:30:00-05:00";
+      second.generatedAt = secondTimestamp;
+      const merged = mergeStatsOutputs([first, second]);
+      expect(merged.generatedAt).toBe("2026-08-15T04:30:00.000Z");
+      expect(merged.profileContributions.totalContributions).toBe(4);
+      expect(merged.profileContributions.contributionCalendar.weeks.flatMap((item) => item.contributionDays)).toEqual([
+        { date: "2026-08-14", contributionCount: 2 }, { date: "2026-08-15", contributionCount: 2 },
+      ]);
+    }
+  );
+
   it("merges totals and keeps the calendar consistent with them", () => {
     const a = buildOutputFixture({ login: "alice", totalContributions: 6, stars: 10 });
     const b = buildOutputFixture({ login: "bob", totalContributions: 4, stars: 5 });

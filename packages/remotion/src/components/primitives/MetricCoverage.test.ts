@@ -16,6 +16,7 @@ const coreCollected = {
 	},
 	collectionStatus: {
 		...defaultStats.collectionStatus,
+		coverageKnown: {contributors: true, traffic: true},
 		coreComplete: true,
 		backfillPending: 0,
 		backfillFailedThisRun: 0,
@@ -23,6 +24,20 @@ const coreCollected = {
 };
 
 describe('optional metric coverage', () => {
+	it.each([
+		{completed: 0, pending: 1, failed: 1},
+		{completed: 1, pending: 1, failed: 0},
+	])('does not sum overlapping retry statuses into a distinct repository denominator: %j', ({completed, pending, failed}) => {
+		const stats = {
+			...coreCollected,
+			repositories: {...coreCollected.repositories, totalRepos: 1},
+			code: {...coreCollected.code, contributorReposCompleted: completed, contributorReposPending: pending, contributorReposFailed: failed},
+		};
+		const coverage = getOptionalMetricCoverage(stats, 'lines');
+		expect(coverage.detail).toContain('1 pending');
+		expect(coverage.detail).not.toContain('of 2 repos');
+	});
+
 	it('does not turn pending line history into a measured zero', () => {
 		const stats = {
 			...defaultStats,
@@ -113,7 +128,7 @@ describe('optional metric coverage', () => {
 		expect(getOptionalMetricCoverage(stats, 'lines')).toMatchObject({
 			state: 'partial',
 			available: true,
-			detail: '2 of 4 repos collected · 1 pending · 1 unavailable',
+			detail: '2 repos collected · 1 pending · 1 unavailable',
 		});
 	});
 
@@ -168,7 +183,7 @@ describe('optional metric coverage', () => {
 		};
 		expect(getOptionalMetricCoverage(stats, 'lines')).toMatchObject({
 			state: 'partial',
-			detail: '3 of 3 repos collected · some optional metrics redacted',
+			detail: '3 repos collected · some optional metrics redacted',
 		});
 	});
 

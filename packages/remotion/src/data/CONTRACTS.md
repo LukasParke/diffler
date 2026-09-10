@@ -69,6 +69,10 @@ supplied props directly to `fetchUserStats`, without reading global input props.
   groups do **not** fabricate completed, pending, or failed repositories; warnings
   explain unknown coverage. Zero completed/pending/failed coverage with nonzero
   repositories is also unknown, not evidence of measured zero optional metrics.
+- `collectionStatus.coverageKnown` carries per-metric unknown coverage across
+  merges, so another account's successful sample cannot erase it. Retry queues,
+  failures, and retained cache successes can overlap; their counters are displayed
+  separately and are never added into a distinct-repository denominator.
 - `isComplete` and `collectionStatus.complete` agree and require core completeness,
   no errors/pending/failed metrics, complete package collection, and known optional coverage. Partial calendars
   or language lists also keep `coreComplete` false. Legacy coverage cannot be
@@ -109,6 +113,9 @@ continue through yesterday when today has no contributions. Missing calendar dat
 is flagged; individual streak summaries are never summed/maxed to invent dates.
 Timelines sum each supplied period. Completeness requires every source to be
 complete, while warnings/errors and privacy flags are retained from all sources.
+Canonical merging preserves reported calendar totals when daily observations are
+missing and marks the result incomplete. Generation timestamps are compared as
+instants, with calendar cutoffs derived in UTC even for offset-bearing inputs.
 
 ## Demo and checks
 

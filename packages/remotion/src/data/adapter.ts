@@ -225,6 +225,7 @@ function normalizeV2Stats(raw: GitHubStatsV2Input): UserStats {
 		collectionStatus: {
 			complete: isComplete,
 			coreComplete,
+			coverageKnown: {contributors: contributorStats !== undefined, traffic: traffic !== undefined},
 			backfillPending: status?.backfill.pending ?? 0,
 			backfillCompletedThisRun: status?.backfill.completedThisRun ?? 0,
 			backfillFailedThisRun: status?.backfill.failedThisRun ?? 0,
@@ -367,6 +368,7 @@ function normalizeLegacyStats(raw: LegacyStatsInput): UserStats {
 		collectionStatus: {
 			complete: false,
 			coreComplete: false,
+			coverageKnown: {contributors: false, traffic: false},
 			backfillPending: 0,
 			backfillCompletedThisRun: 0,
 			backfillFailedThisRun: 0,
