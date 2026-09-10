@@ -1,45 +1,63 @@
 name: CI
 
 on:
-  pull_request:
   push:
     branches: [main]
+  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  verify:
-    runs-on: ubuntu-latest
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10.34.5
-
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: "24"
           cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm verify
-      - run: pnpm test:package
-
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install exactly the tracked workspace graph
+        run: pnpm install --frozen-lockfile
+      - name: Build packages and consumer example in dependency order
+        run: pnpm build
+      - name: Unit and integration tests
+        run: pnpm test
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
       - name: Verify committed action bundle is fresh
         run: |
           pnpm --filter @lukasparke/diffler build:action
           git diff --exit-code packages/diffler/dist-action
-
-      - name: Install ffmpeg
+      - name: Packed consumer smoke (ESM, CJS, types, CSS/fonts, CLI CWD)
+        run: pnpm smoke:consumer
+      - name: Deterministic render smoke (offline fixture, no GitHub credentials)
+        run: pnpm smoke:render
+      - name: Rendered layout regression checks
+        run: |
+          pnpm --filter @lukasparke/diffler-remotion exec tsc --noEmit -p visual/tsconfig.json
+          node packages/remotion/scripts/profile-graphics.mjs --cards readme,readme-classic,readme-spotlight,package-impact --scenarios normal,long,pending --frames settled
+      - name: Install animation encoder
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-
-      - name: Smoke test animated card rendering
-        env:
-          STATS_JSON_FILE: packages/remotion/fixtures/github-user-stats.json
-          RENDER_CARD_CONCURRENCY: 1
-          REMOTION_CONCURRENCY: 4
+      - name: Encode full GIF and WebP from the canonical fixture
         run: pnpm --filter @lukasparke/diffler-remotion test:render
+      - name: Upload render smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: consumer-render-smoke
+          path: artifacts/consumer-smoke/*.png
+          if-no-files-found: ignore
+          retention-days: 7

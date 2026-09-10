@@ -10,6 +10,7 @@ on:
       stats-json-url:
         description: "Public stats JSON URL"
         required: false
+        default: ""
 
 permissions:
   contents: read
@@ -23,7 +24,7 @@ concurrency:
 jobs:
   render:
     name: Render and publish assets
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -31,15 +32,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.34.5
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install ffmpeg
         run: |
@@ -49,28 +50,28 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build remotion package
-        run: pnpm --filter @lukasparke/diffler-remotion... build
+      - name: Build remotion and its schema dependency
+        run: pnpm --filter '@lukasparke/diffler-remotion...' build
 
       - name: Restore Remotion render cache
         uses: actions/cache@v4
         with:
           path: |
-            node_modules/.remotion
-            node_modules/.cache/webpack
+            packages/remotion/node_modules/.remotion
+            packages/remotion/node_modules/.cache/webpack
           key: ${{ runner.os }}-remotion-${{ hashFiles('pnpm-lock.yaml', 'packages/remotion/package.json', 'packages/remotion/remotion.config.ts', 'packages/remotion/tailwind.config.js', 'packages/remotion/src/**') }}
           restore-keys: |
             ${{ runner.os }}-remotion-
 
       - name: Prepare stats input
         working-directory: packages/remotion
-        run: pnpm exec remotion render --help || true && node scripts/prepare-stats.mjs
+        run: pnpm prepare:stats
         env:
           STATS_JSON_URL: ${{ inputs['stats-json-url'] || format('https://raw.githubusercontent.com/{0}/stats/main/github-user-stats.json', github.repository_owner) }}
 
-      - name: Render WebP assets
+      - name: Render WebP and GIF assets
         working-directory: packages/remotion
-        run: node scripts/render-assets.mjs --formats=webp
+        run: pnpm render:all
         env:
           RENDER_CARD_CONCURRENCY: 2
           REMOTION_CONCURRENCY: 4

@@ -1,208 +1,61 @@
-import {
-  githubStatsOutputSchema,
-  mergeStatsOutputs,
-  type GitHubStatsOutput,
-} from '@lukasparke/diffler-schemas';
-import {SourceProps, UserStats} from './schemas';
-import {normalizeGithubStats, normalizeLanguages} from './adapter';
+import {sourcePropsSchema, type SourceProps, type UserStats} from './schemas';
+import {normalizeGithubStats, normalizeUserStats} from './adapter';
+import {mergeUserStats} from './merge';
+import {githubStatsOutputSchema, mergeStatsOutputs} from '@lukasparke/diffler-schemas';
 
-const defaultStatsTemplate = (username: string) =>
-  `https://raw.githubusercontent.com/${username}/stats/main/github-user-stats.json`;
+const statsUrlForUsername = (username: string) =>
+	`https://raw.githubusercontent.com/${username}/stats/main/github-user-stats.json`;
 
-export async function fetchUserStats(
-  inputProps: SourceProps,
-): Promise<UserStats> {
-  const allowPrivateRepositoryDetails =
-    inputProps.allowPrivateRepositoryDetails === true;
+/** Validate supplied props and fail at the boundary; never substitute demo data. */
+export async function fetchUserStats(input: unknown): Promise<UserStats> {
+	const inputProps = sourcePropsSchema.parse(input);
+	const options = {
+		allowPrivateRepositoryDetails:
+			inputProps.allowPrivateRepositoryDetails === true,
+	};
 
-  if (inputProps.stats) {
-    return normalizeGithubStats(inputProps.stats, {
-      allowPrivateRepositoryDetails,
-    });
-  }
+	if (inputProps.stats !== undefined) {
+		return normalizeGithubStats(inputProps.stats, options);
+	}
 
-  const urls = getStatsUrls(inputProps);
-  const raws = await Promise.all(
-    urls.map(async (url) => {
-      const response = await fetch(url, {
-        headers: {
-          accept: 'application/json',
-          'user-agent': 'github-readme-cards',
-        },
-      });
-      if (!response.ok) {
-        throw new Error(
-          `Failed to fetch stats from ${url}: ${response.status}`,
-        );
-      }
-      return response.json();
-    }),
-  );
+	const urls = getStatsUrls(inputProps);
+	if (urls.length === 0) {
+		return normalizeUserStats(inputProps.userStats, options);
+	}
 
-  return normalizeMergedStats(raws, allowPrivateRepositoryDetails);
-}
+	const documents = await Promise.all(
+		urls.map(async (url) => {
+			const response = await fetch(url, {
+				headers: {
+					accept: 'application/json',
+					'user-agent': 'github-readme-cards',
+				},
+			});
+			if (!response.ok) {
+				throw new Error(
+					`Failed to fetch stats from ${url}: ${response.status}`,
+				);
+			}
+			const raw: unknown = await response.json();
+			return raw;
+		}),
+	);
 
-// Canonical v2 documents are merged with the shared collector merge (one
-// implementation for producer and consumer); anything older is normalized per
-// file and merged at the view level.
-function normalizeMergedStats(
-  raws: unknown[],
-  allowPrivateRepositoryDetails: boolean
-): UserStats {
-  const parsed: GitHubStatsOutput[] = [];
-  for (const raw of raws) {
-    const result = githubStatsOutputSchema.safeParse(raw);
-    if (!result.success) {
-      return mergeUserStats(
-        raws.map((raw) =>
-          normalizeGithubStats(raw, {allowPrivateRepositoryDetails})
-        ),
-      );
-    }
-    parsed.push(result.data);
-  }
-
-  return normalizeGithubStats(mergeStatsOutputs(parsed), {
-    allowPrivateRepositoryDetails,
-  });
+	// Validate each document and apply its privacy guard before any merge can strip fields.
+	const stats = documents.map((document) => normalizeGithubStats(document, options));
+	const canonical = documents.map((document) => githubStatsOutputSchema.safeParse(document));
+	if (canonical.every((result) => result.success)) {
+		const merged = normalizeGithubStats(mergeStatsOutputs(canonical.map((result) => result.data)), options);
+		// Preserve source freshness even though aggregate generation uses the newest timestamp.
+		merged.summary.refreshedAt = new Date(Math.min(...stats.map((stat) => Date.parse(stat.summary.refreshedAt)))).toISOString();
+		return merged;
+	}
+	return mergeUserStats(stats);
 }
 
 function getStatsUrls(inputProps: SourceProps): string[] {
-  if (inputProps.statsUrl) {
-    return [inputProps.statsUrl];
-  }
-
-  const usernames = inputProps.usernames?.length
-    ? inputProps.usernames
-    : [inputProps.username || 'stats-user'];
-
-  return usernames.map((username) => defaultStatsTemplate(username));
-}
-
-function mergeUserStats(stats: UserStats[]): UserStats {
-  if (stats.length === 0) {
-    throw new Error('No GitHub stats were loaded');
-  }
-
-  const [first, ...rest] = stats;
-  if (rest.length === 0) {
-    return first;
-  }
-
-  for (const stat of rest) {
-    first.summary.totalContributions += stat.summary.totalContributions;
-    first.summary.starsReceived += stat.summary.starsReceived;
-    first.summary.forksReceived += stat.summary.forksReceived;
-    first.summary.activeRepos += stat.summary.activeRepos;
-    first.summary.totalRepos += stat.summary.totalRepos;
-    first.summary.profileMetricsComplete =
-      first.summary.profileMetricsComplete &&
-      stat.summary.profileMetricsComplete;
-    first.contributions.totalContributions +=
-      stat.contributions.totalContributions;
-    first.contributions.totalCommits += stat.contributions.totalCommits;
-    first.contributions.restrictedContributionsCount +=
-      stat.contributions.restrictedContributionsCount;
-    first.code.codeByteTotal += stat.code.codeByteTotal;
-    first.code.linesAdded += stat.code.linesAdded;
-    first.code.linesDeleted += stat.code.linesDeleted;
-    first.code.linesChanged += stat.code.linesChanged;
-    first.code.linesOfCodeChanged += stat.code.linesOfCodeChanged;
-    first.community.totalPullRequests += stat.community.totalPullRequests;
-    first.community.totalPullRequestReviews +=
-      stat.community.totalPullRequestReviews;
-    first.community.openIssues += stat.community.openIssues;
-    first.community.closedIssues += stat.community.closedIssues;
-    first.community.repositoriesContributedTo +=
-      stat.community.repositoriesContributedTo;
-    first.repositories.repoViews =
-      first.repositories.repoViews === null ||
-      stat.repositories.repoViews === null
-        ? null
-        : first.repositories.repoViews + stat.repositories.repoViews;
-    first.repositories.repoViewUniques =
-      first.repositories.repoViewUniques === null ||
-      stat.repositories.repoViewUniques === null
-        ? null
-        : first.repositories.repoViewUniques +
-          stat.repositories.repoViewUniques;
-    first.repositories.starCount += stat.repositories.starCount;
-    first.repositories.forkCount += stat.repositories.forkCount;
-    first.topLanguages = normalizeLanguages(
-      [...first.topLanguages, ...stat.topLanguages],
-      first.code.codeByteTotal,
-    );
-    first.packages = mergePackageMetrics(first.packages, stat.packages);
-    first.contributions.timeline = mergeTimeline(
-      first.contributions.timeline,
-      stat.contributions.timeline,
-    );
-  }
-
-  first.repoViews = first.repositories.repoViews;
-  first.linesOfCodeChanged = first.code.linesOfCodeChanged;
-  first.linesAdded = first.code.linesAdded;
-  first.linesDeleted = first.code.linesDeleted;
-  first.linesChanged = first.code.linesChanged;
-  first.totalCommits = first.contributions.totalCommits;
-  first.totalPullRequests = first.community.totalPullRequests;
-  first.totalPullRequestReviews = first.community.totalPullRequestReviews;
-  first.openIssues = first.community.openIssues;
-  first.closedIssues = first.community.closedIssues;
-  first.forkCount = first.repositories.forkCount;
-  first.starCount = first.repositories.starCount;
-  first.totalContributions = first.contributions.totalContributions;
-  first.codeByteTotal = first.code.codeByteTotal;
-
-  return first;
-}
-
-function mergePackageMetrics(
-  current: UserStats['packages'],
-  next: UserStats['packages'],
-): UserStats['packages'] {
-  const packages = new Map(
-    [...current.packages, ...next.packages].map((item) => [
-      `${item.provider}:${item.name}`,
-      item,
-    ]),
-  );
-  const values = [...packages.values()].sort(
-    (left, right) => right.downloads.lastMonth - left.downloads.lastMonth,
-  );
-  const sum = (period: keyof UserStats['packages']['downloads']) =>
-    values.reduce((total, item) => total + item.downloads[period], 0);
-
-  return {
-    packageCount: values.length,
-    providers: [
-      ...new Set([...current.providers, ...next.providers]),
-    ],
-    downloads: {
-      lastDay: sum('lastDay'),
-      lastWeek: sum('lastWeek'),
-      lastMonth: sum('lastMonth'),
-      lastYear: sum('lastYear'),
-      allTime: sum('allTime'),
-    },
-    packages: values,
-    complete: current.complete && next.complete,
-    warnings: [...new Set([...current.warnings, ...next.warnings])],
-  };
-}
-
-function mergeTimeline(
-  current: UserStats['contributions']['timeline'],
-  next: UserStats['contributions']['timeline'],
-): UserStats['contributions']['timeline'] {
-  const byPeriod = new Map<string, number>();
-  for (const item of [...current, ...next]) {
-    byPeriod.set(
-      item.period,
-      (byPeriod.get(item.period) || 0) + item.contributions,
-    );
-  }
-  return [...byPeriod.entries()]
-    .map(([period, contributions]) => ({period, contributions}))
-    .sort((a, b) => a.period.localeCompare(b.period));
+	if (inputProps.statsUrl !== undefined) return [inputProps.statsUrl];
+	const usernames =
+		inputProps.usernames ?? (inputProps.username ? [inputProps.username] : []);
+	return usernames.map(statsUrlForUsername);
 }

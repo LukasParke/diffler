@@ -43,6 +43,7 @@ export function registerAllHelpers(env: Environment, sourceStore = new SourceSto
   env.addGlobal("fetch_json", integrations.fetchJson(sourceStore));
 
   env.addGlobal("remotion_input", remotion.remotionInput);
+  env.addGlobal("profile_asset", remotion.profileAsset);
   env.addGlobal("remotion_scene_config", remotion.remotionSceneConfig);
   env.addGlobal("remotion_scene_manifest", remotion.remotionSceneManifest);
 }

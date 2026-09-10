@@ -1,564 +1,533 @@
-import {describe, expect, it} from 'vitest';
-import {normalizeGithubStats} from './adapter';
+import {expect, expectTypeOf, it} from 'vitest';
+import {calculateProfileRepoMetrics} from '@lukasparke/diffler-schemas';
+import {
+	createFullV2,
+	createMinimalV2,
+	fetchedAt,
+	generatedAt,
+} from '../../../schemas/tests/fixtures';
+import {
+	normalizeGithubStats,
+	normalizeLanguages,
+	normalizeUserStats,
+	userStatsSchema,
+	type UserStats,
+} from './index';
 
-describe('normalizeGithubStats (canonical v2)', () => {
-	it('maps a schema-valid canonical document without coercion', () => {
-		const canonical = {
-			schemaVersion: 2,
-			generatedAt: '2026-08-14T00:00:00.000Z',
-			profile: {
-				name: 'Luke',
-				login: 'LukasParke',
-				bio: 'hi',
-				company: null,
-				location: null,
-				email: null,
-				twitterUsername: null,
-				websiteUrl: 'https://parke.dev',
-				avatarUrl: 'https://github.com/LukasParke.png',
-				createdAt: '2020-01-01T00:00:00.000Z',
-				followers: 70,
-				following: 10,
-			},
-			profileContributions: {
-				totalContributions: 123,
-				totalCommitContributions: 100,
-				restrictedContributionsCount: 3,
-				totalIssueContributions: 5,
-				totalRepositoryContributions: 5,
-				totalPullRequestContributions: 8,
-				totalPullRequestReviewContributions: 2,
-				contributionCalendar: {
-					totalContributions: 123,
-					weeks: [
-						{
-							contributionDays: [
-								{contributionCount: 3, date: '2026-06-01'},
-							],
-						},
-					],
-				},
-				stats: {
-					longestStreak: 9,
-					currentStreak: 4,
-					mostActiveDay: 'Tuesday',
-					averagePerDay: 1.5,
-					averagePerWeek: 10.5,
-					averagePerMonth: 45,
-					monthlyBreakdown: [{month: '2026-06', contributions: 3}],
-					yearlyBreakdown: [{year: '2026', contributions: 123}],
-					peakDay: {date: '2026-06-01', contributions: 3},
-				},
-				repositoryContributions: [],
-				completeness: {
-					complete: true,
-					yearsFetched: ['2026'],
-					yearsFromCache: [],
-					missingYears: [],
-				},
-			},
-			activity: {
-				totalPullRequests: 12,
-				openIssues: 1,
-				closedIssues: 2,
-				repositoriesContributedTo: 6,
-				discussionsStarted: 1,
-				discussionsAnswered: 2,
-				starsGiven: 30,
-			},
-			repositories: [],
-			repoMetrics: {
-				starCount: 500,
-				forkCount: 40,
-				codeByteTotal: 9000,
-				topLanguages: [
-					{languageName: 'TypeScript', color: '#3178c6', value: 9000, percentage: 100},
-				],
-				topTopics: [],
-				profile: {
-					totalRepos: 30,
-					publicRepos: 28,
-					privateRepos: 2,
-					originalRepos: 25,
-					forkedRepos: 5,
-					activeOriginalRepos: 12,
-					archivedOriginalRepos: 3,
-					reposWithStars: 9,
-					starsReceived: 500,
-					forksReceived: 40,
-					codeByteTotal: 8000,
-					topLanguages: [
-						{languageName: 'TypeScript', color: '#3178c6', value: 8000, percentage: 100},
-					],
-				},
-				contributorStats: {
-					totalCommits: 90,
-					linesAdded: 400,
-					linesDeleted: 100,
-					linesOfCodeChanged: 500,
-					reposCompleted: 7,
-					reposPending: 1,
-					reposFailed: 0,
-				},
-				traffic: {
-					repoViews: 210,
-					repoViewUniques: 90,
-					reposCompleted: 3,
-					reposPending: 0,
-					reposFailed: 0,
-				},
-				repoStats: {
-					totalRepos: 30,
-					publicRepos: 28,
-					privateRepos: 2,
-					archivedRepos: 3,
-					forkedRepos: 5,
-					originalRepos: 25,
-					activeRepos: 12,
-					reposWithStars: 9,
-					reposCreatedThisYear: 2,
-					averageStarsPerRepo: 16.67,
-				},
-				computedStats: {
-					totalRepos: 30,
-					publicRepos: 28,
-					privateRepos: 2,
-					archivedRepos: 3,
-					forkedRepos: 5,
-					originalRepos: 25,
-					activeRepos: 12,
-					reposWithStars: 9,
-					reposCreatedThisYear: 2,
-					averageStarsPerRepo: 16.67,
-					languageCount: 1,
-					primaryLanguage: 'TypeScript',
-					primaryLanguageThisYear: 'TypeScript',
-					topLanguagesThisYear: [],
-					totalTopics: 0,
-					topTopics: [],
-					allTopics: [],
-					contributionsThisYear: 123,
-					contributionsLastYear: 100,
-					yearOverYearGrowth: 23,
-					mostProductiveMonth: {month: '2026-06', contributions: 3},
-				},
-			},
-			packageMetrics: {
-				packageCount: 0,
-				providers: [],
-				downloads: {lastDay: 0, lastWeek: 0, lastMonth: 0, lastYear: 0, allTime: 0},
-				packages: [],
-				complete: true,
-				warnings: [],
-			},
-			presentation: {
-				readmeSummary: {
-					name: 'Luke',
-					username: 'LukasParke',
-					totalContributions: 123,
-					currentStreak: 4,
-					longestStreak: 9,
-					topLanguages: [
-						{languageName: 'TypeScript', color: '#3178c6', value: 8000, percentage: 100},
-					],
-					starsReceived: 500,
-					forksReceived: 40,
-					totalRepos: 30,
-					originalRepos: 25,
-					activeRepos: 12,
-					languageCount: 1,
-					codeByteTotal: 8000,
-					refreshedAt: '2026-08-14T00:00:00.000Z',
-					complete: true,
-				},
-				cards: [{id: 'c1', label: 'Card', value: 1}],
-				timeline: [{period: '2026', contributions: 123}],
-				highlights: [],
-				remotion: {scenes: []},
-			},
-			privacy: {
-				privateRepositoryMetricsIncluded: false,
-				privateRepositoryDetailsIncluded: false,
-				privateCacheDetailsIncluded: false,
-				redactedPrivateRepositories: 0,
-				redactedRepositoryContributions: 0,
-				redactedOptionalMetrics: 0,
-			},
-			collectionStatus: {
-				startedAt: 1,
-				finishedAt: 2,
-				durationMs: 1,
-				complete: true,
-				coreComplete: true,
-				cache: {
-					stablePath: 'a',
-					volatilePath: 'b',
-					contributionYearsFromCache: 0,
-					contributionYearsFetched: 1,
-					repositoriesFromCache: 0,
-					repositoriesFetched: 0,
-				},
-				backfill: {
-					enabled: true,
-					completedThisRun: 0,
-					pending: 0,
-					failedThisRun: 0,
-					skippedThisRun: 0,
-				},
-				rateLimit: {graphql: null, rest: null},
-				warnings: [],
-				errors: [],
-			},
-		};
-
-		const stats = normalizeGithubStats(canonical, {
-			allowPrivateRepositoryDetails: false,
-		});
-
-		expect(stats.schemaVersion).toBe(2);
-		expect(stats.name).toBe('Luke');
-		expect(stats.username).toBe('LukasParke');
-		expect(stats.isComplete).toBe(true);
-		expect(stats.summary).toMatchObject({
-			totalContributions: 123,
-			currentStreak: 4,
-			longestStreak: 9,
-			starsReceived: 500,
-			forksReceived: 40,
-			totalRepos: 30,
-			activeRepos: 12,
-			profileMetricsComplete: true,
-		});
-		expect(stats.contributions.totalCommits).toBe(90);
-		expect(stats.contributions.calendar).toEqual([
-			{contributionCount: 3, date: '2026-06-01'},
-		]);
-		expect(stats.community.totalPullRequests).toBe(12);
-		expect(stats.community.starsGiven).toBe(30);
-		expect(stats.repositories.repoViews).toBe(210);
-		expect(stats.topLanguages[0]?.languageName).toBe('TypeScript');
-		expect(stats.cards).toEqual([{id: 'c1', label: 'Card', value: 1}]);
-		expect(stats.code.linesOfCodeChanged).toBe(500);
-	});
-
-	it('rejects private repository details before parsing', () => {
-		expect(() =>
-			normalizeGithubStats(
-				{
-					schemaVersion: 2,
-					repositories: [{isPrivate: true}],
-				},
-				{allowPrivateRepositoryDetails: false},
-			),
-			).toThrow(/private/i);
-		});
+it('preserves the public UserStats schemaVersion field type while validating known versions', () => {
+	expectTypeOf<UserStats['schemaVersion']>().toEqualTypeOf<number | null>();
 });
 
-describe('normalizeGithubStats', () => {
-	it('prefers profile-scoped repository metrics over repository-universe metrics', () => {
-		const currentTimestamp = '2026-01-01T00:00:00.000Z';
-		const raw = {
-				schemaVersion: 2,
-				generatedAt: '2026-08-14T00:00:00.000Z',
-				profile: {
-					name: 'Luke Parke',
-					login: 'LukasParke',
-					followers: 70,
-				},
-				legacy: {
-					fetchedAt: Date.parse('2026-08-14T00:00:00.000Z'),
-					contributionStats: {},
-				},
-				profileContributions: {
-					contributionCalendar: {weeks: []},
-				},
-				presentation: {
-					readmeSummary: {
-						activeRepos: 152,
-						starsReceived: 10,
-						forksReceived: 2,
-						topLanguages: [
-							{
-								languageName: 'HTML',
-								color: '#e34c26',
-								value: 100000,
-								percentage: 99,
-							},
-						],
-					},
-					timeline: [],
-					cards: [],
-					highlights: [],
-				},
-				repoMetrics: {
-					repoStats: {
-						totalRepos: 303,
-					publicRepos: 2,
-						privateRepos: 42,
-						activeRepos: 152,
-						archivedRepos: 5,
-						forkedRepos: 77,
-						originalRepos: 226,
-						reposWithStars: 149,
-					},
-					computedStats: {
-						languageCount: 65,
-					},
-					contributorStats: {},
-					traffic: {},
-				},
-				privacy: {},
-			collectionStatus: {coreComplete: true},
-				activity: {},
-				repositories: [
-					{
-						owner: 'LukasParke',
-						sources: ['owned'],
-						isPrivate: false,
-						isFork: false,
-						isArchived: false,
-						pushedAt: currentTimestamp,
-						stars: 10,
-						forks: 2,
-						languages: [
-							{
-								languageName: 'Java',
-								color: '#b07219',
-								value: 3000,
-							},
-						],
-					},
-					{
-						owner: 'LukasParke',
-						sources: ['owned'],
-						isPrivate: false,
-						isFork: true,
-						isArchived: false,
-						pushedAt: currentTimestamp,
-						stars: 50,
-						forks: 10,
-						languages: [
-							{
-								languageName: 'HTML',
-								color: '#e34c26',
-								value: 50000,
-							},
-						],
-					},
-					{
-						owner: 'example',
-						sources: ['contributed'],
-						isPrivate: false,
-						isFork: false,
-						isArchived: false,
-						pushedAt: currentTimestamp,
-						stars: 10000,
-						forks: 1000,
-						languages: [
-							{
-								languageName: 'HTML',
-								color: '#e34c26',
-								value: 100000,
-							},
-						],
-					},
+it('normalizes minimal canonical v2 while marking absent metric coverage incomplete', () => {
+	const stats = normalizeGithubStats(createMinimalV2());
+	expect(stats).toMatchObject({
+		username: 'octocat',
+		generatedAt,
+		fetchedAt,
+		isComplete: false,
+		contributions: {
+			totalContributions: 12,
+			totalCommits: 9,
+			currentStreak: 2,
+			longestStreak: 2,
+		},
+		code: {contributorReposCompleted: 0, contributorReposPending: 0},
+		collectionStatus: {complete: false, coreComplete: false},
+	});
+	expect(stats.collectionStatus.warnings).toContain(
+		'Contributor metrics are missing; line-change coverage is unknown.',
+	);
+	expect(userStatsSchema.safeParse(stats).success).toBe(true);
+});
+
+it('normalizes complete v2 with the public aliases intact', () => {
+	const stats = normalizeGithubStats(createFullV2());
+	expect(stats).toMatchObject({
+		isComplete: true,
+		totalContributions: 12,
+		totalCommits: 9,
+		totalPullRequests: 3,
+		totalPullRequestReviews: 1,
+		repoViews: 5,
+		linesAdded: 8,
+		linesDeleted: 2,
+		linesChanged: 10,
+		linesOfCodeChanged: 10,
+		starCount: 7,
+		forkCount: 2,
+		codeByteTotal: 100,
+		summary: {totalRepos: 1, languageCount: 6},
+		collectionStatus: {complete: true, coreComplete: true},
+	});
+});
+
+it('derives owned-original scope for historical v2 records without inflating it with forks or contributed repositories', () => {
+	const raw = createFullV2();
+	const repository = raw.repositories[0];
+	raw.repositories.push(
+		{...repository, id: 'R_FORK', isFork: true, stars: 9000, codeByteTotal: 9000},
+		{...repository, id: 'R_EXTERNAL', owner: 'another-user', sources: ['contributed'], stars: 8000},
+	);
+	raw.repoMetrics.starCount = 17007;
+	const stats = normalizeGithubStats(raw);
+	expect(stats.repositories).toMatchObject({totalRepos: 2, publicRepos: 2, originalRepos: 1, forkedRepos: 1, starCount: 7});
+	expect(stats.code.codeByteTotal).toBe(100);
+	expect(stats.summary.profileMetricsComplete).toBe(true);
+});
+
+it('preserves explicitly anonymous private metrics without requiring private-detail rendering permission', () => {
+	const raw = createFullV2();
+	raw.privacy.privateRepositoryMetricsIncluded = true;
+	raw.privacy.redactedPrivateRepositories = 2;
+	raw.repoMetrics.profile = {
+		...calculateProfileRepoMetrics(raw.repositories, fetchedAt),
+		totalRepos: 3, privateRepos: 2, originalRepos: 3, starsReceived: 57,
+	};
+	const stats = normalizeGithubStats(raw);
+	expect(stats.repositories).toMatchObject({totalRepos: 3, privateRepos: 2, starCount: 57});
+	expect(stats.privacy).toMatchObject({privateRepositoryMetricsIncluded: true, privateRepositoryDetailsIncluded: false});
+});
+
+it('uses profile commits instead of optional repository-backfill zeroes', () => {
+	const raw = createFullV2();
+	const stats = normalizeGithubStats({
+		...raw,
+		repoMetrics: {
+			...raw.repoMetrics,
+			contributorStats: {
+				...raw.repoMetrics.contributorStats,
+				totalCommits: 0,
+				reposCompleted: 0,
+				reposPending: 1,
+			},
+		},
+	});
+	expect(stats.totalCommits).toBe(9);
+	expect(stats.contributions.totalCommits).toBe(9);
+});
+
+it('uses profile commits even when repository backfill has a larger count', () => {
+	const raw = createFullV2();
+	const stats = normalizeGithubStats({
+		...raw,
+		repoMetrics: {
+			...raw.repoMetrics,
+			contributorStats: {...raw.repoMetrics.contributorStats, totalCommits: 99},
+		},
+	});
+	expect(stats.totalCommits).toBe(9);
+});
+
+it('uses the complete repository language list, not the presentation top five', () => {
+	const stats = normalizeGithubStats(createFullV2());
+	expect(stats.topLanguages.map((language) => language.languageName)).toEqual([
+		'TypeScript',
+		'JavaScript',
+		'C',
+		'Go',
+		'Python',
+		'Rust',
+	]);
+	expect(stats.summary.languageCount).toBe(6);
+});
+
+it('does not mark a truncated canonical language list complete', () => {
+	const raw = createFullV2();
+	const stats = normalizeGithubStats({
+		...raw,
+		repoMetrics: {
+			...raw.repoMetrics,
+			profile: {
+				...calculateProfileRepoMetrics(raw.repositories, fetchedAt),
+				topLanguages: raw.repoMetrics.topLanguages.slice(0, 5),
+			},
+		},
+	});
+	expect(stats.isComplete).toBe(false);
+	expect(stats.collectionStatus.coreComplete).toBe(false);
+	expect(stats.collectionStatus.warnings).toContain(
+		'Language data does not cover the reported totals.',
+	);
+});
+
+it('uses canonical profile streaks and dates without legacy or presentation aliases', () => {
+	const raw = createFullV2();
+	const stats = normalizeGithubStats({
+		...raw,
+		legacy: undefined,
+		presentation: undefined,
+	});
+	expect(stats.contributions).toMatchObject({
+		currentStreak: 2,
+		longestStreak: 2,
+		peakDay: {date: '2024-01-03', contributions: 5},
+		mostProductiveMonth: {month: '2024-01', contributions: 12},
+		timeline: [{period: '2024', contributions: 12}],
+	});
+});
+
+it('ignores stale presentation and legacy aliases when canonical data is present', () => {
+	const raw = createFullV2();
+	const stats = normalizeGithubStats({
+		...raw,
+		legacy: {
+			...raw.legacy,
+			totalCommits: 0,
+			fetchedAt: 0,
+			contributionStats: {...raw.legacy.contributionStats, peakDay: null},
+		},
+		presentation: {
+			...raw.presentation,
+			readmeSummary: {
+				...raw.presentation.readmeSummary,
+				name: 'Stale Name',
+				currentStreak: 0,
+				longestStreak: 0,
+				totalContributions: 0,
+				starsReceived: 0,
+				forksReceived: 0,
+				activeRepos: 0,
+			},
+		},
+	});
+	expect(stats).toMatchObject({
+		name: 'Octo Cat',
+		fetchedAt,
+		totalContributions: 12,
+		totalCommits: 9,
+		starCount: 7,
+		forkCount: 2,
+		summary: {currentStreak: 2, longestStreak: 2, activeRepos: 1},
+		contributions: {peakDay: {date: '2024-01-03', contributions: 5}},
+	});
+});
+
+it('retains pending and failed optional-metric counts despite optimistic summaries', () => {
+	const raw = createFullV2();
+	const stats = normalizeGithubStats({
+		...raw,
+		repoMetrics: {
+			...raw.repoMetrics,
+			contributorStats: {
+				...raw.repoMetrics.contributorStats,
+				reposCompleted: 0,
+				reposPending: 1,
+			},
+			traffic: {...raw.repoMetrics.traffic, reposCompleted: 0, reposFailed: 1},
+		},
+	});
+	expect(stats).toMatchObject({
+		isComplete: false,
+		code: {
+			contributorReposCompleted: 0,
+			contributorReposPending: 1,
+			contributorReposFailed: 0,
+		},
+		repositories: {
+			trafficReposCompleted: 0,
+			trafficReposPending: 0,
+			trafficReposFailed: 1,
+		},
+		collectionStatus: {complete: false, coreComplete: true},
+	});
+});
+
+it('marks absent optional metrics unknown without inventing pending repository counts', () => {
+	const raw = createFullV2();
+	const stats = normalizeGithubStats({
+		...raw,
+		repoMetrics: {
+			...raw.repoMetrics,
+			contributorStats: undefined,
+			traffic: undefined,
+		},
+	});
+	expect(stats.isComplete).toBe(false);
+	expect(stats.collectionStatus.coreComplete).toBe(true);
+	expect(stats.code).toMatchObject({
+		linesOfCodeChanged: 0,
+		contributorReposCompleted: 0,
+		contributorReposPending: 0,
+	});
+	expect(stats.collectionStatus.warnings).toContain(
+		'Traffic metrics are missing; view coverage is unknown.',
+	);
+});
+
+it('keeps disabled optional-metric coverage distinguishable from measured zero', () => {
+	const raw = createFullV2();
+	const stats = normalizeGithubStats({
+		...raw,
+		repoMetrics: {
+			...raw.repoMetrics,
+			traffic: {
+				repoViews: 0,
+				repoViewUniques: 0,
+				reposCompleted: 0,
+				reposPending: 0,
+				reposFailed: 0,
+			},
+		},
+	});
+	expect(stats.isComplete).toBe(false);
+	expect(stats.collectionStatus.warnings).toContain(
+		'Traffic metrics have no completed repository coverage.',
+	);
+});
+
+it('does not hide missing contribution years behind a complete collection summary', () => {
+	const raw = createFullV2();
+	const stats = normalizeGithubStats({
+		...raw,
+		profileContributions: {
+			...raw.profileContributions,
+			completeness: {
+				complete: false,
+				yearsFetched: ['2024'],
+				yearsFromCache: [],
+				missingYears: ['2023'],
+			},
+		},
+	});
+	expect(stats.collectionStatus).toMatchObject({
+		complete: false,
+		coreComplete: false,
+	});
+	expect(stats.collectionStatus.warnings).toContain(
+		'Contribution history is incomplete; missing years: 2023.',
+	);
+});
+
+it('retains collection errors and marks the profile incomplete', () => {
+	const raw = createFullV2();
+	const stats = normalizeGithubStats({
+		...raw,
+		collectionStatus: {...raw.collectionStatus, errors: ['traffic failed']},
+	});
+	expect(stats.isComplete).toBe(false);
+	expect(stats.collectionStatus.errors).toEqual(['traffic failed']);
+});
+
+it('deduplicates a repeated profile calendar day at a year boundary', () => {
+	const raw = createMinimalV2();
+	const calendar = raw.profileContributions.contributionCalendar;
+	const stats = normalizeGithubStats({
+		...raw,
+		profileContributions: {
+			...raw.profileContributions,
+			contributionCalendar: {
+				...calendar,
+				weeks: [
+					...calendar.weeks,
+					{contributionDays: [{date: '2024-01-04', contributionCount: 3}]},
 				],
-			};
-		const stats = normalizeGithubStats(raw, {
-			allowPrivateRepositoryDetails: false,
-		});
-
-		expect(stats.summary).toMatchObject({
-			totalRepos: 2,
-			activeRepos: 1,
-			languageCount: 1,
-			starsReceived: 10,
-			forksReceived: 2,
-			profileMetricsComplete: true,
-		});
-		expect(stats.repositories.repoViews).toBeNull();
-		expect(stats.repositories).toMatchObject({
-			totalRepos: 2,
-			publicRepos: 2,
-			privateRepos: 0,
-			originalRepos: 1,
-			forkedRepos: 1,
-			activeRepos: 1,
-		});
-		expect(stats.code.codeByteTotal).toBe(3000);
-		expect(stats.topLanguages[0]?.languageName).toBe('Java');
-
-		const contributedOnly = normalizeGithubStats(
-			{...raw, repositories: [raw.repositories[2]]},
-			{allowPrivateRepositoryDetails: false},
-		);
-		expect(contributedOnly.summary).toMatchObject({
-			totalRepos: 0,
-			activeRepos: 0,
-			languageCount: 0,
-			starsReceived: 0,
-			forksReceived: 0,
-			profileMetricsComplete: false,
-		});
-		expect(contributedOnly.topLanguages).toEqual([]);
-
-		const explicitProfile = normalizeGithubStats(
-			{
-				...raw,
-				privacy: {privateRepositoryMetricsIncluded: true},
-				repoMetrics: {
-					...raw.repoMetrics,
-					profile: {
-						totalRepos: 9,
-						publicRepos: 7,
-						privateRepos: 2,
-						originalRepos: 6,
-						forkedRepos: 1,
-						activeOriginalRepos: 5,
-						archivedOriginalRepos: 1,
-						reposWithStars: 4,
-						starsReceived: 99,
-						forksReceived: 12,
-						codeByteTotal: 2000,
-						languageCount: 1,
-						topLanguages: [
-							{
-								languageName: 'Go',
-								color: '#00ADD8',
-								value: 2000,
-								percentage: 100,
-							},
-						],
-					},
-				},
 			},
-			{allowPrivateRepositoryDetails: false},
-		);
-		expect(explicitProfile.summary).toMatchObject({
-			totalRepos: 9,
-			activeRepos: 5,
-			languageCount: 1,
-			starsReceived: 99,
-			forksReceived: 12,
-			profileMetricsComplete: true,
-		});
-		expect(explicitProfile.repositories).toMatchObject({
-			totalRepos: 9,
-			publicRepos: 7,
-			privateRepos: 2,
-		});
-		expect(explicitProfile.privacy.privateRepositoryMetricsIncluded).toBe(
-			true,
-		);
-		expect(explicitProfile.topLanguages[0]?.languageName).toBe('Go');
+		},
 	});
+	expect(stats.contributions.calendar).toHaveLength(4);
+	expect(stats.contributions.calendar.at(-1)).toEqual({
+		date: '2024-01-04',
+		contributionCount: 3,
+	});
+});
 
-	it('does not derive profile metrics from an incomplete repository collection', () => {
-		const raw = {
-			schemaVersion: 2,
-			generatedAt: '2024-08-14T00:00:00.000Z',
-			profile: {login: 'octocat'},
-			legacy: {contributionStats: {}},
-			profileContributions: {contributionCalendar: {weeks: []}},
-			presentation: {
-				readmeSummary: {
-					totalRepos: 99,
-					activeRepos: 99,
-					starsReceived: 999,
-					topLanguages: [{languageName: 'Wrong', value: 999}],
-				},
-				timeline: [],
-				cards: [],
-				highlights: [],
-			},
-			repoMetrics: {
-				repoStats: {publicRepos: 2},
-				contributorStats: {},
-				traffic: {reposCompleted: 0, repoViews: 0},
-			},
-			collectionStatus: {coreComplete: false},
-			privacy: {},
-			activity: {},
-			repositories: [
-				{
-					owner: 'octocat',
-					sources: ['owned'],
-					isPrivate: false,
-					isFork: false,
-					pushedAt: '2024-01-01T00:00:00.000Z',
-					stars: 10,
-					languages: [{languageName: 'TypeScript', value: 100}],
-				},
+it('supports full versionless legacy data without claiming unreported coverage', () => {
+	const stats = normalizeGithubStats(createFullV2().legacy);
+	expect(stats).toMatchObject({
+		schemaVersion: null,
+		username: 'octocat',
+		totalCommits: 9,
+		isComplete: false,
+	});
+	expect(stats.collectionStatus).toMatchObject({
+		complete: false,
+		coreComplete: false,
+	});
+	expect(stats.collectionStatus.warnings).toContain(
+		'Legacy stats do not report collection or optional-metric coverage.',
+	);
+});
+
+it('uses known computed repository counts when a legacy repoStats group is partial', () => {
+	const legacy = createFullV2().legacy;
+	const stats = normalizeGithubStats({...legacy, repoStats: {activeRepos: 0}});
+	expect(stats.repositories).toMatchObject({
+		totalRepos: 1,
+		publicRepos: 1,
+		originalRepos: 1,
+		activeRepos: 0,
+	});
+	expect(stats.summary).toMatchObject({totalRepos: 1, activeRepos: 0});
+});
+
+it('accepts explicit zero legacy counters without inventing collection completeness', () => {
+	const stats = normalizeGithubStats({
+		username: 'new-user',
+		fetchedAt,
+		totalContributions: 0,
+		totalCommits: 0,
+	});
+	expect(stats).toMatchObject({
+		username: 'new-user',
+		totalContributions: 0,
+		totalCommits: 0,
+		isComplete: false,
+	});
+});
+
+it('supports explicit compact legacy aliases without a current-time fallback', () => {
+	const stats = normalizeGithubStats({
+		username: 'octocat',
+		fetchedAt,
+		totalContributions: 3,
+		commitCount: 2,
+		topLanguages: [{name: 'Go', bytes: 10}],
+		linesAdded: 5,
+		linesDeleted: 2,
+	});
+	expect(stats).toMatchObject({
+		generatedAt,
+		fetchedAt,
+		totalCommits: 2,
+		codeByteTotal: 10,
+		linesChanged: 7,
+		linesOfCodeChanged: 7,
+	});
+	expect(stats.topLanguages).toEqual([
+		{languageName: 'Go', value: 10, color: null, percentage: 100},
+	]);
+});
+
+it.each([
+	null,
+	{},
+	{error: 'Not Found'},
+	{schemaVersion: 3},
+	{username: 'octocat', totalCommits: '2'},
+])(
+	'rejects malformed external data instead of returning a complete zero profile: %j',
+	(raw) => {
+		expect(() => normalizeGithubStats(raw)).toThrow();
+	},
+);
+
+it('refuses private repository details even when the privacy flag is false', () => {
+	const raw = createFullV2();
+	expect(() =>
+		normalizeGithubStats({
+			...raw,
+			repositories: [{...raw.repositories[0], isPrivate: true}],
+		}),
+	).toThrow('private repository details');
+});
+
+it('checks legacy top repositories for private details', () => {
+	const legacy = createFullV2().legacy;
+	expect(() =>
+		normalizeGithubStats({
+			...legacy,
+			topRepos: [{...legacy.topRepos[0], isPrivate: true}],
+		}),
+	).toThrow('private repository details');
+});
+
+it('retains private-detail provenance when rendering is explicitly allowed', () => {
+	const raw = createFullV2();
+	const stats = normalizeGithubStats(
+		{...raw, repositories: [{...raw.repositories[0], isPrivate: true}]},
+		{allowPrivateRepositoryDetails: true},
+	);
+	expect(stats.privacy.privateRepositoryDetailsIncluded).toBe(true);
+});
+
+it('validates normalized UserStats on a distinct path', () => {
+	const stats = normalizeGithubStats(createFullV2());
+	expect(normalizeUserStats(stats)).toEqual(stats);
+	expect(() => normalizeGithubStats(stats)).toThrow();
+});
+
+it('repairs normalized aliases from the authoritative nested metrics', () => {
+	const stats = normalizeGithubStats(createFullV2());
+	expect(
+		normalizeUserStats({
+			...stats,
+			totalCommits: 0,
+			summary: {...stats.summary, totalContributions: 0},
+		}),
+	).toMatchObject({
+		totalCommits: 9,
+		summary: {totalContributions: 12},
+	});
+});
+
+it('keeps missing normalized calendars identifiable despite optimistic completeness flags', () => {
+	const stats = normalizeGithubStats(createFullV2());
+	const normalized = normalizeUserStats({
+		...stats,
+		contributions: {...stats.contributions, calendar: []},
+	});
+	expect(normalized).toMatchObject({
+		isComplete: false,
+		collectionStatus: {complete: false, coreComplete: false},
+	});
+	expect(normalized.collectionStatus.warnings).toContain(
+		'Contribution calendar does not cover the reported total.',
+	);
+});
+
+it('rejects invalid normalized field values at the same boundary as source props', () => {
+	const stats = normalizeGithubStats(createFullV2());
+	expect(() =>
+		normalizeUserStats({
+			...stats,
+			community: {...stats.community, followers: -1},
+		}),
+	).toThrow();
+});
+
+it('rejects unknown schema versions on the normalized input path', () => {
+	expect(() =>
+		normalizeUserStats({
+			...normalizeGithubStats(createFullV2()),
+			schemaVersion: 3,
+		}),
+	).toThrow('Unsupported stats schema version');
+});
+
+it('rejects impossible language byte totals on the normalized input path', () => {
+	const stats = normalizeGithubStats(createFullV2());
+	expect(() =>
+		normalizeUserStats({...stats, code: {...stats.code, codeByteTotal: 0}}),
+	).toThrow('Language bytes exceed codeByteTotal');
+});
+
+it('does not let normalized private data bypass the public boundary', () => {
+	const stats = normalizeGithubStats(createFullV2());
+	expect(() =>
+		normalizeUserStats({
+			...stats,
+			privacy: {...stats.privacy, privateRepositoryDetailsIncluded: true},
+		}),
+	).toThrow('private repository details');
+});
+
+it('recalculates every language percentage against the supplied total', () => {
+	expect(
+		normalizeLanguages(
+			[
+				{languageName: 'Go', color: null, value: 20, percentage: 100},
+				{languageName: 'Rust', color: null, value: 30, percentage: 100},
 			],
-		};
+			100,
+		),
+	).toEqual([
+		{languageName: 'Rust', color: null, value: 30, percentage: 30},
+		{languageName: 'Go', color: null, value: 20, percentage: 20},
+	]);
+});
 
-		const stats = normalizeGithubStats(raw, {
-			allowPrivateRepositoryDetails: false,
-		});
-
-		expect(stats.summary).toMatchObject({
-			totalRepos: 0,
-			activeRepos: 0,
-			starsReceived: 0,
-			profileMetricsComplete: false,
-		});
-		expect(stats.topLanguages).toEqual([]);
-		expect(stats.repositories.repoViews).toBeNull();
-		expect(stats.repoViews).toBeNull();
-	});
-
-	it('normalizes provider-neutral package metrics', () => {
-		const stats = normalizeGithubStats(
-			{
-				schemaVersion: 2,
-				generatedAt: '2026-08-14T00:00:00.000Z',
-				profile: {login: 'octocat'},
-				legacy: {contributionStats: {}},
-				profileContributions: {contributionCalendar: {weeks: []}},
-				presentation: {readmeSummary: {}, timeline: [], cards: [], highlights: []},
-				repoMetrics: {contributorStats: {}, traffic: {}, repoStats: {}},
-				collectionStatus: {},
-				privacy: {},
-				activity: {},
-				repositories: [],
-				packageMetrics: {
-					packageCount: 1,
-					providers: ['npm'],
-					downloads: {
-						lastDay: 4,
-						lastWeek: 28,
-						lastMonth: 120,
-						lastYear: 1440,
-						allTime: 2000,
-					},
-					packages: [
-						{
-							provider: 'npm',
-							name: '@example/tool',
-							url: 'https://npmjs.com/package/example',
-							latestVersion: '2.0.0',
-							latestPublishedAt: '2026-08-01T00:00:00.000Z',
-							downloads: {lastMonth: 120},
-						},
-					],
-					complete: true,
-					warnings: [],
-				},
-			},
-			{allowPrivateRepositoryDetails: false},
-		);
-
-		expect(stats.packages).toMatchObject({
-			packageCount: 1,
-			providers: ['npm'],
-			downloads: {lastMonth: 120, allTime: 2000},
-			complete: true,
-		});
-		expect(stats.packages.packages[0]).toMatchObject({
-			provider: 'npm',
-			name: '@example/tool',
-			latestVersion: '2.0.0',
-			downloads: {lastDay: 0, lastMonth: 120},
-		});
-	});
+it('rejects inconsistent language bytes rather than publishing impossible percentages', () => {
+	expect(() =>
+		normalizeLanguages([{languageName: 'Go', color: null, value: 10}], 0),
+	).toThrow('Language bytes exceed codeByteTotal');
 });

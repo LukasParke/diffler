@@ -1,83 +1,45 @@
-import {Box, CalendarDays, Download, PackageOpen} from 'lucide-react';
 import {UserStats} from '../data';
-import {MetricRow, Panel} from '../components/primitives';
-import {defaultTheme} from '../themes/default';
-import {formatCompactNumber} from '../utils';
+import {EmptyState, formatMetricValue, MetricTile, Panel} from '../components/primitives';
+import {useTheme} from '../themes';
 
 export function PackageImpactCard({userStats}: {userStats: UserStats}) {
+	const theme = useTheme();
 	const metrics = userStats.packages;
-	const providerLabel =
-		metrics.providers.length > 0
-			? metrics.providers.join(' + ')
-			: 'Package registries';
+	const providers = metrics.providers.join(' + ') || 'Package registries';
 
 	return (
 		<Panel
-			title="Package Impact"
-			subtitle={`${providerLabel} · ${metrics.packageCount} published packages`}
-			accent={defaultTheme.colors.purple}
+			compact
+			title="Package impact"
+			subtitle={`${providers} · ${formatMetricValue(metrics.packageCount)} published packages`}
+			accent={theme.colors.purple}
+			footer={metrics.complete ? 'Registry downloads · not unique users' : 'Partial registry coverage · known downloads shown'}
 		>
 			{metrics.packageCount === 0 ? (
-				<div className="flex h-[208px] items-center justify-center rounded-lg border border-dashed border-white/10 bg-white/[0.025] text-sm text-[#9ba7b4]">
-					Configure package sources to showcase install activity
-				</div>
+				<EmptyState
+					title={metrics.complete ? 'No packages configured' : 'Registry data unavailable'}
+					detail="Configure package sources to showcase download activity."
+				/>
 			) : (
-				<div className="grid h-[208px] grid-cols-[0.92fr_1.08fr] gap-3">
-					<div className="rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2">
-						<MetricRow
-							icon={<Download size={14} />}
-							label="Last 30 days"
-							value={formatCompactNumber(metrics.downloads.lastMonth)}
-							accent={defaultTheme.colors.purple}
-						/>
-						<MetricRow
-							icon={<CalendarDays size={14} />}
-							label="Last year"
-							value={formatCompactNumber(metrics.downloads.lastYear)}
-							delay={0.08}
-							accent={defaultTheme.colors.cyan}
-						/>
-						<MetricRow
-							icon={<PackageOpen size={14} />}
-							label="All-time downloads"
-							value={formatCompactNumber(metrics.downloads.allTime)}
-							delay={0.16}
-							accent={defaultTheme.colors.green}
-						/>
-						<MetricRow
-							icon={<Box size={14} />}
-							label="Published packages"
-							value={metrics.packageCount}
-							delay={0.24}
-							accent={defaultTheme.colors.yellow}
-						/>
+				<>
+					<div style={{display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16}}>
+						<MetricTile label="Last 30 days" value={metrics.downloads.lastMonth} accent={theme.colors.purple} />
+						<MetricTile label="Last year" value={metrics.downloads.lastYear} accent={theme.colors.cyan} delay={0.08} />
+						<MetricTile label="All-time downloads" value={metrics.downloads.allTime} accent={theme.colors.green} delay={0.16} />
 					</div>
-					<div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.035] p-3">
-						<p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7d8590]">
-							Top packages this month
-						</p>
+					<div style={{display: 'flex', flexDirection: 'column', gap: 5, marginTop: 12, paddingTop: 8, borderTop: `1px solid ${theme.colors.border}`}}>
 						{metrics.packages.slice(0, 3).map((item) => (
-							<div
-								key={`${item.provider}:${item.name}`}
-								className="flex items-center justify-between gap-3 border-b border-white/[0.06] pb-2 last:border-0 last:pb-0"
-							>
-								<div className="min-w-0">
-									<p className="truncate text-xs font-semibold">{item.name}</p>
-									<p className="mt-0.5 truncate text-[10px] text-[#7d8590]">
-										{item.provider}
-										{item.latestVersion ? ` · v${item.latestVersion}` : ''}
-									</p>
-								</div>
-								<div className="shrink-0 text-right">
-									<p className="text-sm font-semibold tabular-nums">
-										{formatCompactNumber(item.downloads.lastMonth)}
-									</p>
-									<p className="text-[10px] text-[#7d8590]">downloads</p>
-								</div>
+							<div key={`${item.provider}:${item.name}`} style={{display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 110px', gap: 12, alignItems: 'center', fontSize: 11, lineHeight: '20px'}}>
+								<span title={item.name} style={{minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis'}}>
+									{item.name}
+								</span>
+								<span title={`${formatMetricValue(item.downloads.lastMonth, 'integer')} downloads / 30 days`} style={{color: theme.colors.muted, textAlign: 'right', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums'}}>
+									{formatMetricValue(item.downloads.lastMonth, 'compact')} / mo
+								</span>
 							</div>
 						))}
 					</div>
-				</div>
+				</>
 			)}
 		</Panel>
 	);

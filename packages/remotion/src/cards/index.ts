@@ -1,4 +1,10 @@
+import {
+	cardDefinitions,
+	type CardId,
+	type CardPlayback,
+} from '@lukasparke/diffler-schemas';
 import {ComponentType} from 'react';
+import {FPS} from '../config';
 import {MainProps} from '../data';
 import {ActivityOverviewCard} from './ActivityOverviewCard';
 import {CodeMetricsCard} from './CodeMetricsCard';
@@ -7,7 +13,7 @@ import {IssueTrackingCard} from './IssueTrackingCard';
 import {LanguagesCard} from './LanguagesCard';
 import {MainStatsCard} from './MainStatsCard';
 import {PackageImpactCard} from './PackageImpactCard';
-import {ReadmeClassicCard, ReadmeSpotlightCard} from './ReadmeCard';
+import {ReadmeCard, ReadmeClassicCard, ReadmeSpotlightCard} from './ReadmeCard';
 import {RepositoryImpactCard} from './RepositoryImpactCard';
 import {StatsCard} from './StatsCard';
 import {TopLanguagesCard} from './TopLanguagesCard';
@@ -18,77 +24,35 @@ export type CardConfig = {
 	height: number;
 	durationInFrames?: number;
 	width?: number;
+	title?: string;
+	playback?: CardPlayback;
 };
 
-export const cards: CardConfig[] = [
-	{
-		id: 'readme',
-		component: ReadmeSpotlightCard,
-		width: 900,
-		height: 460,
-	},
-	{
-		id: 'readme-classic',
-		component: ReadmeClassicCard,
-		height: 520,
-	},
-	{
-		id: 'readme-spotlight',
-		component: ReadmeSpotlightCard,
-		width: 900,
-		height: 460,
-	},
-	{
-		id: 'stats',
-		component: StatsCard,
-		height: 360,
-	},
-	{
-		id: 'languages',
-		component: LanguagesCard,
-		height: 270,
-	},
-	{
-		id: 'main-stats',
-		component: MainStatsCard,
-		height: 300,
-	},
-	{
-		id: 'repo-impact',
-		component: RepositoryImpactCard,
-		height: 280,
-	},
-	{
-		id: 'package-impact',
-		component: PackageImpactCard,
-		height: 300,
-	},
-	{
-		id: 'issue-tracking',
-		component: IssueTrackingCard,
-		height: 280,
-	},
-	{
-		id: 'code-metrics',
-		component: CodeMetricsCard,
-		height: 280,
-	},
-	{
-		id: 'activity-overview',
-		component: ActivityOverviewCard,
-		height: 360,
-	},
-	{
-		id: 'commit-streak',
-		component: CommitStreakCard,
-		height: 230,
-	},
-	{
-		id: 'top-languages',
-		component: TopLanguagesCard,
-		height: 260,
-	},
-];
+const components: Record<CardId, CardConfig['component']> = {
+	readme: ReadmeCard,
+	'readme-classic': ReadmeClassicCard,
+	'readme-spotlight': ReadmeSpotlightCard,
+	stats: StatsCard,
+	languages: LanguagesCard,
+	'main-stats': MainStatsCard,
+	'repo-impact': RepositoryImpactCard,
+	'issue-tracking': IssueTrackingCard,
+	'code-metrics': CodeMetricsCard,
+	'activity-overview': ActivityOverviewCard,
+	'commit-streak': CommitStreakCard,
+	'top-languages': TopLanguagesCard,
+	'package-impact': PackageImpactCard,
+};
+
+export const cards: CardConfig[] = cardDefinitions.map((definition) => ({
+	id: definition.id,
+	title: definition.title,
+	component: components[definition.id],
+	width: definition.width,
+	height: definition.height,
+	durationInFrames: definition.durationInSeconds * FPS,
+	playback: definition.playback,
+}));
 
 export {ActivityOverviewCard} from './ActivityOverviewCard';
 export {CodeMetricsCard} from './CodeMetricsCard';

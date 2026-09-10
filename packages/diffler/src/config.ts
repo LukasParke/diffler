@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { config as loadDotenv } from "dotenv";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
+import { githubUsernameSchema } from "@lukasparke/diffler-schemas";
 
 // ---------------------------------------------------------------------------
 // Env helpers
@@ -33,29 +34,47 @@ function deepResolveEnv(obj: unknown): unknown {
 // Schemas
 // ---------------------------------------------------------------------------
 
+const NonEmptyStringSchema = z.string().trim().min(1);
+const PathSchema = z.string().refine(
+  (value) => value.trim().length > 0 && !value.includes("\0"),
+  "Expected a non-empty path without null bytes"
+);
+const UsernameSchema = NonEmptyStringSchema.pipe(githubUsernameSchema);
+const TokenSchema = z.preprocess(resolveEnv, NonEmptyStringSchema);
+const ApiUrlSchema = NonEmptyStringSchema.url().regex(
+  /^https?:\/\/[^@?#\s]+$/i,
+  "Expected an HTTP(S) API URL without credentials, query, or fragment"
+);
+
 export const GitHubProfileConfigSchema = z.object({
-  username: z.string(),
-  token: z.string().default("${GITHUB_TOKEN}"),
+  username: UsernameSchema,
+  token: TokenSchema.default("${GITHUB_TOKEN}"),
 });
 
 export type GitHubProfileConfig = z.infer<typeof GitHubProfileConfigSchema>;
 
 export const GitHubConfigSchema = z.object({
-  username: z.string().nullable().default(null),
-  usernames: z.array(z.string()).default([]),
-  token: z.string().default("${GITHUB_TOKEN}"),
-  profiles: z.array(GitHubProfileConfigSchema).default([]),
-  apiUrl: z.string().default("https://api.github.com"),
-  graphqlUrl: z.string().default("https://api.github.com/graphql"),
+  username: UsernameSchema.nullable().default(null),
+  usernames: z.array(UsernameSchema).default([]),
+  token: TokenSchema.default("${GITHUB_TOKEN}"),
+  profiles: z.array(GitHubProfileConfigSchema.extend({ token: TokenSchema.optional() })).default([]),
+  apiUrl: ApiUrlSchema.default("https://api.github.com"),
+  graphqlUrl: ApiUrlSchema.default("https://api.github.com/graphql"),
   includeOrgs: z.boolean().default(false),
   largeRepoMode: z.boolean().default(false),
-});
+}).transform((github) => ({
+  ...github,
+  profiles: github.profiles.map((profile) => ({
+    ...profile,
+    token: profile.token ?? github.token,
+  })),
+}));
 
 export type GitHubConfig = z.infer<typeof GitHubConfigSchema>;
 
 export const TemplateConfigSchema = z.object({
-  main: z.string().default("profile.md.j2"),
-  directory: z.string().default(".github/diffler"),
+  main: PathSchema.default("profile.md.j2"),
+  directory: PathSchema.default(".github/diffler"),
   builtins: z.boolean().default(true),
 });
 
@@ -63,21 +82,21 @@ export type TemplateConfig = z.infer<typeof TemplateConfigSchema>;
 
 export const CacheConfigSchema = z.object({
   enabled: z.boolean().default(true),
-  ttl: z.number().int().default(3600),
-  directory: z.string().nullable().default(null),
+  ttl: z.number().int().nonnegative().default(3600),
+  directory: PathSchema.nullable().default(null),
 });
 
 export type CacheConfig = z.infer<typeof CacheConfigSchema>;
 
 export const StatsActionConfigSchema = z.object({
-  outputPath: z.string().default(".diffler/stats.json"),
-  cachePath: z.string().default(".diffler/cache-stable.json"),
-  volatileCachePath: z.string().default(".diffler/cache-volatile.json"),
-  maxRuntimeSeconds: z.number().int().default(480),
-  graphqlConcurrency: z.number().int().default(2),
-  restConcurrency: z.number().int().default(4),
-  minGraphqlRemaining: z.number().int().default(500),
-  minRestRemaining: z.number().int().default(750),
+  outputPath: PathSchema.default(".diffler/stats.json"),
+  cachePath: PathSchema.default(".diffler/cache-stable.json"),
+  volatileCachePath: PathSchema.default(".diffler/cache-volatile.json"),
+  maxRuntimeSeconds: z.number().int().positive().default(480),
+  graphqlConcurrency: z.number().int().positive().default(2),
+  restConcurrency: z.number().int().positive().default(4),
+  minGraphqlRemaining: z.number().int().nonnegative().default(500),
+  minRestRemaining: z.number().int().nonnegative().default(750),
   includeTraffic: z.boolean().default(true),
   includeRestRepoStats: z.boolean().default(true),
   includePrivateRepositoryMetrics: z.boolean().default(false),
@@ -96,17 +115,55 @@ export const StatsActionConfigSchema = z.object({
 
 export type StatsActionConfig = z.infer<typeof StatsActionConfigSchema>;
 
+export const ProfileAssetsConfigSchema = z.object({
+  baseUrl: NonEmptyStringSchema.refine((value) => {
+    if (/[\s<>"'?#\\]/.test(value) || value.includes("${") || value.startsWith("//")) return false;
+    if (!/^[a-z][a-z\d+.-]*:/i.test(value)) return true;
+    try {
+      const url = new URL(value);
+      return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password;
+    } catch {
+      return false;
+    }
+  }, "Expected an HTTP(S) URL or a relative asset directory, without credentials, query, or fragment")
+    .default("./assets"),
+  format: z.enum(["webp", "gif"]).default("webp"),
+});
+
+export type ProfileAssetsConfig = z.infer<typeof ProfileAssetsConfigSchema>;
+
 export const DifflerConfigSchema = z.object({
   version: z.string().default("1"),
   github: GitHubConfigSchema.prefault({}),
   templates: TemplateConfigSchema.prefault({}),
   cache: CacheConfigSchema.prefault({}),
   statsAction: StatsActionConfigSchema.prefault({}),
+  assets: ProfileAssetsConfigSchema.optional(),
   helpers: z.record(z.string(), z.unknown()).default({}),
   plugins: z.array(z.string()).default([]),
 });
 
-export type DifflerConfig = z.infer<typeof DifflerConfigSchema>;
+const statsActionOverrides = Symbol("statsActionOverrides");
+
+export type DifflerConfig = z.infer<typeof DifflerConfigSchema> & {
+  [statsActionOverrides]?: Partial<StatsActionConfig>;
+};
+
+function parseConfig<T>(schema: z.ZodType<T>, value: unknown): T {
+  const result = schema.safeParse(value);
+  if (result.success) return result.data;
+  // Full validation errors and YAML source excerpts can contain credentials.
+  const fields = result.error.issues.map((issue) => {
+    const path = issue.path.join(".") || "configuration";
+    const message = issue.code === "invalid_value"
+      ? `expected one of ${issue.values.join(", ")}`
+      : issue.code === "invalid_type"
+        ? `expected ${issue.expected}`
+        : issue.message;
+    return `${path}: ${message}`;
+  });
+  throw new Error(`Invalid Diffler config: ${fields.join("; ")}`);
+}
 
 // ---------------------------------------------------------------------------
 // Config methods
@@ -143,14 +200,15 @@ export function buildStatsActionConfig(config: DifflerConfig): StatsActionConfig
   function envBool(name: string, defaultValue: boolean): boolean {
     const val = env(name, "");
     if (!val) return defaultValue;
-    return ["1", "true", "yes", "on"].includes(val.toLowerCase());
+    if (["1", "true", "yes", "on"].includes(val.toLowerCase())) return true;
+    if (["0", "false", "no", "off"].includes(val.toLowerCase())) return false;
+    throw new Error(`Invalid STATS_${name.toUpperCase().replace(/-/g, "_")}: expected a boolean`);
   }
 
   function envNum(name: string, defaultValue: number): number {
     const val = env(name, "");
     if (!val) return defaultValue;
-    const parsed = Number(val);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultValue;
+    return Number(val);
   }
 
   base.outputPath = env("output-path", base.outputPath);
@@ -176,9 +234,6 @@ export function buildStatsActionConfig(config: DifflerConfig): StatsActionConfig
     base.includePrivateCacheDetails
   );
   const backfillMode = env("backfill-mode", base.backfillMode);
-  if (backfillMode === "resume" || backfillMode === "refresh" || backfillMode === "off") {
-    base.backfillMode = backfillMode;
-  }
   const npmPackages = env("npm-packages", "")
     .split(",")
     .map((packageName) => packageName.trim())
@@ -193,7 +248,20 @@ export function buildStatsActionConfig(config: DifflerConfig): StatsActionConfig
     ];
   }
 
-  return base;
+  return parseConfig(StatsActionConfigSchema, { ...base, backfillMode, ...config[statsActionOverrides] });
+}
+
+/** Preserve explicit command options when downstream collectors reapply STATS_* settings. */
+export function withStatsActionOverrides(
+  config: DifflerConfig,
+  overrides: Partial<StatsActionConfig>
+): DifflerConfig {
+  const combined = { ...config[statsActionOverrides], ...overrides };
+  return {
+    ...config,
+    statsAction: parseConfig(StatsActionConfigSchema, { ...buildStatsActionConfig(config), ...combined }),
+    [statsActionOverrides]: combined,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -203,41 +271,56 @@ export function buildStatsActionConfig(config: DifflerConfig): StatsActionConfig
 const DEFAULT_CONFIG_PATH = ".github/diffler.yml";
 
 export function loadConfigFromFile(path: string = DEFAULT_CONFIG_PATH): DifflerConfig {
-  loadDotenv();
+  loadDotenv({ quiet: true });
   const raw = readFileSync(path, "utf-8");
-  const parsed = parseYaml(raw);
+  let parsed: unknown;
+  try {
+    parsed = parseYaml(raw);
+  } catch {
+    throw new Error(`Invalid YAML in Diffler config file: ${path}`);
+  }
   const resolved = deepResolveEnv(parsed);
-  return DifflerConfigSchema.parse(resolved);
+  const config = parseConfig(DifflerConfigSchema, resolved);
+  return parseConfig(DifflerConfigSchema, {
+    ...config,
+    github: getProfiles(config.github).length > 0 ? config.github : {
+      ...config.github,
+      username: process.env.DIFFLER_GITHUB_USERNAME || process.env.GITHUB_REPOSITORY_OWNER || null,
+    },
+    assets: config.assets ?? (process.env.DIFFLER_ASSET_BASE_URL
+      ? { baseUrl: process.env.DIFFLER_ASSET_BASE_URL }
+      : undefined),
+  });
 }
 
 export function loadConfigFromEnv(): DifflerConfig {
-  loadDotenv();
-  const config: DifflerConfig = DifflerConfigSchema.parse({});
-
-  const envUsername = process.env.DIFFLER_GITHUB_USERNAME;
-  const envToken = process.env.GITHUB_TOKEN;
-  const envMain = process.env.DIFFLER_TEMPLATE_MAIN;
-
-  if (envUsername) {
-    config.github.username = envUsername;
-  }
-  if (envToken) {
-    config.github.token = envToken;
-  }
-  if (envMain) {
-    config.templates.main = envMain;
-  }
-
-  return config;
+  loadDotenv({ quiet: true });
+  return parseConfig(DifflerConfigSchema, {
+    github: {
+      username: process.env.DIFFLER_GITHUB_USERNAME || process.env.GITHUB_REPOSITORY_OWNER || null,
+      token: process.env.GITHUB_TOKEN || undefined,
+    },
+    templates: {
+      main: process.env.DIFFLER_TEMPLATE_MAIN || undefined,
+      directory: process.env.DIFFLER_TEMPLATE_DIRECTORY || undefined,
+    },
+    assets: process.env.DIFFLER_ASSET_BASE_URL
+      ? { baseUrl: process.env.DIFFLER_ASSET_BASE_URL }
+      : undefined,
+  });
 }
 
 export function loadConfig(path?: string): DifflerConfig {
-  if (path) {
+  if (path !== undefined) {
+    if (!path.trim()) throw new Error("Config file path must not be empty");
     return loadConfigFromFile(path);
   }
   try {
     return loadConfigFromFile(DEFAULT_CONFIG_PATH);
-  } catch {
-    return loadConfigFromEnv();
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return loadConfigFromEnv();
+    }
+    throw error;
   }
 }

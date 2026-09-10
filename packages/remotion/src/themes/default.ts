@@ -1,27 +1,29 @@
 import {Theme} from './types';
 
 export const defaultTheme: Theme = {
-  colors: {
-    background: '#080b12',
-    panel: '#0d1117',
-    panelLight: '#151b23',
-    border: 'rgba(255,255,255,0.12)',
-    text: '#f0f3f6',
-    muted: '#8b949e',
-    faint: '#6e7681',
-    green: '#3fb950',
-    blue: '#58a6ff',
-    yellow: '#f2cc60',
-    pink: '#ff7bcb',
-    red: '#ff7b72',
-    cyan: '#39c5cf',
-    purple: '#bc8cff',
-  },
-  radii: {
-    card: '16px',
-    panel: '12px',
-  },
-  typography: {
-    fontFamily: "'Fira Code', monospace",
-  },
+	colors: {
+		background: '#282a36',
+		panel: '#30323f',
+		panelLight: '#3b3d4d',
+		border: '#494b5a',
+		text: '#f8f8f2',
+		muted: '#b9b8c5',
+		faint: '#9796a6',
+		green: '#b6d7b9',
+		// The five original beam inks; deep blue is a graphic accent, not body text.
+		pink: '#FFB7C5',
+		yellow: '#FFDDB7',
+		purple: '#B1C5FF',
+		cyan: '#4FABFF',
+		blue: '#076EFF',
+		red: '#efb1b1',
+	},
+	radii: {
+		card: '12px',
+		panel: '6px',
+	},
+	typography: {
+		fontFamily:
+			"'Fira Code', ui-monospace, SFMono-Regular, Consolas, monospace",
+	},
 };

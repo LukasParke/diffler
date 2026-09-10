@@ -1,37 +1,63 @@
-import {interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
+import {CSSProperties} from 'react';
+import {useCurrentFrame, useVideoConfig} from 'remotion';
+import {motionProgress, subtleReveal} from '../../utils/animation';
 import {formatInteger} from '../../utils/format';
+import {formatMetricValue, MetricFormat} from '../primitives/formatMetric';
 
 type AnimatedCounterProps = {
-  value: number;
-  duration?: number;
-  startFrame?: number;
-  delay?: number;
+	value: number;
+	duration?: number;
+	startFrame?: number;
+	/** Seconds. The value remains readable while its reveal is delayed. */
+	delay?: number;
+	format?: MetricFormat;
+	/** Opt in to a count-up. By default the true statistic is visible from frame 0. */
+	from?: number;
+	className?: string;
+	style?: CSSProperties;
 };
 
 export const AnimatedCounter = ({
-  value,
-  duration = 2,
-  startFrame = 0,
-  delay = 0,
+	value,
+	duration = 0.65,
+	startFrame = 0,
+	delay = 0,
+	format = 'auto',
+	from,
+	className,
+	style,
 }: AnimatedCounterProps) => {
-  const frame = useCurrentFrame();
-  const {fps} = useVideoConfig();
-  const firstFrame = startFrame + delay * fps;
-  const finalFrame = firstFrame + duration * fps;
-  const emphasis = interpolate(frame, [firstFrame, finalFrame], [0, 1], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-  });
+	const frame = useCurrentFrame();
+	const {fps} = useVideoConfig();
+	const timing = {fps, duration, startFrame, delay};
+	const progress = motionProgress(frame, timing);
+	const currentValue =
+		from === undefined || progress === 1
+			? value
+			: from + (value - from) * (1 - (1 - progress) ** 3);
+	const resolvedFormat =
+		format === 'auto' &&
+		formatMetricValue(value) !== formatMetricValue(value, 'integer')
+			? 'compact'
+			: format;
+	const exactValue = Number.isFinite(value)
+		? formatInteger(Math.round(value))
+		: 'Unavailable';
 
-  return (
-    <span
-      style={{
-        display: 'inline-block',
-        opacity: 0.78 + emphasis * 0.22,
-        transform: `scale(${0.97 + emphasis * 0.03})`,
-      }}
-    >
-      {formatInteger(value)}
-    </span>
-  );
+	return (
+		<span
+			className={className}
+			aria-label={exactValue}
+			title={exactValue}
+			style={{
+				display: 'inline-block',
+				whiteSpace: 'nowrap',
+				fontVariantNumeric: 'tabular-nums',
+				...subtleReveal(frame, timing),
+				...style,
+			}}
+		>
+			{formatMetricValue(currentValue, resolvedFormat)}
+		</span>
+	);
 };

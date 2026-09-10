@@ -1,33 +1,52 @@
-interface Repo {
-  name: string;
-  full_name: string;
-  description: string | null;
-  url: string;
-  stars: number;
-  forks: number;
-  language: string | null;
-  language_color: string | null;
-  is_fork: boolean;
-  is_archived: boolean;
+function stringValue(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
 }
 
-function normalize(repo: Record<string, unknown>): Repo {
+function numberValue(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function primaryLanguage(repo: Record<string, unknown>): string | null {
+  if (repo.primaryLanguage === null) return null;
+  return stringValue(repo.primaryLanguage) ?? stringValue(repo.primary_language) ??
+    stringValue(repo.language) ?? null;
+}
+
+function languageColor(repo: Record<string, unknown>, language: string | null): string | null {
+  if (Array.isArray(repo.languages)) {
+    const languages: unknown[] = repo.languages;
+    const match = languages.find((entry) => isRecord(entry) && entry.languageName === language);
+    if (isRecord(match)) return stringValue(match.color) ?? null;
+  }
+  return stringValue(repo.primary_language_color) ?? stringValue(repo.language_color) ?? null;
+}
+
+function stars(repo: Record<string, unknown>): number {
+  return numberValue(repo.stars) ?? numberValue(repo.stargazers_count) ?? 0;
+}
+
+function normalize(repo: Record<string, unknown>) {
+  const language = primaryLanguage(repo);
   return {
-    name: (repo.name as string) || "",
-    full_name: (repo.full_name as string) || "",
-    description: (repo.description as string) || null,
-    url: (repo.url as string) || "",
-    stars: (repo.stars as number) || 0,
-    forks: (repo.forks as number) || 0,
-    language: (repo.primary_language as string) || null,
-    language_color: (repo.primary_language_color as string) || null,
-    is_fork: (repo.is_fork as boolean) || false,
-    is_archived: (repo.is_archived as boolean) || false,
+    name: stringValue(repo.name) ?? "",
+    full_name: stringValue(repo.nameWithOwner) ?? stringValue(repo.full_name) ?? "",
+    description: stringValue(repo.description) ?? null,
+    url: stringValue(repo.url) ?? stringValue(repo.html_url) ?? "",
+    stars: stars(repo),
+    forks: numberValue(repo.forks) ?? numberValue(repo.forks_count) ?? 0,
+    language,
+    language_color: languageColor(repo, language),
+    is_fork: typeof repo.isFork === "boolean" ? repo.isFork : repo.is_fork === true,
+    is_archived: typeof repo.isArchived === "boolean" ? repo.isArchived : repo.is_archived === true,
   };
 }
 
 export function filterRepos(
-  repos: Array<Record<string, unknown>>,
+  repos: ReadonlyArray<Record<string, unknown>>,
   options: {
     language?: string;
     min_stars?: number;
@@ -39,47 +58,37 @@ export function filterRepos(
     sort_desc?: boolean;
     limit?: number;
   } = {}
-): Array<Record<string, unknown>> {
-  const normalized = repos.map(normalize);
-  let result = [...normalized];
+): Array<ReturnType<typeof normalize>> {
+  let result = repos.map(normalize);
 
-  if (options.exclude_forks) {
-    result = result.filter((r) => !r.is_fork);
-  }
-  if (options.exclude_archived) {
-    result = result.filter((r) => !r.is_archived);
-  }
+  if (options.exclude_forks) result = result.filter((repo) => !repo.is_fork);
+  if (options.exclude_archived) result = result.filter((repo) => !repo.is_archived);
   if (options.language) {
-    const lang = options.language.toLowerCase();
-    result = result.filter((r) => r.language && r.language.toLowerCase() === lang);
+    const language = options.language.toLowerCase();
+    result = result.filter((repo) => repo.language?.toLowerCase() === language);
   }
-  if (options.min_stars !== undefined) {
-    result = result.filter((r) => r.stars >= options.min_stars!);
-  }
-  if (options.max_stars !== undefined) {
-    result = result.filter((r) => r.stars <= options.max_stars!);
-  }
+  const minStars = options.min_stars;
+  const maxStars = options.max_stars;
+  if (minStars !== undefined) result = result.filter((repo) => repo.stars >= minStars);
+  if (maxStars !== undefined) result = result.filter((repo) => repo.stars <= maxStars);
   if (options.search) {
     const term = options.search.toLowerCase();
-    result = result.filter(
-      (r) =>
-        r.name.toLowerCase().includes(term) ||
-        (r.description || "").toLowerCase().includes(term) ||
-        r.full_name.toLowerCase().includes(term)
+    result = result.filter((repo) =>
+      repo.name.toLowerCase().includes(term) ||
+      (repo.description ?? "").toLowerCase().includes(term) ||
+      repo.full_name.toLowerCase().includes(term)
     );
   }
 
-  const sortBy = options.sort_by || "stars";
   const sortDesc = options.sort_desc !== false;
-
-  const sortKey = (r: Repo): string | number => {
-    if (sortBy === "stars") return r.stars;
-    if (sortBy === "forks") return r.forks;
-    if (sortBy === "name") return r.name.toLowerCase();
-    if (sortBy === "language") return (r.language || "").toLowerCase();
-    return r.stars;
+  const sortKey = (repo: ReturnType<typeof normalize>): string | number => {
+    switch (options.sort_by) {
+      case "forks": return repo.forks;
+      case "name": return repo.name.toLowerCase();
+      case "language": return (repo.language ?? "").toLowerCase();
+      default: return repo.stars;
+    }
   };
-
   result.sort((a, b) => {
     const av = sortKey(a);
     const bv = sortKey(b);
@@ -88,38 +97,44 @@ export function filterRepos(
     return 0;
   });
 
-  if (options.limit !== undefined) {
-    result = result.slice(0, options.limit);
-  }
-
-  return result as unknown as Array<Record<string, unknown>>;
+  return options.limit === undefined ? result : result.slice(0, options.limit);
 }
 
-export function reposByLanguage(
-  repos: Array<Record<string, unknown>>
-): Record<string, Array<Record<string, unknown>>> {
-  const groups: Record<string, Array<Record<string, unknown>>> = {};
+export function reposByLanguage<T extends Record<string, unknown>>(
+  repos: readonly T[]
+): Record<string, T[]> {
+  const groups = new Map<string, T[]>();
   for (const repo of repos) {
-    const lang = (repo.primary_language as string) || "Unknown";
-    groups[lang] = groups[lang] || [];
-    groups[lang].push(repo);
+    const language = primaryLanguage(repo) || "Unknown";
+    const group = groups.get(language) ?? [];
+    group.push(repo);
+    groups.set(language, group);
   }
-  for (const lang of Object.keys(groups)) {
-    groups[lang].sort((a, b) => ((b.stars as number) || 0) - ((a.stars as number) || 0));
-  }
-  return Object.fromEntries(Object.entries(groups).sort(([a], [b]) => a.localeCompare(b)));
+  for (const group of groups.values()) group.sort((a, b) => stars(b) - stars(a));
+  return Object.fromEntries([...groups].sort(([a], [b]) => a.localeCompare(b)));
 }
 
-export function languageBreakdown(repos: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
-  const stats: Record<string, { language: string; count: number; total_stars: number; color: string | null }> = {};
+export function languageBreakdown(repos: ReadonlyArray<Record<string, unknown>>) {
+  const stats = new Map<string, {
+    language: string;
+    count: number;
+    total_stars: number;
+    color: string | null;
+  }>();
   for (const repo of repos) {
-    const lang = (repo.primary_language as string) || "Unknown";
-    const color = (repo.primary_language_color as string) || null;
-    if (!stats[lang]) {
-      stats[lang] = { language: lang, count: 0, total_stars: 0, color };
-    }
-    stats[lang].count += 1;
-    stats[lang].total_stars += (repo.stars as number) || 0;
+    const language = primaryLanguage(repo) || "Unknown";
+    const summary = stats.get(language) ?? {
+      language,
+      count: 0,
+      total_stars: 0,
+      color: languageColor(repo, language),
+    };
+    summary.count += 1;
+    summary.total_stars += stars(repo);
+    summary.color ??= languageColor(repo, language);
+    stats.set(language, summary);
   }
-  return Object.values(stats).sort((a, b) => b.total_stars - a.total_stars);
+  return [...stats.values()].sort((a, b) =>
+    b.total_stars - a.total_stars || a.language.localeCompare(b.language)
+  );
 }

@@ -115,6 +115,7 @@ export type CachedContributionYear = {
   to: string;
   fetchedAt: number;
   immutable: boolean;
+  enrichmentComplete?: boolean;
   data: ContributionsCollection;
   repositoryContributions: RepositoryContributionSummary[];
   repositories: RepositoryRecord[];
@@ -131,6 +132,7 @@ export type CachedTraffic = TrafficSummary;
 
 export type StableCache = {
   schemaVersion: typeof CACHE_SCHEMA_VERSION;
+  ownerLogin?: string;
   updatedAt: number;
   contributionYears: Record<string, CachedContributionYear>;
   repositories: Record<string, CachedRepository>;
@@ -151,6 +153,7 @@ export type CachedEtag = {
 
 export type VolatileCache = {
   schemaVersion: typeof CACHE_SCHEMA_VERSION;
+  ownerLogin?: string;
   updatedAt: number;
   restEtags: Record<string, CachedEtag>;
 };
@@ -240,7 +243,16 @@ export type ContributionRepositoryEnrichment = Pick<
 
 export type RepositoryDiscovery = Pick<
   RawGraphQLRepository,
-  "id" | "name" | "nameWithOwner" | "owner" | "updatedAt" | "pushedAt" | "defaultBranchRef"
+  | "id"
+  | "name"
+  | "nameWithOwner"
+  | "owner"
+  | "isPrivate"
+  | "visibility"
+  | "viewerPermission"
+  | "updatedAt"
+  | "pushedAt"
+  | "defaultBranchRef"
 >;
 
 export type RepositoryDiscoveryConnection = {

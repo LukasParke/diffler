@@ -1,38 +1,70 @@
-import {Easing, interpolate, useCurrentFrame} from 'remotion';
+import {CSSProperties} from 'react';
+import {useCurrentFrame, useVideoConfig} from 'remotion';
+import {useTheme} from '../../themes';
+import {subtleReveal} from '../../utils/animation';
 
 export function ProgressBar({
-  value,
-  max,
-  color = '#3fb950',
-  delay = 0,
-  height = 8,
+	value,
+	max,
+	color,
+	delay = 0,
+	delaySeconds,
+	duration = 0.65,
+	height = 4,
+	label = 'Proportion',
+	style,
 }: {
-  value: number;
-  max: number;
-  color?: string;
-  delay?: number;
-  height?: number;
+	value: number;
+	max: number;
+	color?: string;
+	/** Legacy delay in frames. Prefer delaySeconds in new compositions. */
+	delay?: number;
+	delaySeconds?: number;
+	duration?: number;
+	height?: number;
+	label?: string;
+	style?: CSSProperties;
 }) {
-  const frame = useCurrentFrame();
-  const percent = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
-  const emphasis = interpolate(frame, [delay, delay + 42], [0, 1], {
-      easing: Easing.bezier(0.22, 1, 0.36, 1),
-      extrapolateLeft: 'clamp',
-      extrapolateRight: 'clamp',
-  });
+	const frame = useCurrentFrame();
+	const {fps} = useVideoConfig();
+	const theme = useTheme();
+	const percent =
+		Number.isFinite(value) && Number.isFinite(max) && max > 0
+			? Math.min(100, Math.max(0, (value / max) * 100))
+			: 0;
+	const {opacity} = subtleReveal(frame, {
+		fps,
+		duration,
+		delay: delaySeconds ?? 0,
+		startFrame: delaySeconds === undefined ? delay : 0,
+	});
 
-  return (
-    <div className="overflow-hidden rounded-full bg-white/10" style={{height}}>
-      <div
-        className="h-full rounded-full"
-        style={{
-          width: `${percent}%`,
-          background: `linear-gradient(90deg, ${color}, rgba(255,255,255,0.78))`,
-          boxShadow: `0 0 18px ${color}66`,
-          opacity: 0.7 + emphasis * 0.3,
-          transform: `scaleY(${0.72 + emphasis * 0.28})`,
-        }}
-      />
-    </div>
-  );
+	return (
+		<div
+			role="meter"
+			aria-label={label}
+			aria-valuemin={0}
+			aria-valuemax={100}
+			aria-valuenow={percent}
+			style={{
+				height,
+				minWidth: 0,
+				width: '100%',
+				overflow: 'hidden',
+				borderRadius: theme.radii.panel,
+				backgroundColor: theme.colors.panelLight,
+				...style,
+			}}
+		>
+			<div
+				style={{
+					height: '100%',
+					width: `${percent}%`,
+					opacity,
+					borderRadius: theme.radii.panel,
+					backgroundColor: color ?? theme.colors.purple,
+				}}
+			/>
+		</div>
+	);
 }

@@ -1,9 +1,5 @@
-export interface RenderConfig {
-  compositionIds: string[];
-  entryPoint: string;
-  formats: Array<'gif' | 'webp'>;
-  outputDir: string;
-  props: Record<string, unknown>;
-  concurrency?: number;
-  remotionConcurrency?: number;
-}
+import type {z} from 'zod';
+import type {renderConfigSchema} from './validation';
+
+export type RenderConfig = z.input<typeof renderConfigSchema>;
+export type RenderFormat = RenderConfig['formats'][number];

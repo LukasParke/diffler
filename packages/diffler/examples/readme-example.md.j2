@@ -1,31 +1,22 @@
-{# Example template for the README — rendered live with real data. #}
-<div align="center">
+{# Rendered by scripts/update-readme-example.js with configured identity and asset URLs. #}
+# {{ github.user.name or github.user.login }}
 
-# {{ profile.name }}
+{% if github.user.bio %}{{ github.user.bio }}
 
-*{{ profile.bio }}*
+{% endif %}![Generated GitHub profile summary for {{ github.user.login }}]({{ profile_asset("readme", config.assets) }})
 
-</div>
+{% if stats.collectionStatus.coreComplete %}| Collected metric | Value |
+| --- | ---: |
+| Contributions | {{ stats.profileContributions.totalContributions }} |
+| Current streak | {{ stats.profileContributions.stats.currentStreak }} days |
+| Public repositories | {{ stats.repoMetrics.repoStats.publicRepos }} |
+| Stars received | {{ stats.repoMetrics.starCount }} |
 
-## 📊 Stats
+Snapshot: {{ stats.generatedAt }}.{% if not stats.collectionStatus.complete %} Some data is incomplete.{% endif %}
+{% else %}A complete activity snapshot is not available yet. The summary card will appear after assets are rendered and published.
+{% endif %}
+{% if stats.repoMetrics.topLanguages %}### Repository languages
 
-| Metric | Value |
-|--------|-------|
-| Contributions | {{ contributions.totalContributions }} |
-| Current Streak | {{ contributions.currentStreak }} days |
-| Repositories | {{ repositories | length }} |
-| Stars Earned | {{ stats.repoMetrics.starCount }} |
-| PRs | {{ activity.totalPullRequests }} |
-| Issues Closed | {{ activity.closedIssues }} |
-
-## 🏆 Top Languages
-
-{% for lang in stats.repoMetrics.topLanguages[:5] -%}
-- **{{ lang.languageName }}** — {{ lang.percentage }}%
-{% endfor %}
-
-## 🎯 Highlights
-
-{% for h in stats.presentation.highlights[:3] -%}
-- {{ h.label }}: {{ h.value }}
-{% endfor %}
+{% for language in stats.repoMetrics.topLanguages.slice(0, 5) %}- {{ language.languageName }} — {{ language.percentage }}% of measured code bytes
+{% endfor %}{% endif %}
+[View {{ github.user.login }} on GitHub](https://github.com/{{ github.user.login }})

@@ -1,105 +1,105 @@
-export function remotionInput(stats: Record<string, unknown>): Record<string, unknown> {
-  const profile = (stats.profile as Record<string, unknown>) || {};
-  const contributions = (stats.profileContributions as Record<string, unknown>) || {};
-  const calendar = (contributions.contributionCalendar as Record<string, unknown>) || {};
-  const statsBlock = (contributions.stats as Record<string, unknown>) || {};
-  const repoMetrics = (stats.repoMetrics as Record<string, unknown>) || {};
-  const repoStats = (repoMetrics.repoStats as Record<string, unknown>) || {};
+import {
+  githubStatsInputSchema,
+  hasPrivateRepositoryDetails,
+  isCardId,
+  presentationSchema,
+  sourcePropsSchema,
+  type CardId,
+  type GitHubStatsInput,
+  type PresentationData,
+  type SourceProps,
+} from "@lukasparke/diffler-schemas";
+import { ProfileAssetsConfigSchema, type ProfileAssetsConfig } from "../config.js";
 
-  return {
-    username: profile.login || stats.username,
-    name: profile.name || stats.name,
-    avatarUrl: profile.avatarUrl || stats.avatarUrl,
-    totalContributions: contributions.totalContributions || 0,
-    currentStreak: statsBlock.currentStreak || 0,
-    longestStreak: statsBlock.longestStreak || 0,
-    publicRepos: repoStats.publicRepos || 0,
-    totalStars: repoMetrics.starCount || 0,
-    totalForks: repoMetrics.forkCount || 0,
-    topLanguages: ((repoMetrics.topLanguages as Array<Record<string, unknown>>) || [])
-      .slice(0, 10)
-      .map((lang) => ({
-        name: lang.languageName,
-        percentage: lang.percentage || 0,
-        color: lang.color,
-      })),
-    calendar: calendar.weeks || [],
-  };
+function parseStats(stats: unknown): GitHubStatsInput {
+  const result = githubStatsInputSchema.safeParse(stats);
+  if (!result.success) {
+    throw new Error("Cannot export Remotion data: expected valid collected GitHub stats");
+  }
+  return result.data;
 }
 
-export function remotionSceneConfig(scene: string, stats: Record<string, unknown>): Record<string, unknown> {
-  const base = remotionInput(stats);
-  const configs: Record<string, Record<string, unknown>> = {
-    readme: { ...base, scene: "readme", duration: 300 },
-    stats: { ...base, scene: "stats", duration: 300, showBreakdown: true },
-    languages: {
-      ...base,
-      scene: "languages",
-      duration: 240,
-      languages: (base.topLanguages as Array<Record<string, unknown>>).slice(0, 6),
-    },
-    "activity-overview": { ...base, scene: "activity-overview", duration: 300, calendar: base.calendar },
-    "commit-streak": {
-      ...base,
-      scene: "commit-streak",
-      duration: 240,
-      currentStreak: base.currentStreak,
-      longestStreak: base.longestStreak,
-    },
+export function remotionInput(
+  stats: unknown,
+  options: Pick<SourceProps, "allowPrivateRepositoryDetails"> = {}
+): SourceProps {
+  const data = parseStats(stats);
+  const input = {
+    username: data.schemaVersion === 2 ? data.profile.login : data.username,
+    stats: data,
+    allowPrivateRepositoryDetails: options.allowPrivateRepositoryDetails ?? false,
   };
-  return configs[scene] || { scene, ...base };
+  if (!sourcePropsSchema.safeParse(input).success) {
+    throw new Error("Invalid Remotion input options: allowPrivateRepositoryDetails must be a boolean");
+  }
+  if (hasPrivateRepositoryDetails(data) && !input.allowPrivateRepositoryDetails) {
+    throw new Error("Private repository details require allowPrivateRepositoryDetails: true");
+  }
+  return input;
+}
+
+export function profileAsset(
+  card = "readme",
+  options: Partial<ProfileAssetsConfig> = {}
+): string {
+  const result = ProfileAssetsConfigSchema.safeParse(options);
+  if (!result.success) {
+    throw new Error("Invalid profile asset settings: use a public asset base URL and webp or gif format");
+  }
+  if (!isCardId(card)) {
+    throw new Error("Invalid profile card name");
+  }
+  const { baseUrl, format } = result.data;
+  return `${baseUrl.replace(/\/+$/, "")}/${card}.${format}`;
+}
+
+// Older stats exports used narrative section names rather than renderer card IDs.
+const legacySceneIds = new Map<string, CardId>([
+  ["intro", "readme"],
+  ["contributions", "activity-overview"],
+  ["repositories", "repo-impact"],
+]);
+
+function sceneCardId(scene: string): CardId {
+  const id = legacySceneIds.get(scene) ?? scene;
+  if (!isCardId(id)) throw new Error("Unknown Remotion card; use a registered card ID");
+  return id;
+}
+
+const sceneMetadataSchema = presentationSchema.shape.remotion.extend({
+  scenes: presentationSchema.shape.remotion.shape.scenes.element.strict().array(),
+}).strict();
+
+/** Compatibility helper for descriptive metadata, not renderer composition props. */
+export function remotionSceneConfig(
+  scene: string,
+  stats: unknown
+): PresentationData["remotion"]["scenes"][number] {
+  const id = sceneCardId(scene);
+  const metadata = remotionSceneManifest(stats).scenes.find((entry) => entry.id === id);
+  if (!metadata) throw new Error("No metadata is available for the requested card");
+  return metadata;
 }
 
 export function remotionSceneManifest(
-  stats: Record<string, unknown>,
+  stats: unknown,
   sceneTemplate?: string
-): Record<string, unknown> {
-  if (sceneTemplate) {
-    // Nunjucks template rendering would happen here
-    // For now, return parsed JSON if valid
+): PresentationData["remotion"] {
+  const data = parseStats(stats);
+  const scenes = data.schemaVersion === 2 ? data.presentation?.remotion?.scenes ?? [] : [];
+  let metadata: PresentationData["remotion"] = { scenes };
+  if (sceneTemplate !== undefined) {
+    let template: unknown;
     try {
-      return JSON.parse(sceneTemplate);
+      template = JSON.parse(sceneTemplate);
     } catch {
-      // fall through
+      throw new Error("Scene metadata must be valid JSON; template rendering is not supported");
     }
+    const result = sceneMetadataSchema.safeParse(template);
+    if (!result.success) {
+      throw new Error("Invalid scene metadata; theme, duration, and renderer config overrides are not supported");
+    }
+    metadata = result.data;
   }
-
-  const repoMetrics = (stats.repoMetrics as Record<string, unknown>) || {};
-  const contributions = (stats.profileContributions as Record<string, unknown>) || {};
-  const activity = (stats.activity as Record<string, unknown>) || {};
-  const computed = (repoMetrics.computedStats as Record<string, unknown>) || {};
-  const streak = ((contributions.stats as Record<string, unknown>)?.currentStreak as number) || 0;
-  const langCount = ((repoMetrics.topLanguages as Array<unknown>) || []).length;
-
-  const scenes: Array<Record<string, unknown>> = [
-    { id: "readme", durationInFrames: 192, enabled: true },
-    { id: "stats", durationInFrames: 192, enabled: true },
-  ];
-
-  if (langCount >= 2) {
-    scenes.push({ id: "languages", durationInFrames: 240, enabled: true });
-    scenes.push({ id: "top-languages", durationInFrames: 240, enabled: true });
-  }
-
-  if (streak >= 3) {
-    scenes.push({ id: "commit-streak", durationInFrames: 240, enabled: true });
-  }
-
-  if ((activity.repositoriesContributedTo as number) > 0) {
-    scenes.push({ id: "repo-impact", durationInFrames: 192, enabled: true });
-  }
-
-  scenes.push({ id: "activity-overview", durationInFrames: 192, enabled: true });
-
-  if ((computed.yearOverYearGrowth as number) > 0) {
-    scenes.push({ id: "code-metrics", durationInFrames: 192, enabled: true });
-  }
-
-  return {
-    scenes,
-    theme: {
-      primaryColor: "#3b82f6",
-      backgroundGradient: ["#0f172a", "#1e293b"],
-    },
-  };
+  return { scenes: metadata.scenes.map((scene) => ({ ...scene, id: sceneCardId(scene.id) })) };
 }

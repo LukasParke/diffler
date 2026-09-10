@@ -1,17 +1,12 @@
-<div align="center">
+# {{ github.user.name or github.user.login }}
 
-# Hello, I'm {{ github.user.login }}! ✨
+{% if github.user.bio %}{{ github.user.bio }}
 
-{{ typing_svg("Welcome to my GitHub profile") }}
+{% endif %}![Generated GitHub profile summary for {{ github.user.login }}]({{ profile_asset("readme", config.assets) }})
 
-{{ github_stats_card(github.user.login) }}
+{% if stats.collectionStatus.coreComplete %}{{ stats.profileContributions.totalContributions }} contributions in collected history · {{ stats.repoMetrics.starCount }} stars received · {{ stats.repoMetrics.repoStats.publicRepos }} public repositories.
 
-</div>
-
-## 🛠️ Tech Stack
-
-{{ skill_icons(["python", "javascript", "docker", "git"]) }}
-
-## 📫 How to reach me
-
-Feel free to connect!
+Snapshot: {{ stats.generatedAt }}.{% if not stats.collectionStatus.complete %} Some data is incomplete.{% endif %}
+{% else %}A complete activity snapshot is not available yet. The summary card will appear after assets are rendered and published.
+{% endif %}
+[View {{ github.user.login }} on GitHub](https://github.com/{{ github.user.login }})

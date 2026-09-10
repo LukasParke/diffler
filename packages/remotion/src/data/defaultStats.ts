@@ -1,15 +1,20 @@
-import {UserStats} from './schemas';
+import type {UserStats} from './schemas';
+import {emptyPackageMetrics} from '@lukasparke/diffler-schemas';
 
-export const defaultStats: UserStats = {
+export const DEMO_STATS_GENERATED_AT = '2026-05-29T00:00:00.000Z';
+export const DEMO_STATS_FETCHED_AT = 1780012800000;
+
+/** Deterministic, illustrative composition data. Never a fetch/validation fallback. */
+export const demoStats: UserStats = {
 	schemaVersion: 2,
-	name: 'Lukas Parke',
-	username: 'unknown',
-	avatarUrl: 'https://github.com/unknown.png',
+	name: 'Demo Profile',
+	username: 'diffler-demo',
+	avatarUrl: '',
 	bio: null,
 	websiteUrl: null,
 	location: null,
-	generatedAt: '2026-05-29T00:00:00.000Z',
-	fetchedAt: 1780012800000,
+	generatedAt: DEMO_STATS_GENERATED_AT,
+	fetchedAt: DEMO_STATS_FETCHED_AT,
 	isComplete: false,
 	summary: {
 		totalContributions: 1931,
@@ -19,9 +24,9 @@ export const defaultStats: UserStats = {
 		forksReceived: 0,
 		activeRepos: 0,
 		totalRepos: 216,
-		languageCount: 55,
-		profileMetricsComplete: true,
-		refreshedAt: '2026-05-29T00:00:00.000Z',
+    languageCount: 55,
+    profileMetricsComplete: false,
+		refreshedAt: DEMO_STATS_GENERATED_AT,
 	},
 	contributions: {
 		totalContributions: 1931,
@@ -72,8 +77,8 @@ export const defaultStats: UserStats = {
 		originalRepos: 216,
 		reposWithStars: 0,
 		repoViews: 349,
-		repoViewUniques: 97,
-		trafficReposCompleted: 1,
+		repoViewUniques: 0,
+		trafficReposCompleted: 0,
 		trafficReposPending: 0,
 		trafficReposFailed: 0,
 		starCount: 497,
@@ -106,24 +111,11 @@ export const defaultStats: UserStats = {
 			percentage: 7.4,
 		},
 	],
-	packages: {
-		packageCount: 0,
-		providers: [],
-		downloads: {
-			lastDay: 0,
-			lastWeek: 0,
-			lastMonth: 0,
-			lastYear: 0,
-			allTime: 0,
-		},
-		packages: [],
-		complete: true,
-		warnings: [],
-	},
-	cards: [],
+  cards: [],
+  packages: emptyPackageMetrics(),
 	highlights: [],
-	privacy: {
-		privateRepositoryMetricsIncluded: false,
+  privacy: {
+    privateRepositoryMetricsIncluded: false,
 		privateRepositoryDetailsIncluded: false,
 		privateCacheDetailsIncluded: false,
 		redactedPrivateRepositories: 0,
@@ -132,11 +124,16 @@ export const defaultStats: UserStats = {
 	},
 	collectionStatus: {
 		complete: false,
-		coreComplete: true,
+		coreComplete: false,
 		backfillPending: 144,
 		backfillCompletedThisRun: 0,
 		backfillFailedThisRun: 0,
-		warnings: [],
+		warnings: [
+			'Deterministic demo fixture; not collected GitHub data.',
+			'Traffic metrics have no completed repository coverage.',
+			'Contribution calendar does not cover the reported total.',
+			'Language data does not cover the reported totals.',
+		],
 		errors: [],
 	},
 	repoViews: 349,
@@ -154,3 +151,6 @@ export const defaultStats: UserStats = {
 	totalContributions: 1931,
 	codeByteTotal: 322_400_000,
 };
+
+/** Backward-compatible name for the explicit demo fixture. */
+export const defaultStats = demoStats;

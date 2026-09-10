@@ -8,7 +8,7 @@ await build({
   entryPoints: ["src/cli.ts"],
   bundle: true,
   platform: "node",
-  target: "node20",
+  target: "node24",
   format: "esm",
   outfile: "dist-action/index.js",
   // CJS dependencies (commander, nunjucks) call require() for node builtins;

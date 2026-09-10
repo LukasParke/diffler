@@ -3,96 +3,91 @@ import {
 	Code2,
 	GitCommitHorizontal,
 	GitPullRequest,
-	Sparkles,
-	Telescope,
+	Star,
+	Eye,
 } from 'lucide-react';
 import {UserStats} from '../data';
-import {MetricTile, Panel} from '../components/primitives';
-import {defaultTheme} from '../themes/default';
-import {formatCompactNumber} from '../utils/format';
+import {
+	CollectionNote,
+	formatMetricValue,
+	getOptionalMetricCoverage,
+	MetricRow,
+	Panel,
+} from '../components/primitives';
+import {useTheme} from '../themes';
 
 export function StatsCard({userStats}: {userStats: UserStats}) {
+	const theme = useTheme();
+	const traffic = getOptionalMetricCoverage(userStats, 'traffic');
 	const rows = [
 		{
-			icon: <Sparkles size={16} />,
+			icon: <Star size={15} strokeWidth={1.5} />,
 			label: 'Stars received',
-			value: userStats.summary.profileMetricsComplete
-				? userStats.summary.starsReceived
-				: 'Unavailable',
-			detail: userStats.summary.profileMetricsComplete
-				? `${formatCompactNumber(userStats.summary.forksReceived)} forks`
-				: 'Collection incomplete',
-			accent: defaultTheme.colors.yellow,
+			value: userStats.summary.starsReceived,
+			detail: `${formatMetricValue(userStats.summary.forksReceived)} forks`,
+			accent: theme.colors.yellow,
 		},
 		{
-			icon: <GitCommitHorizontal size={16} />,
+			icon: <GitCommitHorizontal size={15} strokeWidth={1.5} />,
 			label: 'Profile commits',
 			value: userStats.contributions.totalCommits,
-			detail: `${formatCompactNumber(userStats.contributions.totalContributions)} contributions`,
-			accent: defaultTheme.colors.green,
+			detail: `${formatMetricValue(userStats.contributions.totalContributions)} contributions`,
+			accent: theme.colors.pink,
 		},
 		{
-			icon: <GitPullRequest size={16} />,
+			icon: <GitPullRequest size={15} strokeWidth={1.5} />,
 			label: 'Pull requests',
 			value: userStats.community.totalPullRequests,
-			detail: `${formatCompactNumber(userStats.community.totalPullRequestReviews)} reviews`,
-			accent: defaultTheme.colors.purple,
+			detail: `${formatMetricValue(userStats.community.totalPullRequestReviews)} reviews`,
+			accent: theme.colors.purple,
 		},
 		{
-			icon: <BookOpen size={16} />,
+			icon: <BookOpen size={15} strokeWidth={1.5} />,
 			label: 'Public repositories',
-			value: userStats.summary.profileMetricsComplete
-				? userStats.repositories.publicRepos ||
-					userStats.repositories.totalRepos
-				: 'Unavailable',
-			detail: userStats.summary.profileMetricsComplete
-				? `${formatCompactNumber(userStats.repositories.activeRepos)} active`
-				: 'Collection incomplete',
-			accent: defaultTheme.colors.blue,
+			value: userStats.repositories.publicRepos,
+			detail: `${formatMetricValue(userStats.repositories.activeRepos)} active repositories`,
+			accent: theme.colors.purple,
 		},
 		{
-			icon: <Code2 size={16} />,
+			icon: <Code2 size={15} strokeWidth={1.5} />,
 			label: 'Languages',
-			value: userStats.summary.profileMetricsComplete
-				? userStats.summary.languageCount
-				: 'Unavailable',
-			detail: userStats.summary.profileMetricsComplete
-				? userStats.topLanguages[0]?.languageName || 'detected'
-				: 'Collection incomplete',
-			accent: defaultTheme.colors.red,
+			value: userStats.summary.languageCount,
+			detail: userStats.topLanguages[0]?.languageName ?? 'No language data',
+			accent: theme.colors.cyan,
 		},
 		{
-			icon: <Telescope size={16} />,
-			label: 'Repo views',
-			value: userStats.repositories.repoViews ?? 'Unavailable',
-			detail:
-				userStats.repositories.repoViews === null
-					? 'Collection pending'
-					: '14 day traffic',
-			accent: defaultTheme.colors.cyan,
+			icon: <Eye size={15} strokeWidth={1.5} />,
+			label: 'Repository views',
+			value: traffic.available ? userStats.repositories.repoViews : '—',
+			detail: `14 days · ${traffic.label.toLowerCase()}`,
+			accent: theme.colors.pink,
 		},
 	];
 
 	return (
 		<Panel
-			title="GitHub Stats"
-			subtitle={
-				userStats.isComplete
-					? 'Current collection'
-					: 'Core complete, optional backfill pending'
-			}
-			accent={defaultTheme.colors.blue}
+			compact
+			title="GitHub stats"
+			subtitle={`@${userStats.username}`}
+			accent={theme.colors.purple}
+			footer={<CollectionNote userStats={userStats} />}
 		>
-			<div className="grid h-[268px] grid-cols-2 gap-2">
+			<div
+				style={{
+					display: 'flex',
+					flexDirection: 'column',
+					justifyContent: 'space-between',
+					flex: 1,
+					minHeight: 0,
+				}}
+			>
 				{rows.map((row, index) => (
-					<MetricTile
+					<MetricRow
 						key={row.label}
-						icon={row.icon}
-						label={row.label}
-						value={row.value}
-						detail={row.detail}
-						delay={index * 0.08}
-						accent={row.accent}
+						{...row}
+						delay={index * 0.055}
+						separator={index !== rows.length - 1}
+						style={{padding: '2px 0'}}
 					/>
 				))}
 			</div>
