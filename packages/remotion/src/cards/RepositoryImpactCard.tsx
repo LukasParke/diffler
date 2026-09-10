@@ -1,125 +1,110 @@
 import {UserStats} from '../data';
-import {MetricTile, Panel, ProgressBar} from '../components/primitives';
-import {defaultTheme} from '../themes/default';
-import {GitFork, ShieldCheck, Sparkles, Telescope} from 'lucide-react';
+import {
+	formatMetricValue,
+	getOptionalMetricCoverage,
+	MetricTile,
+	Panel,
+	ProgressBar,
+} from '../components/primitives';
+import {useTheme} from '../themes';
 
 export function RepositoryImpactCard({userStats}: {userStats: UserStats}) {
+	const theme = useTheme();
 	const repos = userStats.repositories;
-	if (!userStats.summary.profileMetricsComplete) {
-		return (
-			<Panel
-				title="Repository Impact"
-				subtitle="Profile repository collection incomplete"
-				accent={defaultTheme.colors.green}
-			>
-				<div className="flex h-[188px] items-center justify-center rounded-lg border border-dashed border-white/10 bg-white/[0.025] text-sm text-[#9ba7b4]">
-					Repository impact metrics are not available yet
-				</div>
-			</Panel>
-		);
-	}
-
-	const publicRepos =
-		repos.publicRepos || repos.totalRepos - repos.privateRepos;
-	const originalRepos =
-		repos.originalRepos || repos.totalRepos - repos.forkedRepos;
-	const privacyDetail =
-		repos.privateRepos > 0
-			? `${repos.privateRepos} private repos aggregate-only`
-			: 'Public repositories only';
+	const traffic = getOptionalMetricCoverage(userStats, 'traffic');
+	const privacyDetail = userStats.privacy.privateRepositoryDetailsIncluded
+		? 'Includes private repository details'
+		: userStats.privacy.redactedPrivateRepositories > 0
+			? `${formatMetricValue(userStats.privacy.redactedPrivateRepositories)} private repositories redacted`
+			: repos.privateRepos > 0
+				? `${formatMetricValue(repos.privateRepos)} private repositories · totals only`
+				: 'Public repository totals';
+	const ratios = [
+		{label: 'Public', value: repos.publicRepos, color: theme.colors.purple},
+		{label: 'Original', value: repos.originalRepos, color: theme.colors.cyan},
+		{label: 'Active', value: repos.activeRepos, color: theme.colors.pink},
+	];
 
 	return (
 		<Panel
-			title="Repository Impact"
-			subtitle={privacyDetail}
-			accent={defaultTheme.colors.green}
+			compact
+			title="Repository impact"
+			subtitle={`${formatMetricValue(repos.totalRepos)} repositories${userStats.collectionStatus.coreComplete ? '' : ' · partial collection'}`}
+			accent={theme.colors.yellow}
+			footer={privacyDetail}
 		>
-			<div className="grid h-[188px] grid-cols-[1.1fr_0.9fr] gap-3">
-				<div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.035] p-3">
-					<div>
-						<div className="mb-1 flex justify-between gap-2 text-xs">
-							<span className="truncate text-[#b7c0cc]">
-								Public repositories
-							</span>
-							<span className="shrink-0 tabular-nums">
-								{publicRepos}/{repos.totalRepos}
-							</span>
-						</div>
+			<div
+				style={{
+					display: 'grid',
+					gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+					gap: 20,
+				}}
+			>
+				<MetricTile
+					label="Stars"
+					value={repos.starCount}
+					accent={theme.colors.yellow}
+				/>
+				<MetricTile
+					label="Forks"
+					value={repos.forkCount}
+					accent={theme.colors.purple}
+					delay={0.06}
+				/>
+				<MetricTile
+					label="Views / 14 days"
+					value={traffic.available ? repos.repoViews : '—'}
+					detail={traffic.label}
+					accent={theme.colors.pink}
+					delay={0.12}
+				/>
+			</div>
+			<div
+				style={{
+					display: 'flex',
+					flexDirection: 'column',
+					justifyContent: 'space-between',
+					flex: 1,
+					minHeight: 0,
+					borderTop: `1px solid ${theme.colors.border}`,
+					marginTop: 14,
+					paddingTop: 9,
+					gap: 5,
+				}}
+			>
+				{ratios.map((ratio, index) => (
+					<div
+						key={ratio.label}
+						style={{
+							display: 'grid',
+							gridTemplateColumns: '100px minmax(0, 1fr) 100px',
+							gap: 12,
+							alignItems: 'center',
+							fontSize: 11,
+						}}
+					>
+						<span style={{color: theme.colors.muted}}>{ratio.label}</span>
 						<ProgressBar
-							value={publicRepos}
-							max={Math.max(1, repos.totalRepos)}
-							color={defaultTheme.colors.green}
-							height={8}
+							value={ratio.value}
+							max={repos.totalRepos}
+							color={ratio.color}
+							height={3}
+							delaySeconds={index * 0.05}
+							label={`${ratio.label} repositories`}
 						/>
+						<span
+							title={`${formatMetricValue(ratio.value, 'integer')} of ${formatMetricValue(repos.totalRepos, 'integer')} repositories`}
+							style={{
+								textAlign: 'right',
+								whiteSpace: 'nowrap',
+								fontVariantNumeric: 'tabular-nums',
+							}}
+						>
+							{formatMetricValue(ratio.value, 'compact')} /{' '}
+							{formatMetricValue(repos.totalRepos, 'compact')}
+						</span>
 					</div>
-					<div>
-						<div className="mb-1 flex justify-between gap-2 text-xs">
-							<span className="truncate text-[#b7c0cc]">
-								Original repositories
-							</span>
-							<span className="shrink-0 tabular-nums">
-								{originalRepos}/{repos.totalRepos}
-							</span>
-						</div>
-						<ProgressBar
-							value={originalRepos}
-							max={Math.max(1, repos.totalRepos)}
-							color={defaultTheme.colors.blue}
-							delay={8}
-							height={8}
-						/>
-					</div>
-					<div>
-						<div className="mb-1 flex justify-between gap-2 text-xs">
-							<span className="truncate text-[#b7c0cc]">
-								Active repositories
-							</span>
-							<span className="shrink-0 tabular-nums">{repos.activeRepos}</span>
-						</div>
-						<ProgressBar
-							value={repos.activeRepos}
-							max={Math.max(1, repos.totalRepos)}
-							color={defaultTheme.colors.yellow}
-							delay={16}
-							height={8}
-						/>
-					</div>
-				</div>
-				<div className="grid grid-cols-2 gap-2">
-					<MetricTile
-						icon={<Sparkles size={14} />}
-						label="Stars"
-						value={repos.starCount}
-						accent={defaultTheme.colors.yellow}
-					/>
-					<MetricTile
-						icon={<GitFork size={14} />}
-						label="Forks"
-						value={repos.forkCount}
-						delay={0.08}
-						accent={defaultTheme.colors.green}
-					/>
-					<MetricTile
-						icon={<Telescope size={14} />}
-						label="Views"
-						value={repos.repoViews ?? 'Unavailable'}
-						detail={
-							repos.repoViewUniques === null
-								? 'Collection pending'
-								: `${repos.repoViewUniques} unique`
-						}
-						delay={0.16}
-						accent={defaultTheme.colors.cyan}
-					/>
-					<MetricTile
-						icon={<ShieldCheck size={14} />}
-						label="Private"
-						value={userStats.privacy.redactedPrivateRepositories}
-						detail="redacted"
-						delay={0.24}
-						accent={defaultTheme.colors.purple}
-					/>
-				</div>
+				))}
 			</div>
 		</Panel>
 	);

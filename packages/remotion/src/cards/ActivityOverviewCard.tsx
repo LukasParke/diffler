@@ -1,71 +1,60 @@
 import {UserStats} from '../data';
-import {formatCompactNumber} from '../utils/format';
-import {MetricTile, Panel, ProgressBar} from '../components/primitives';
-import {defaultTheme} from '../themes/default';
+import {
+	CollectionNote,
+	ContributionTimeline,
+	formatMetricValue,
+	MetricTile,
+	Panel,
+} from '../components/primitives';
+import {useTheme} from '../themes';
 
 export function ActivityOverviewCard({userStats}: {userStats: UserStats}) {
+	const theme = useTheme();
 	const timeline = userStats.contributions.timeline.slice(-6);
-	const maxContributions = Math.max(
-		1,
-		...timeline.map((item) => item.contributions),
-	);
 	const peakDay = userStats.contributions.peakDay;
 
 	return (
 		<Panel
-			title="Activity Overview"
-			subtitle={`${formatCompactNumber(userStats.contributions.totalContributions)} total contributions`}
-			accent={defaultTheme.colors.green}
+			title="Activity overview"
+			subtitle={`${formatMetricValue(userStats.contributions.totalContributions)} recorded contributions`}
+			accent={theme.colors.purple}
+			footer={<CollectionNote userStats={userStats} />}
 		>
-			<div className="grid h-[278px] grid-cols-[1fr_170px] gap-3">
-				<div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.035] p-3">
-					{timeline.length === 0 ? (
-						<div className="flex h-full items-center justify-center text-center text-sm text-[#9ba7b4]">
-							No contribution timeline available
-						</div>
-					) : (
-						timeline.map((item, index) => (
-						<div
-							key={item.period}
-							className="grid grid-cols-[48px_1fr_56px] items-center gap-2"
-						>
-							<p className="text-xs text-[#9ba7b4]">{item.period}</p>
-							<ProgressBar
-								value={item.contributions}
-								max={maxContributions}
-								color={defaultTheme.colors.green}
-								delay={index * 4}
-								height={8}
-							/>
-							<p className="text-right text-xs font-semibold">
-								{formatCompactNumber(item.contributions)}
-							</p>
-						</div>
-						))
-					)}
-				</div>
-				<div className="grid gap-2">
-					<MetricTile
-						label="Current streak"
-						value={userStats.contributions.currentStreak}
-						detail="days"
-						accent={defaultTheme.colors.green}
-					/>
-					<MetricTile
-						label="Longest streak"
-						value={userStats.contributions.longestStreak}
-						detail="days"
-						delay={0.1}
-						accent={defaultTheme.colors.yellow}
-					/>
-					<MetricTile
-						label="Peak day"
-						value={peakDay ? peakDay.contributions : 0}
-						detail={peakDay?.date}
-						delay={0.2}
-						accent={defaultTheme.colors.blue}
-					/>
-				</div>
+			<div
+				style={{flex: 1, minHeight: 100, display: 'flex', alignItems: 'center'}}
+			>
+				<ContributionTimeline points={timeline} />
+			</div>
+			<div
+				style={{
+					display: 'grid',
+					gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+					gap: 18,
+					marginTop: 16,
+					paddingTop: 16,
+					borderTop: `1px solid ${theme.colors.border}`,
+				}}
+			>
+				<MetricTile
+					label="Current streak"
+					value={userStats.contributions.currentStreak}
+					detail="days"
+					accent={theme.colors.pink}
+				/>
+				<MetricTile
+					label="Longest streak"
+					value={userStats.contributions.longestStreak}
+					detail="days"
+					delay={0.06}
+					accent={theme.colors.yellow}
+				/>
+				<MetricTile
+					label="Peak day"
+					value={peakDay?.contributions ?? '—'}
+					detail={peakDay?.date ?? 'Not collected'}
+					delay={0.12}
+					accent={theme.colors.purple}
+				/>
 			</div>
 		</Panel>
 	);

@@ -1,81 +1,86 @@
 import {UserStats} from '../data';
-import {formatBytes, formatCompactNumber} from '../utils/format';
 import {
+	BigMetric,
+	formatCodeSize,
+	formatMetricValue,
+	getOptionalMetricCoverage,
 	MetricRow,
-	MetricTile,
 	Panel,
 	ProgressBar,
 } from '../components/primitives';
-import {defaultTheme} from '../themes/default';
-import {Database, Diff, FileCode2} from 'lucide-react';
+import {useTheme} from '../themes';
 
 export function CodeMetricsCard({userStats}: {userStats: UserStats}) {
-	const completed = userStats.code.contributorReposCompleted;
-	const pending = userStats.code.contributorReposPending;
-	const failed = userStats.code.contributorReposFailed;
-	const totalQueued = completed + pending + failed;
-	const lineMetricComplete = pending === 0 && failed === 0;
+	const theme = useTheme();
+	const coverage = getOptionalMetricCoverage(userStats, 'lines');
 
 	return (
 		<Panel
-			title="Code Metrics"
+			title="Code metrics"
 			subtitle={
-				lineMetricComplete
-					? 'Contributor stats are current'
-					: `${pending} repos still pending optional line backfill`
+				userStats.collectionStatus.coreComplete
+					? 'Language bytes and contributor history'
+					: 'Partial code collection'
 			}
-			accent={defaultTheme.colors.cyan}
-		>
-			<div className="grid h-[198px] grid-cols-[1fr_1fr] gap-3">
-				<div className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
-					<MetricRow
-						icon={<Database size={14} />}
-						label="Code bytes"
-						value={formatBytes(userStats.code.codeByteTotal)}
-						accent={defaultTheme.colors.blue}
-					/>
-					<MetricRow
-						icon={<FileCode2 size={14} />}
-						label="Lines added"
-						value={userStats.code.linesAdded}
-						delay={0.1}
-						accent={defaultTheme.colors.green}
-					/>
-					<MetricRow
-						icon={<FileCode2 size={14} />}
-						label="Lines deleted"
-						value={userStats.code.linesDeleted}
-						delay={0.2}
-						accent={defaultTheme.colors.red}
-					/>
-					<MetricRow
-						icon={<Diff size={14} />}
-						label="Lines changed"
-						value={userStats.code.linesOfCodeChanged}
-						detail={lineMetricComplete ? undefined : 'Optional REST backfill'}
-						delay={0.3}
-						accent={defaultTheme.colors.yellow}
-					/>
-				</div>
-				<div className="grid gap-2">
-					<MetricTile
-						large
-						label="Metric queue"
-						value={formatCompactNumber(completed)}
-						detail="repos completed"
-						accent={defaultTheme.colors.cyan}
-					/>
-					<div className="rounded-lg border border-white/10 bg-white/[0.04] p-3">
+			accent={theme.colors.cyan}
+			footer={
+				<div
+					style={{
+						borderTop: `1px solid ${theme.colors.border}`,
+						paddingTop: 10,
+					}}
+				>
+					<p style={{margin: 0, color: theme.colors.text}}>
+						Line history · {coverage.label.toLowerCase()}
+					</p>
+					<p style={{margin: '4px 0 0'}}>{coverage.detail}</p>
+					{coverage.state === 'complete' ? (
 						<ProgressBar
-							value={completed}
-							max={Math.max(1, totalQueued)}
-							color={defaultTheme.colors.cyan}
-							height={10}
+							value={coverage.completed}
+							max={coverage.completed}
+							color={theme.colors.cyan}
+							height={3}
+							label="Line history repository coverage"
+							style={{marginTop: 8}}
 						/>
-						<p className="mt-2 text-xs text-[#8b949e]">
-							{pending} pending, {failed} failed
-						</p>
-					</div>
+					) : <div aria-hidden="true" style={{marginTop: 8, borderTop: `1px dashed ${theme.colors.border}`}} />}
+				</div>
+			}
+		>
+			<div
+				style={{
+					display: 'grid',
+					gridTemplateColumns: 'minmax(0, 0.9fr) minmax(0, 1.1fr)',
+					alignItems: 'center',
+					gap: 26,
+					flex: 1,
+					minHeight: 0,
+				}}
+			>
+				<BigMetric
+					label="Indexed code"
+					value={formatCodeSize(userStats.code.codeByteTotal)}
+					detail={`${formatMetricValue(userStats.summary.languageCount)} languages`}
+				/>
+				<div style={{minWidth: 0}}>
+					<MetricRow
+						label="Lines added"
+						value={coverage.available ? userStats.code.linesAdded : '—'}
+						icon={<span>+</span>}
+						accent={theme.colors.green}
+					/>
+					<MetricRow
+						label="Lines deleted"
+						value={coverage.available ? userStats.code.linesDeleted : '—'}
+						icon={<span>−</span>}
+						accent={theme.colors.pink}
+						delay={0.06}
+					/>
+					<MetricRow
+						label="Lines changed"
+						value={coverage.available ? userStats.code.linesOfCodeChanged : '—'}
+						delay={0.12}
+					/>
 				</div>
 			</div>
 		</Panel>

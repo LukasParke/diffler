@@ -13,7 +13,11 @@ var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require
   throw Error('Dynamic require of "' + x + '" is not supported');
 });
 var __commonJS = (cb, mod) => function __require2() {
-  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  try {
+    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  } catch (e) {
+    throw mod = 0, e;
+  }
 };
 var __export = (target, all) => {
   for (var name in all)
@@ -3462,336 +3466,17 @@ var require_commander = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/dotenv@17.4.2/node_modules/dotenv/lib/main.js
-var require_main = __commonJS({
-  "../../node_modules/.pnpm/dotenv@17.4.2/node_modules/dotenv/lib/main.js"(exports, module) {
-    var fs = __require("fs");
-    var path = __require("path");
-    var os = __require("os");
-    var crypto = __require("crypto");
-    var TIPS = [
-      "\u25C8 encrypted .env [www.dotenvx.com]",
-      "\u25C8 secrets for agents [www.dotenvx.com]",
-      "\u2301 auth for agents [www.vestauth.com]",
-      "\u2318 custom filepath { path: '/custom/path/.env' }",
-      "\u2318 enable debugging { debug: true }",
-      "\u2318 override existing { override: true }",
-      "\u2318 suppress logs { quiet: true }",
-      "\u2318 multiple files { path: ['.env.local', '.env'] }"
-    ];
-    function _getRandomTip() {
-      return TIPS[Math.floor(Math.random() * TIPS.length)];
-    }
-    function parseBoolean(value) {
-      if (typeof value === "string") {
-        return !["false", "0", "no", "off", ""].includes(value.toLowerCase());
-      }
-      return Boolean(value);
-    }
-    function supportsAnsi() {
-      return process.stdout.isTTY;
-    }
-    function dim(text) {
-      return supportsAnsi() ? `\x1B[2m${text}\x1B[0m` : text;
-    }
-    var LINE = /(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/mg;
-    function parse3(src) {
-      const obj = {};
-      let lines = src.toString();
-      lines = lines.replace(/\r\n?/mg, "\n");
-      let match;
-      while ((match = LINE.exec(lines)) != null) {
-        const key = match[1];
-        let value = match[2] || "";
-        value = value.trim();
-        const maybeQuote = value[0];
-        value = value.replace(/^(['"`])([\s\S]*)\1$/mg, "$2");
-        if (maybeQuote === '"') {
-          value = value.replace(/\\n/g, "\n");
-          value = value.replace(/\\r/g, "\r");
-        }
-        obj[key] = value;
-      }
-      return obj;
-    }
-    function _parseVault(options) {
-      options = options || {};
-      const vaultPath = _vaultPath(options);
-      options.path = vaultPath;
-      const result = DotenvModule.configDotenv(options);
-      if (!result.parsed) {
-        const err = new Error(`MISSING_DATA: Cannot parse ${vaultPath} for an unknown reason`);
-        err.code = "MISSING_DATA";
-        throw err;
-      }
-      const keys = _dotenvKey(options).split(",");
-      const length = keys.length;
-      let decrypted;
-      for (let i = 0; i < length; i++) {
-        try {
-          const key = keys[i].trim();
-          const attrs = _instructions(result, key);
-          decrypted = DotenvModule.decrypt(attrs.ciphertext, attrs.key);
-          break;
-        } catch (error51) {
-          if (i + 1 >= length) {
-            throw error51;
-          }
-        }
-      }
-      return DotenvModule.parse(decrypted);
-    }
-    function _warn(message) {
-      console.error(`\u26A0 ${message}`);
-    }
-    function _debug(message) {
-      console.log(`\u2506 ${message}`);
-    }
-    function _log(message) {
-      console.log(`\u25C7 ${message}`);
-    }
-    function _dotenvKey(options) {
-      if (options && options.DOTENV_KEY && options.DOTENV_KEY.length > 0) {
-        return options.DOTENV_KEY;
-      }
-      if (process.env.DOTENV_KEY && process.env.DOTENV_KEY.length > 0) {
-        return process.env.DOTENV_KEY;
-      }
-      return "";
-    }
-    function _instructions(result, dotenvKey) {
-      let uri;
-      try {
-        uri = new URL(dotenvKey);
-      } catch (error51) {
-        if (error51.code === "ERR_INVALID_URL") {
-          const err = new Error("INVALID_DOTENV_KEY: Wrong format. Must be in valid uri format like dotenv://:key_1234@dotenvx.com/vault/.env.vault?environment=development");
-          err.code = "INVALID_DOTENV_KEY";
-          throw err;
-        }
-        throw error51;
-      }
-      const key = uri.password;
-      if (!key) {
-        const err = new Error("INVALID_DOTENV_KEY: Missing key part");
-        err.code = "INVALID_DOTENV_KEY";
-        throw err;
-      }
-      const environment = uri.searchParams.get("environment");
-      if (!environment) {
-        const err = new Error("INVALID_DOTENV_KEY: Missing environment part");
-        err.code = "INVALID_DOTENV_KEY";
-        throw err;
-      }
-      const environmentKey = `DOTENV_VAULT_${environment.toUpperCase()}`;
-      const ciphertext = result.parsed[environmentKey];
-      if (!ciphertext) {
-        const err = new Error(`NOT_FOUND_DOTENV_ENVIRONMENT: Cannot locate environment ${environmentKey} in your .env.vault file.`);
-        err.code = "NOT_FOUND_DOTENV_ENVIRONMENT";
-        throw err;
-      }
-      return { ciphertext, key };
-    }
-    function _vaultPath(options) {
-      let possibleVaultPath = null;
-      if (options && options.path && options.path.length > 0) {
-        if (Array.isArray(options.path)) {
-          for (const filepath of options.path) {
-            if (fs.existsSync(filepath)) {
-              possibleVaultPath = filepath.endsWith(".vault") ? filepath : `${filepath}.vault`;
-            }
-          }
-        } else {
-          possibleVaultPath = options.path.endsWith(".vault") ? options.path : `${options.path}.vault`;
-        }
-      } else {
-        possibleVaultPath = path.resolve(process.cwd(), ".env.vault");
-      }
-      if (fs.existsSync(possibleVaultPath)) {
-        return possibleVaultPath;
-      }
-      return null;
-    }
-    function _resolveHome(envPath) {
-      return envPath[0] === "~" ? path.join(os.homedir(), envPath.slice(1)) : envPath;
-    }
-    function _configVault(options) {
-      const debug = parseBoolean(process.env.DOTENV_CONFIG_DEBUG || options && options.debug);
-      const quiet = parseBoolean(process.env.DOTENV_CONFIG_QUIET || options && options.quiet);
-      if (debug || !quiet) {
-        _log("loading env from encrypted .env.vault");
-      }
-      const parsed = DotenvModule._parseVault(options);
-      let processEnv = process.env;
-      if (options && options.processEnv != null) {
-        processEnv = options.processEnv;
-      }
-      DotenvModule.populate(processEnv, parsed, options);
-      return { parsed };
-    }
-    function configDotenv(options) {
-      const dotenvPath = path.resolve(process.cwd(), ".env");
-      let encoding = "utf8";
-      let processEnv = process.env;
-      if (options && options.processEnv != null) {
-        processEnv = options.processEnv;
-      }
-      let debug = parseBoolean(processEnv.DOTENV_CONFIG_DEBUG || options && options.debug);
-      let quiet = parseBoolean(processEnv.DOTENV_CONFIG_QUIET || options && options.quiet);
-      if (options && options.encoding) {
-        encoding = options.encoding;
-      } else {
-        if (debug) {
-          _debug("no encoding is specified (UTF-8 is used by default)");
-        }
-      }
-      let optionPaths = [dotenvPath];
-      if (options && options.path) {
-        if (!Array.isArray(options.path)) {
-          optionPaths = [_resolveHome(options.path)];
-        } else {
-          optionPaths = [];
-          for (const filepath of options.path) {
-            optionPaths.push(_resolveHome(filepath));
-          }
-        }
-      }
-      let lastError;
-      const parsedAll = {};
-      for (const path2 of optionPaths) {
-        try {
-          const parsed = DotenvModule.parse(fs.readFileSync(path2, { encoding }));
-          DotenvModule.populate(parsedAll, parsed, options);
-        } catch (e) {
-          if (debug) {
-            _debug(`failed to load ${path2} ${e.message}`);
-          }
-          lastError = e;
-        }
-      }
-      const populated = DotenvModule.populate(processEnv, parsedAll, options);
-      debug = parseBoolean(processEnv.DOTENV_CONFIG_DEBUG || debug);
-      quiet = parseBoolean(processEnv.DOTENV_CONFIG_QUIET || quiet);
-      if (debug || !quiet) {
-        const keysCount = Object.keys(populated).length;
-        const shortPaths = [];
-        for (const filePath of optionPaths) {
-          try {
-            const relative = path.relative(process.cwd(), filePath);
-            shortPaths.push(relative);
-          } catch (e) {
-            if (debug) {
-              _debug(`failed to load ${filePath} ${e.message}`);
-            }
-            lastError = e;
-          }
-        }
-        _log(`injected env (${keysCount}) from ${shortPaths.join(",")} ${dim(`// tip: ${_getRandomTip()}`)}`);
-      }
-      if (lastError) {
-        return { parsed: parsedAll, error: lastError };
-      } else {
-        return { parsed: parsedAll };
-      }
-    }
-    function config2(options) {
-      if (_dotenvKey(options).length === 0) {
-        return DotenvModule.configDotenv(options);
-      }
-      const vaultPath = _vaultPath(options);
-      if (!vaultPath) {
-        _warn(`you set DOTENV_KEY but you are missing a .env.vault file at ${vaultPath}`);
-        return DotenvModule.configDotenv(options);
-      }
-      return DotenvModule._configVault(options);
-    }
-    function decrypt(encrypted, keyStr) {
-      const key = Buffer.from(keyStr.slice(-64), "hex");
-      let ciphertext = Buffer.from(encrypted, "base64");
-      const nonce = ciphertext.subarray(0, 12);
-      const authTag = ciphertext.subarray(-16);
-      ciphertext = ciphertext.subarray(12, -16);
-      try {
-        const aesgcm = crypto.createDecipheriv("aes-256-gcm", key, nonce);
-        aesgcm.setAuthTag(authTag);
-        return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
-      } catch (error51) {
-        const isRange = error51 instanceof RangeError;
-        const invalidKeyLength = error51.message === "Invalid key length";
-        const decryptionFailed = error51.message === "Unsupported state or unable to authenticate data";
-        if (isRange || invalidKeyLength) {
-          const err = new Error("INVALID_DOTENV_KEY: It must be 64 characters long (or more)");
-          err.code = "INVALID_DOTENV_KEY";
-          throw err;
-        } else if (decryptionFailed) {
-          const err = new Error("DECRYPTION_FAILED: Please check your DOTENV_KEY");
-          err.code = "DECRYPTION_FAILED";
-          throw err;
-        } else {
-          throw error51;
-        }
-      }
-    }
-    function populate(processEnv, parsed, options = {}) {
-      const debug = Boolean(options && options.debug);
-      const override = Boolean(options && options.override);
-      const populated = {};
-      if (typeof parsed !== "object") {
-        const err = new Error("OBJECT_REQUIRED: Please check the processEnv argument being passed to populate");
-        err.code = "OBJECT_REQUIRED";
-        throw err;
-      }
-      for (const key of Object.keys(parsed)) {
-        if (Object.prototype.hasOwnProperty.call(processEnv, key)) {
-          if (override === true) {
-            processEnv[key] = parsed[key];
-            populated[key] = parsed[key];
-          }
-          if (debug) {
-            if (override === true) {
-              _debug(`"${key}" is already defined and WAS overwritten`);
-            } else {
-              _debug(`"${key}" is already defined and was NOT overwritten`);
-            }
-          }
-        } else {
-          processEnv[key] = parsed[key];
-          populated[key] = parsed[key];
-        }
-      }
-      return populated;
-    }
-    var DotenvModule = {
-      configDotenv,
-      _configVault,
-      _parseVault,
-      config: config2,
-      decrypt,
-      parse: parse3,
-      populate
-    };
-    module.exports.configDotenv = DotenvModule.configDotenv;
-    module.exports._configVault = DotenvModule._configVault;
-    module.exports._parseVault = DotenvModule._parseVault;
-    module.exports.config = DotenvModule.config;
-    module.exports.decrypt = DotenvModule.decrypt;
-    module.exports.parse = DotenvModule.parse;
-    module.exports.populate = DotenvModule.populate;
-    module.exports = DotenvModule;
-  }
-});
-
 // ../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/nodes/identity.js
 var require_identity = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/nodes/identity.js"(exports) {
     "use strict";
-    var ALIAS = Symbol.for("yaml.alias");
-    var DOC = Symbol.for("yaml.document");
-    var MAP = Symbol.for("yaml.map");
-    var PAIR = Symbol.for("yaml.pair");
-    var SCALAR = Symbol.for("yaml.scalar");
-    var SEQ = Symbol.for("yaml.seq");
-    var NODE_TYPE = Symbol.for("yaml.node.type");
+    var ALIAS = /* @__PURE__ */ Symbol.for("yaml.alias");
+    var DOC = /* @__PURE__ */ Symbol.for("yaml.document");
+    var MAP = /* @__PURE__ */ Symbol.for("yaml.map");
+    var PAIR = /* @__PURE__ */ Symbol.for("yaml.pair");
+    var SCALAR = /* @__PURE__ */ Symbol.for("yaml.scalar");
+    var SEQ = /* @__PURE__ */ Symbol.for("yaml.seq");
+    var NODE_TYPE = /* @__PURE__ */ Symbol.for("yaml.node.type");
     var isAlias = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === ALIAS;
     var isDocument = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === DOC;
     var isMap = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === MAP;
@@ -3807,7 +3492,7 @@ var require_identity = __commonJS({
         }
       return false;
     }
-    function isNode(node) {
+    function isNode2(node) {
       if (node && typeof node === "object")
         switch (node[NODE_TYPE]) {
           case ALIAS:
@@ -3831,7 +3516,7 @@ var require_identity = __commonJS({
     exports.isCollection = isCollection;
     exports.isDocument = isDocument;
     exports.isMap = isMap;
-    exports.isNode = isNode;
+    exports.isNode = isNode2;
     exports.isPair = isPair;
     exports.isScalar = isScalar;
     exports.isSeq = isSeq;
@@ -3843,9 +3528,9 @@ var require_visit = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/visit.js"(exports) {
     "use strict";
     var identity = require_identity();
-    var BREAK = Symbol("break visit");
-    var SKIP = Symbol("skip children");
-    var REMOVE = Symbol("remove node");
+    var BREAK = /* @__PURE__ */ Symbol("break visit");
+    var SKIP = /* @__PURE__ */ Symbol("skip children");
+    var REMOVE = /* @__PURE__ */ Symbol("remove node");
     function visit(node, visitor) {
       const visitor_ = initVisitor(visitor);
       if (identity.isDocument(node)) {
@@ -5709,7 +5394,7 @@ ${indent}${line}` : "\n";
           str += ",";
         } else if (ctx.options.trailingComma) {
           if (ctx.options.lineWidth > 0) {
-            reqNewline || (reqNewline = lines.reduce((sum, line) => sum + line.length + 2, 2) + (str.length + 2) > ctx.options.lineWidth);
+            reqNewline || (reqNewline = lines.reduce((sum2, line) => sum2 + line.length + 2, 2) + (str.length + 2) > ctx.options.lineWidth);
           }
           if (reqNewline) {
             str += ",";
@@ -5725,7 +5410,7 @@ ${indent}${line}` : "\n";
         return start + end;
       } else {
         if (!reqNewline) {
-          const len = lines.reduce((sum, line) => sum + line.length + 2, 2);
+          const len = lines.reduce((sum2, line) => sum2 + line.length + 2, 2);
           reqNewline = ctx.options.lineWidth > 0 && len > ctx.options.lineWidth;
         }
         if (reqNewline) {
@@ -9305,9 +8990,9 @@ var require_cst_stringify = __commonJS({
 var require_cst_visit = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/parse/cst-visit.js"(exports) {
     "use strict";
-    var BREAK = Symbol("break visit");
-    var SKIP = Symbol("skip children");
-    var REMOVE = Symbol("remove item");
+    var BREAK = /* @__PURE__ */ Symbol("break visit");
+    var SKIP = /* @__PURE__ */ Symbol("skip children");
+    var REMOVE = /* @__PURE__ */ Symbol("remove item");
     function visit(cst, visitor) {
       if ("type" in cst && cst.type === "document")
         cst = { start: cst.start, value: cst.value };
@@ -11008,7 +10693,7 @@ var require_public_api = __commonJS({
       }
       return doc;
     }
-    function parse3(src, reviver, options) {
+    function parse4(src, reviver, options) {
       let _reviver = void 0;
       if (typeof reviver === "function") {
         _reviver = reviver;
@@ -11049,7 +10734,7 @@ var require_public_api = __commonJS({
         return value.toString(options);
       return new Document.Document(value, _replacer, options).toString(options);
     }
-    exports.parse = parse3;
+    exports.parse = parse4;
     exports.parseAllDocuments = parseAllDocuments;
     exports.parseDocument = parseDocument;
     exports.stringify = stringify;
@@ -11105,6 +10790,325 @@ var require_dist = __commonJS({
     exports.stringify = publicApi.stringify;
     exports.visit = visit.visit;
     exports.visitAsync = visit.visitAsync;
+  }
+});
+
+// ../../node_modules/.pnpm/dotenv@17.4.2/node_modules/dotenv/lib/main.js
+var require_main = __commonJS({
+  "../../node_modules/.pnpm/dotenv@17.4.2/node_modules/dotenv/lib/main.js"(exports, module) {
+    var fs = __require("fs");
+    var path = __require("path");
+    var os = __require("os");
+    var crypto = __require("crypto");
+    var TIPS = [
+      "\u25C8 encrypted .env [www.dotenvx.com]",
+      "\u25C8 secrets for agents [www.dotenvx.com]",
+      "\u2301 auth for agents [www.vestauth.com]",
+      "\u2318 custom filepath { path: '/custom/path/.env' }",
+      "\u2318 enable debugging { debug: true }",
+      "\u2318 override existing { override: true }",
+      "\u2318 suppress logs { quiet: true }",
+      "\u2318 multiple files { path: ['.env.local', '.env'] }"
+    ];
+    function _getRandomTip() {
+      return TIPS[Math.floor(Math.random() * TIPS.length)];
+    }
+    function parseBoolean(value) {
+      if (typeof value === "string") {
+        return !["false", "0", "no", "off", ""].includes(value.toLowerCase());
+      }
+      return Boolean(value);
+    }
+    function supportsAnsi() {
+      return process.stdout.isTTY;
+    }
+    function dim(text) {
+      return supportsAnsi() ? `\x1B[2m${text}\x1B[0m` : text;
+    }
+    var LINE = /(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/mg;
+    function parse4(src) {
+      const obj = {};
+      let lines = src.toString();
+      lines = lines.replace(/\r\n?/mg, "\n");
+      let match;
+      while ((match = LINE.exec(lines)) != null) {
+        const key = match[1];
+        let value = match[2] || "";
+        value = value.trim();
+        const maybeQuote = value[0];
+        value = value.replace(/^(['"`])([\s\S]*)\1$/mg, "$2");
+        if (maybeQuote === '"') {
+          value = value.replace(/\\n/g, "\n");
+          value = value.replace(/\\r/g, "\r");
+        }
+        obj[key] = value;
+      }
+      return obj;
+    }
+    function _parseVault(options) {
+      options = options || {};
+      const vaultPath = _vaultPath(options);
+      options.path = vaultPath;
+      const result = DotenvModule.configDotenv(options);
+      if (!result.parsed) {
+        const err = new Error(`MISSING_DATA: Cannot parse ${vaultPath} for an unknown reason`);
+        err.code = "MISSING_DATA";
+        throw err;
+      }
+      const keys = _dotenvKey(options).split(",");
+      const length = keys.length;
+      let decrypted;
+      for (let i = 0; i < length; i++) {
+        try {
+          const key = keys[i].trim();
+          const attrs = _instructions(result, key);
+          decrypted = DotenvModule.decrypt(attrs.ciphertext, attrs.key);
+          break;
+        } catch (error51) {
+          if (i + 1 >= length) {
+            throw error51;
+          }
+        }
+      }
+      return DotenvModule.parse(decrypted);
+    }
+    function _warn(message) {
+      console.error(`\u26A0 ${message}`);
+    }
+    function _debug(message) {
+      console.log(`\u2506 ${message}`);
+    }
+    function _log(message) {
+      console.log(`\u25C7 ${message}`);
+    }
+    function _dotenvKey(options) {
+      if (options && options.DOTENV_KEY && options.DOTENV_KEY.length > 0) {
+        return options.DOTENV_KEY;
+      }
+      if (process.env.DOTENV_KEY && process.env.DOTENV_KEY.length > 0) {
+        return process.env.DOTENV_KEY;
+      }
+      return "";
+    }
+    function _instructions(result, dotenvKey) {
+      let uri;
+      try {
+        uri = new URL(dotenvKey);
+      } catch (error51) {
+        if (error51.code === "ERR_INVALID_URL") {
+          const err = new Error("INVALID_DOTENV_KEY: Wrong format. Must be in valid uri format like dotenv://:key_1234@dotenvx.com/vault/.env.vault?environment=development");
+          err.code = "INVALID_DOTENV_KEY";
+          throw err;
+        }
+        throw error51;
+      }
+      const key = uri.password;
+      if (!key) {
+        const err = new Error("INVALID_DOTENV_KEY: Missing key part");
+        err.code = "INVALID_DOTENV_KEY";
+        throw err;
+      }
+      const environment = uri.searchParams.get("environment");
+      if (!environment) {
+        const err = new Error("INVALID_DOTENV_KEY: Missing environment part");
+        err.code = "INVALID_DOTENV_KEY";
+        throw err;
+      }
+      const environmentKey = `DOTENV_VAULT_${environment.toUpperCase()}`;
+      const ciphertext = result.parsed[environmentKey];
+      if (!ciphertext) {
+        const err = new Error(`NOT_FOUND_DOTENV_ENVIRONMENT: Cannot locate environment ${environmentKey} in your .env.vault file.`);
+        err.code = "NOT_FOUND_DOTENV_ENVIRONMENT";
+        throw err;
+      }
+      return { ciphertext, key };
+    }
+    function _vaultPath(options) {
+      let possibleVaultPath = null;
+      if (options && options.path && options.path.length > 0) {
+        if (Array.isArray(options.path)) {
+          for (const filepath of options.path) {
+            if (fs.existsSync(filepath)) {
+              possibleVaultPath = filepath.endsWith(".vault") ? filepath : `${filepath}.vault`;
+            }
+          }
+        } else {
+          possibleVaultPath = options.path.endsWith(".vault") ? options.path : `${options.path}.vault`;
+        }
+      } else {
+        possibleVaultPath = path.resolve(process.cwd(), ".env.vault");
+      }
+      if (fs.existsSync(possibleVaultPath)) {
+        return possibleVaultPath;
+      }
+      return null;
+    }
+    function _resolveHome(envPath) {
+      return envPath[0] === "~" ? path.join(os.homedir(), envPath.slice(1)) : envPath;
+    }
+    function _configVault(options) {
+      const debug = parseBoolean(process.env.DOTENV_CONFIG_DEBUG || options && options.debug);
+      const quiet = parseBoolean(process.env.DOTENV_CONFIG_QUIET || options && options.quiet);
+      if (debug || !quiet) {
+        _log("loading env from encrypted .env.vault");
+      }
+      const parsed = DotenvModule._parseVault(options);
+      let processEnv = process.env;
+      if (options && options.processEnv != null) {
+        processEnv = options.processEnv;
+      }
+      DotenvModule.populate(processEnv, parsed, options);
+      return { parsed };
+    }
+    function configDotenv(options) {
+      const dotenvPath = path.resolve(process.cwd(), ".env");
+      let encoding = "utf8";
+      let processEnv = process.env;
+      if (options && options.processEnv != null) {
+        processEnv = options.processEnv;
+      }
+      let debug = parseBoolean(processEnv.DOTENV_CONFIG_DEBUG || options && options.debug);
+      let quiet = parseBoolean(processEnv.DOTENV_CONFIG_QUIET || options && options.quiet);
+      if (options && options.encoding) {
+        encoding = options.encoding;
+      } else {
+        if (debug) {
+          _debug("no encoding is specified (UTF-8 is used by default)");
+        }
+      }
+      let optionPaths = [dotenvPath];
+      if (options && options.path) {
+        if (!Array.isArray(options.path)) {
+          optionPaths = [_resolveHome(options.path)];
+        } else {
+          optionPaths = [];
+          for (const filepath of options.path) {
+            optionPaths.push(_resolveHome(filepath));
+          }
+        }
+      }
+      let lastError;
+      const parsedAll = {};
+      for (const path2 of optionPaths) {
+        try {
+          const parsed = DotenvModule.parse(fs.readFileSync(path2, { encoding }));
+          DotenvModule.populate(parsedAll, parsed, options);
+        } catch (e) {
+          if (debug) {
+            _debug(`failed to load ${path2} ${e.message}`);
+          }
+          lastError = e;
+        }
+      }
+      const populated = DotenvModule.populate(processEnv, parsedAll, options);
+      debug = parseBoolean(processEnv.DOTENV_CONFIG_DEBUG || debug);
+      quiet = parseBoolean(processEnv.DOTENV_CONFIG_QUIET || quiet);
+      if (debug || !quiet) {
+        const keysCount = Object.keys(populated).length;
+        const shortPaths = [];
+        for (const filePath of optionPaths) {
+          try {
+            const relative2 = path.relative(process.cwd(), filePath);
+            shortPaths.push(relative2);
+          } catch (e) {
+            if (debug) {
+              _debug(`failed to load ${filePath} ${e.message}`);
+            }
+            lastError = e;
+          }
+        }
+        _log(`injected env (${keysCount}) from ${shortPaths.join(",")} ${dim(`// tip: ${_getRandomTip()}`)}`);
+      }
+      if (lastError) {
+        return { parsed: parsedAll, error: lastError };
+      } else {
+        return { parsed: parsedAll };
+      }
+    }
+    function config2(options) {
+      if (_dotenvKey(options).length === 0) {
+        return DotenvModule.configDotenv(options);
+      }
+      const vaultPath = _vaultPath(options);
+      if (!vaultPath) {
+        _warn(`you set DOTENV_KEY but you are missing a .env.vault file at ${vaultPath}`);
+        return DotenvModule.configDotenv(options);
+      }
+      return DotenvModule._configVault(options);
+    }
+    function decrypt(encrypted, keyStr) {
+      const key = Buffer.from(keyStr.slice(-64), "hex");
+      let ciphertext = Buffer.from(encrypted, "base64");
+      const nonce = ciphertext.subarray(0, 12);
+      const authTag = ciphertext.subarray(-16);
+      ciphertext = ciphertext.subarray(12, -16);
+      try {
+        const aesgcm = crypto.createDecipheriv("aes-256-gcm", key, nonce);
+        aesgcm.setAuthTag(authTag);
+        return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
+      } catch (error51) {
+        const isRange = error51 instanceof RangeError;
+        const invalidKeyLength = error51.message === "Invalid key length";
+        const decryptionFailed = error51.message === "Unsupported state or unable to authenticate data";
+        if (isRange || invalidKeyLength) {
+          const err = new Error("INVALID_DOTENV_KEY: It must be 64 characters long (or more)");
+          err.code = "INVALID_DOTENV_KEY";
+          throw err;
+        } else if (decryptionFailed) {
+          const err = new Error("DECRYPTION_FAILED: Please check your DOTENV_KEY");
+          err.code = "DECRYPTION_FAILED";
+          throw err;
+        } else {
+          throw error51;
+        }
+      }
+    }
+    function populate(processEnv, parsed, options = {}) {
+      const debug = Boolean(options && options.debug);
+      const override = Boolean(options && options.override);
+      const populated = {};
+      if (typeof parsed !== "object") {
+        const err = new Error("OBJECT_REQUIRED: Please check the processEnv argument being passed to populate");
+        err.code = "OBJECT_REQUIRED";
+        throw err;
+      }
+      for (const key of Object.keys(parsed)) {
+        if (Object.prototype.hasOwnProperty.call(processEnv, key)) {
+          if (override === true) {
+            processEnv[key] = parsed[key];
+            populated[key] = parsed[key];
+          }
+          if (debug) {
+            if (override === true) {
+              _debug(`"${key}" is already defined and WAS overwritten`);
+            } else {
+              _debug(`"${key}" is already defined and was NOT overwritten`);
+            }
+          }
+        } else {
+          processEnv[key] = parsed[key];
+          populated[key] = parsed[key];
+        }
+      }
+      return populated;
+    }
+    var DotenvModule = {
+      configDotenv,
+      _configVault,
+      _parseVault,
+      config: config2,
+      decrypt,
+      parse: parse4,
+      populate
+    };
+    module.exports.configDotenv = DotenvModule.configDotenv;
+    module.exports._configVault = DotenvModule._configVault;
+    module.exports._parseVault = DotenvModule._parseVault;
+    module.exports.config = DotenvModule.config;
+    module.exports.decrypt = DotenvModule.decrypt;
+    module.exports.parse = DotenvModule.parse;
+    module.exports.populate = DotenvModule.populate;
+    module.exports = DotenvModule;
   }
 });
 
@@ -11414,191 +11418,6 @@ var require_lib = __commonJS({
       throw new Error('Cannot use "in" operator to search for "' + key + '" in unexpected types.');
     }
     _exports.inOperator = inOperator;
-  }
-});
-
-// ../../node_modules/.pnpm/asap@2.0.6/node_modules/asap/raw.js
-var require_raw = __commonJS({
-  "../../node_modules/.pnpm/asap@2.0.6/node_modules/asap/raw.js"(exports, module) {
-    "use strict";
-    var domain2;
-    var hasSetImmediate = typeof setImmediate === "function";
-    module.exports = rawAsap;
-    function rawAsap(task) {
-      if (!queue.length) {
-        requestFlush();
-        flushing = true;
-      }
-      queue[queue.length] = task;
-    }
-    var queue = [];
-    var flushing = false;
-    var index = 0;
-    var capacity = 1024;
-    function flush() {
-      while (index < queue.length) {
-        var currentIndex = index;
-        index = index + 1;
-        queue[currentIndex].call();
-        if (index > capacity) {
-          for (var scan = 0, newLength = queue.length - index; scan < newLength; scan++) {
-            queue[scan] = queue[scan + index];
-          }
-          queue.length -= index;
-          index = 0;
-        }
-      }
-      queue.length = 0;
-      index = 0;
-      flushing = false;
-    }
-    rawAsap.requestFlush = requestFlush;
-    function requestFlush() {
-      var parentDomain = process.domain;
-      if (parentDomain) {
-        if (!domain2) {
-          domain2 = __require("domain");
-        }
-        domain2.active = process.domain = null;
-      }
-      if (flushing && hasSetImmediate) {
-        setImmediate(flush);
-      } else {
-        process.nextTick(flush);
-      }
-      if (parentDomain) {
-        domain2.active = process.domain = parentDomain;
-      }
-    }
-  }
-});
-
-// ../../node_modules/.pnpm/asap@2.0.6/node_modules/asap/asap.js
-var require_asap = __commonJS({
-  "../../node_modules/.pnpm/asap@2.0.6/node_modules/asap/asap.js"(exports, module) {
-    "use strict";
-    var rawAsap = require_raw();
-    var freeTasks = [];
-    module.exports = asap;
-    function asap(task) {
-      var rawTask;
-      if (freeTasks.length) {
-        rawTask = freeTasks.pop();
-      } else {
-        rawTask = new RawTask();
-      }
-      rawTask.task = task;
-      rawTask.domain = process.domain;
-      rawAsap(rawTask);
-    }
-    function RawTask() {
-      this.task = null;
-      this.domain = null;
-    }
-    RawTask.prototype.call = function() {
-      if (this.domain) {
-        this.domain.enter();
-      }
-      var threw = true;
-      try {
-        this.task.call();
-        threw = false;
-        if (this.domain) {
-          this.domain.exit();
-        }
-      } finally {
-        if (threw) {
-          rawAsap.requestFlush();
-        }
-        this.task = null;
-        this.domain = null;
-        freeTasks.push(this);
-      }
-    };
-  }
-});
-
-// ../../node_modules/.pnpm/a-sync-waterfall@1.0.1/node_modules/a-sync-waterfall/index.js
-var require_a_sync_waterfall = __commonJS({
-  "../../node_modules/.pnpm/a-sync-waterfall@1.0.1/node_modules/a-sync-waterfall/index.js"(exports, module) {
-    (function(globals) {
-      "use strict";
-      var executeSync = function() {
-        var args = Array.prototype.slice.call(arguments);
-        if (typeof args[0] === "function") {
-          args[0].apply(null, args.splice(1));
-        }
-      };
-      var executeAsync = function(fn) {
-        if (typeof setImmediate === "function") {
-          setImmediate(fn);
-        } else if (typeof process !== "undefined" && process.nextTick) {
-          process.nextTick(fn);
-        } else {
-          setTimeout(fn, 0);
-        }
-      };
-      var makeIterator = function(tasks) {
-        var makeCallback = function(index) {
-          var fn = function() {
-            if (tasks.length) {
-              tasks[index].apply(null, arguments);
-            }
-            return fn.next();
-          };
-          fn.next = function() {
-            return index < tasks.length - 1 ? makeCallback(index + 1) : null;
-          };
-          return fn;
-        };
-        return makeCallback(0);
-      };
-      var _isArray = Array.isArray || function(maybeArray) {
-        return Object.prototype.toString.call(maybeArray) === "[object Array]";
-      };
-      var waterfall = function(tasks, callback, forceAsync) {
-        var nextTick = forceAsync ? executeAsync : executeSync;
-        callback = callback || function() {
-        };
-        if (!_isArray(tasks)) {
-          var err = new Error("First argument to waterfall must be an array of functions");
-          return callback(err);
-        }
-        if (!tasks.length) {
-          return callback();
-        }
-        var wrapIterator = function(iterator) {
-          return function(err2) {
-            if (err2) {
-              callback.apply(null, arguments);
-              callback = function() {
-              };
-            } else {
-              var args = Array.prototype.slice.call(arguments, 1);
-              var next = iterator.next();
-              if (next) {
-                args.push(wrapIterator(next));
-              } else {
-                args.push(callback);
-              }
-              nextTick(function() {
-                iterator.apply(null, args);
-              });
-            }
-          };
-        };
-        wrapIterator(makeIterator(tasks))();
-      };
-      if (typeof define !== "undefined" && define.amd) {
-        define([], function() {
-          return waterfall;
-        });
-      } else if (typeof module !== "undefined" && module.exports) {
-        module.exports = waterfall;
-      } else {
-        globals.waterfall = waterfall;
-      }
-    })(exports);
   }
 });
 
@@ -13445,7 +13264,7 @@ var require_parser2 = __commonJS({
         }
         return buf;
       };
-      _proto.parse = function parse3() {
+      _proto.parse = function parse4() {
         return new nodes.NodeList(0, 0, this.parseNodes());
       };
       _proto.parseAsRoot = function parseAsRoot() {
@@ -13454,7 +13273,7 @@ var require_parser2 = __commonJS({
       return Parser2;
     })(Obj);
     module.exports = {
-      parse: function parse3(src, extensions, opts) {
+      parse: function parse4(src, extensions, opts) {
         var p = new Parser(lexer.lex(src, opts));
         if (extensions !== void 0) {
           p.extensions = extensions;
@@ -13463,6 +13282,191 @@ var require_parser2 = __commonJS({
       },
       Parser
     };
+  }
+});
+
+// ../../node_modules/.pnpm/asap@2.0.6/node_modules/asap/raw.js
+var require_raw = __commonJS({
+  "../../node_modules/.pnpm/asap@2.0.6/node_modules/asap/raw.js"(exports, module) {
+    "use strict";
+    var domain2;
+    var hasSetImmediate = typeof setImmediate === "function";
+    module.exports = rawAsap;
+    function rawAsap(task) {
+      if (!queue.length) {
+        requestFlush();
+        flushing = true;
+      }
+      queue[queue.length] = task;
+    }
+    var queue = [];
+    var flushing = false;
+    var index = 0;
+    var capacity = 1024;
+    function flush() {
+      while (index < queue.length) {
+        var currentIndex = index;
+        index = index + 1;
+        queue[currentIndex].call();
+        if (index > capacity) {
+          for (var scan = 0, newLength = queue.length - index; scan < newLength; scan++) {
+            queue[scan] = queue[scan + index];
+          }
+          queue.length -= index;
+          index = 0;
+        }
+      }
+      queue.length = 0;
+      index = 0;
+      flushing = false;
+    }
+    rawAsap.requestFlush = requestFlush;
+    function requestFlush() {
+      var parentDomain = process.domain;
+      if (parentDomain) {
+        if (!domain2) {
+          domain2 = __require("domain");
+        }
+        domain2.active = process.domain = null;
+      }
+      if (flushing && hasSetImmediate) {
+        setImmediate(flush);
+      } else {
+        process.nextTick(flush);
+      }
+      if (parentDomain) {
+        domain2.active = process.domain = parentDomain;
+      }
+    }
+  }
+});
+
+// ../../node_modules/.pnpm/asap@2.0.6/node_modules/asap/asap.js
+var require_asap = __commonJS({
+  "../../node_modules/.pnpm/asap@2.0.6/node_modules/asap/asap.js"(exports, module) {
+    "use strict";
+    var rawAsap = require_raw();
+    var freeTasks = [];
+    module.exports = asap;
+    function asap(task) {
+      var rawTask;
+      if (freeTasks.length) {
+        rawTask = freeTasks.pop();
+      } else {
+        rawTask = new RawTask();
+      }
+      rawTask.task = task;
+      rawTask.domain = process.domain;
+      rawAsap(rawTask);
+    }
+    function RawTask() {
+      this.task = null;
+      this.domain = null;
+    }
+    RawTask.prototype.call = function() {
+      if (this.domain) {
+        this.domain.enter();
+      }
+      var threw = true;
+      try {
+        this.task.call();
+        threw = false;
+        if (this.domain) {
+          this.domain.exit();
+        }
+      } finally {
+        if (threw) {
+          rawAsap.requestFlush();
+        }
+        this.task = null;
+        this.domain = null;
+        freeTasks.push(this);
+      }
+    };
+  }
+});
+
+// ../../node_modules/.pnpm/a-sync-waterfall@1.0.1/node_modules/a-sync-waterfall/index.js
+var require_a_sync_waterfall = __commonJS({
+  "../../node_modules/.pnpm/a-sync-waterfall@1.0.1/node_modules/a-sync-waterfall/index.js"(exports, module) {
+    (function(globals) {
+      "use strict";
+      var executeSync = function() {
+        var args = Array.prototype.slice.call(arguments);
+        if (typeof args[0] === "function") {
+          args[0].apply(null, args.splice(1));
+        }
+      };
+      var executeAsync = function(fn) {
+        if (typeof setImmediate === "function") {
+          setImmediate(fn);
+        } else if (typeof process !== "undefined" && process.nextTick) {
+          process.nextTick(fn);
+        } else {
+          setTimeout(fn, 0);
+        }
+      };
+      var makeIterator = function(tasks) {
+        var makeCallback = function(index) {
+          var fn = function() {
+            if (tasks.length) {
+              tasks[index].apply(null, arguments);
+            }
+            return fn.next();
+          };
+          fn.next = function() {
+            return index < tasks.length - 1 ? makeCallback(index + 1) : null;
+          };
+          return fn;
+        };
+        return makeCallback(0);
+      };
+      var _isArray = Array.isArray || function(maybeArray) {
+        return Object.prototype.toString.call(maybeArray) === "[object Array]";
+      };
+      var waterfall = function(tasks, callback, forceAsync) {
+        var nextTick = forceAsync ? executeAsync : executeSync;
+        callback = callback || function() {
+        };
+        if (!_isArray(tasks)) {
+          var err = new Error("First argument to waterfall must be an array of functions");
+          return callback(err);
+        }
+        if (!tasks.length) {
+          return callback();
+        }
+        var wrapIterator = function(iterator) {
+          return function(err2) {
+            if (err2) {
+              callback.apply(null, arguments);
+              callback = function() {
+              };
+            } else {
+              var args = Array.prototype.slice.call(arguments, 1);
+              var next = iterator.next();
+              if (next) {
+                args.push(wrapIterator(next));
+              } else {
+                args.push(callback);
+              }
+              nextTick(function() {
+                iterator.apply(null, args);
+              });
+            }
+          };
+        };
+        wrapIterator(makeIterator(tasks))();
+      };
+      if (typeof define !== "undefined" && define.amd) {
+        define([], function() {
+          return waterfall;
+        });
+      } else if (typeof module !== "undefined" && module.exports) {
+        module.exports = waterfall;
+      } else {
+        globals.waterfall = waterfall;
+      }
+    })(exports);
   }
 });
 
@@ -13676,7 +13680,7 @@ var require_runtime = __commonJS({
         }
         return p && p.lookup(name);
       };
-      _proto.resolve = function resolve4(name, forWrite) {
+      _proto.resolve = function resolve5(name, forWrite) {
         var p = forWrite && this.isolateWrites ? void 0 : this.parent;
         var val = this.variables[name];
         if (val !== void 0) {
@@ -15217,7 +15221,7 @@ var require_filters = __commonJS({
       return res;
     }
     _exports.slice = slice;
-    function sum(arr, attr, start) {
+    function sum2(arr, attr, start) {
       if (start === void 0) {
         start = 0;
       }
@@ -15230,7 +15234,7 @@ var require_filters = __commonJS({
         return a + b;
       }, 0);
     }
-    _exports.sum = sum;
+    _exports.sum = sum2;
     _exports.sort = r.makeMacro(["value", "reverse", "case_sensitive", "attribute"], [], function sortFilter(arr, reversed, caseSens, attr) {
       var _this = this;
       var array2 = lib.map(arr, function(v) {
@@ -15406,7 +15410,7 @@ var require_loader = __commonJS({
         return _EmitterObj.apply(this, arguments) || this;
       }
       var _proto = Loader.prototype;
-      _proto.resolve = function resolve4(from, to) {
+      _proto.resolve = function resolve5(from, to) {
         return path.resolve(path.dirname(from), to);
       };
       _proto.isRelative = function isRelative(filename) {
@@ -16291,7 +16295,7 @@ var require_parse = __commonJS({
       }
       return { risky: false };
     };
-    var parse3 = (input, options) => {
+    var parse4 = (input, options) => {
       if (typeof input !== "string") {
         throw new TypeError("Expected a string");
       }
@@ -16462,7 +16466,7 @@ var require_parse = __commonJS({
             output = token.close = `)$))${extglobStar}`;
           }
           if (token.inner.includes("*") && (rest = remaining()) && /^\.[^\\/.]+$/.test(rest)) {
-            const expression = parse3(rest, { ...options, fastpaths: false }).output;
+            const expression = parse4(rest, { ...options, fastpaths: false }).output;
             output = token.close = `)${expression})${extglobStar})`;
           }
           if (token.prev.type === "bos") {
@@ -16987,7 +16991,7 @@ var require_parse = __commonJS({
       }
       return state;
     };
-    parse3.fastpaths = (input, options) => {
+    parse4.fastpaths = (input, options) => {
       const opts = { ...options };
       const max = typeof opts.maxLength === "number" ? Math.min(MAX_LENGTH, opts.maxLength) : MAX_LENGTH;
       const len = input.length;
@@ -17053,7 +17057,7 @@ var require_parse = __commonJS({
       }
       return source;
     };
-    module.exports = parse3;
+    module.exports = parse4;
   }
 });
 
@@ -17063,7 +17067,7 @@ var require_picomatch = __commonJS({
     "use strict";
     var path = __require("path");
     var scan = require_scan();
-    var parse3 = require_parse();
+    var parse4 = require_parse();
     var utils = require_utils();
     var constants = require_constants();
     var isObject2 = (val) => val && typeof val === "object" && !Array.isArray(val);
@@ -17151,7 +17155,7 @@ var require_picomatch = __commonJS({
     picomatch.isMatch = (str, patterns, options) => picomatch(patterns, options)(str);
     picomatch.parse = (pattern, options) => {
       if (Array.isArray(pattern)) return pattern.map((p) => picomatch.parse(p, options));
-      return parse3(pattern, { ...options, fastpaths: false });
+      return parse4(pattern, { ...options, fastpaths: false });
     };
     picomatch.scan = (input, options) => scan(input, options);
     picomatch.compileRe = (state, options, returnOutput = false, returnState = false) => {
@@ -17177,10 +17181,10 @@ var require_picomatch = __commonJS({
       }
       let parsed = { negated: false, fastpaths: true };
       if (options.fastpaths !== false && (input[0] === "." || input[0] === "*")) {
-        parsed.output = parse3.fastpaths(input, options);
+        parsed.output = parse4.fastpaths(input, options);
       }
       if (!parsed.output) {
-        parsed = parse3(input, options);
+        parsed = parse4(input, options);
       }
       return picomatch.compileRe(parsed, options, returnOutput, returnState);
     };
@@ -17353,9 +17357,9 @@ var require_readdirp = __commonJS({
       async _formatEntry(dirent, path) {
         let entry;
         try {
-          const basename = this._isDirent ? dirent.name : dirent;
-          const fullPath = sysPath.resolve(sysPath.join(path, basename));
-          entry = { path: sysPath.relative(this._root, fullPath), fullPath, basename };
+          const basename2 = this._isDirent ? dirent.name : dirent;
+          const fullPath = sysPath.resolve(sysPath.join(path, basename2));
+          entry = { path: sysPath.relative(this._root, fullPath), fullPath, basename: basename2 };
           entry[this._statsProp] = this._isDirent ? dirent : await this._stat(fullPath);
         } catch (err) {
           this._onError(err);
@@ -17424,9 +17428,9 @@ var require_readdirp = __commonJS({
       return new ReaddirpStream(options);
     };
     var readdirpPromise = (root, options = {}) => {
-      return new Promise((resolve4, reject) => {
+      return new Promise((resolve5, reject) => {
         const files = [];
-        readdirp(root, options).on("data", (entry) => files.push(entry)).on("end", () => resolve4(files)).on("error", (error51) => reject(error51));
+        readdirp(root, options).on("data", (entry) => files.push(entry)).on("end", () => resolve5(files)).on("error", (error51) => reject(error51));
       });
     };
     readdirp.promise = readdirpPromise;
@@ -18522,7 +18526,7 @@ var require_parse2 = __commonJS({
       CHAR_NO_BREAK_SPACE,
       CHAR_ZERO_WIDTH_NOBREAK_SPACE
     } = require_constants2();
-    var parse3 = (input, options = {}) => {
+    var parse4 = (input, options = {}) => {
       if (typeof input !== "string") {
         throw new TypeError("Expected a string");
       }
@@ -18722,7 +18726,7 @@ var require_parse2 = __commonJS({
       push({ type: "eos" });
       return ast;
     };
-    module.exports = parse3;
+    module.exports = parse4;
   }
 });
 
@@ -18733,7 +18737,7 @@ var require_braces = __commonJS({
     var stringify = require_stringify2();
     var compile = require_compile();
     var expand = require_expand();
-    var parse3 = require_parse2();
+    var parse4 = require_parse2();
     var braces = (input, options = {}) => {
       let output = [];
       if (Array.isArray(input)) {
@@ -18753,7 +18757,7 @@ var require_braces = __commonJS({
       }
       return output;
     };
-    braces.parse = (input, options = {}) => parse3(input, options);
+    braces.parse = (input, options = {}) => parse4(input, options);
     braces.stringify = (input, options = {}) => {
       if (typeof input === "string") {
         return stringify(braces.parse(input, options), options);
@@ -19354,15 +19358,15 @@ var require_nodefs_handler = __commonJS({
       _watchWithNodeFs(path, listener) {
         const opts = this.fsw.options;
         const directory = sysPath.dirname(path);
-        const basename = sysPath.basename(path);
+        const basename2 = sysPath.basename(path);
         const parent = this.fsw._getWatchedDir(directory);
-        parent.add(basename);
+        parent.add(basename2);
         const absolutePath = sysPath.resolve(path);
         const options = { persistent: opts.persistent };
         if (!listener) listener = EMPTY_FN;
         let closer;
         if (opts.usePolling) {
-          options.interval = opts.enableBinaryInterval && isBinaryPath(basename) ? opts.binaryInterval : opts.interval;
+          options.interval = opts.enableBinaryInterval && isBinaryPath(basename2) ? opts.binaryInterval : opts.interval;
           closer = setFsWatchFileListener(path, absolutePath, options, {
             listener,
             rawEmitter: this.fsw._emitRaw
@@ -19387,11 +19391,11 @@ var require_nodefs_handler = __commonJS({
         if (this.fsw.closed) {
           return;
         }
-        const dirname3 = sysPath.dirname(file2);
-        const basename = sysPath.basename(file2);
-        const parent = this.fsw._getWatchedDir(dirname3);
+        const dirname7 = sysPath.dirname(file2);
+        const basename2 = sysPath.basename(file2);
+        const parent = this.fsw._getWatchedDir(dirname7);
         let prevStats = stats;
-        if (parent.has(basename)) return;
+        if (parent.has(basename2)) return;
         const listener = async (path, newStats) => {
           if (!this.fsw._throttle(THROTTLE_MODE_WATCH, file2, 5)) return;
           if (!newStats || newStats.mtimeMs === 0) {
@@ -19411,9 +19415,9 @@ var require_nodefs_handler = __commonJS({
                 prevStats = newStats2;
               }
             } catch (error51) {
-              this.fsw._remove(dirname3, basename);
+              this.fsw._remove(dirname7, basename2);
             }
-          } else if (parent.has(basename)) {
+          } else if (parent.has(basename2)) {
             const at = newStats.atimeMs;
             const mt = newStats.mtimeMs;
             if (!at || at <= mt || mt !== prevStats.mtimeMs) {
@@ -19505,13 +19509,13 @@ var require_nodefs_handler = __commonJS({
           }
         }).on(EV_ERROR, this._boundHandleError);
         return new Promise(
-          (resolve4) => stream.once(STR_END, () => {
+          (resolve5) => stream.once(STR_END, () => {
             if (this.fsw.closed) {
               stream = void 0;
               return;
             }
             const wasThrottled = throttler ? throttler.clear() : false;
-            resolve4();
+            resolve5();
             previous.getChildren().filter((item) => {
               return item !== directory && !current.has(item) && // in case of intersecting globs;
               // a path may have been filtered out of this readdir, but
@@ -22117,8 +22121,9 @@ var require_nunjucks = __commonJS({
 });
 
 // src/cli.ts
-import { writeFileSync as writeFileSync4, mkdirSync as mkdirSync3, existsSync as existsSync3, unlinkSync } from "node:fs";
-import { resolve as resolve3 } from "node:path";
+import { writeFileSync as writeFileSync6, readFileSync as readFileSync6, mkdirSync as mkdirSync5, existsSync as existsSync3, realpathSync, unlinkSync } from "node:fs";
+import { dirname as dirname6, relative, resolve as resolve4 } from "node:path";
+import { pathToFileURL } from "node:url";
 
 // ../../node_modules/.pnpm/commander@14.0.3/node_modules/commander/esm.mjs
 var import_index = __toESM(require_commander(), 1);
@@ -22137,10 +22142,8 @@ var {
   Help
 } = import_index.default;
 
-// src/config.ts
-var import_dotenv = __toESM(require_main(), 1);
-var import_yaml = __toESM(require_dist(), 1);
-import { readFileSync } from "node:fs";
+// src/cli.ts
+var import_yaml2 = __toESM(require_dist(), 1);
 
 // ../../node_modules/.pnpm/zod@4.4.3/node_modules/zod/v4/classic/external.js
 var external_exports = {};
@@ -22721,7 +22724,7 @@ function $constructor(name, initializer3, params) {
   Object.defineProperty(_, "name", { value: name });
   return _;
 }
-var $brand = Symbol("zod_brand");
+var $brand = /* @__PURE__ */ Symbol("zod_brand");
 var $ZodAsyncError = class extends Error {
   constructor() {
     super(`Encountered Promise during synchronous parse. Use .parseAsync() instead.`);
@@ -32464,8 +32467,8 @@ function yo_default() {
 
 // ../../node_modules/.pnpm/zod@4.4.3/node_modules/zod/v4/core/registries.js
 var _a2;
-var $output = Symbol("ZodOutput");
-var $input = Symbol("ZodInput");
+var $output = /* @__PURE__ */ Symbol("ZodOutput");
+var $input = /* @__PURE__ */ Symbol("ZodInput");
 var $ZodRegistry = class {
   constructor() {
     this._map = /* @__PURE__ */ new WeakMap();
@@ -36656,7 +36659,1271 @@ function date4(params) {
 // ../../node_modules/.pnpm/zod@4.4.3/node_modules/zod/v4/classic/external.js
 config(en_default());
 
+// ../schemas/src/primitives.ts
+var countSchema = external_exports.number().int().nonnegative().safe();
+var nonnegativeNumberSchema = external_exports.number().finite().nonnegative();
+var percentageSchema = external_exports.number().finite().min(0).max(100);
+var dateSchema = external_exports.string().date();
+var dateTimeSchema = external_exports.string().datetime({ offset: true }).refine(
+  (value) => Number.isFinite(Date.parse(value)),
+  "Expected a valid timestamp"
+);
+var monthSchema = external_exports.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
+var yearSchema = external_exports.string().regex(/^\d{4}$/);
+var timestampSchema = countSchema.max(864e13);
+var githubUsernameSchema = external_exports.string().regex(
+  /^(?!.*--)[a-z\d](?:[a-z\d-]{0,37}[a-z\d])?$/i,
+  "Expected a GitHub username"
+);
+
+// ../schemas/src/v2.ts
+var OUTPUT_SCHEMA_VERSION = 2;
+var CACHE_SCHEMA_VERSION = 1;
+var languageSchema = external_exports.object({
+  languageName: external_exports.string().min(1),
+  color: external_exports.string().nullable(),
+  value: countSchema,
+  percentage: percentageSchema
+});
+var contributionDaySchema = external_exports.object({
+  contributionCount: countSchema,
+  date: dateSchema
+});
+var contributionWeekSchema = external_exports.object({
+  contributionDays: external_exports.array(contributionDaySchema)
+});
+var contributionCalendarSchema = external_exports.object({
+  totalContributions: countSchema,
+  weeks: external_exports.array(contributionWeekSchema)
+});
+var contributionsCollectionSchema = external_exports.object({
+  totalCommitContributions: countSchema,
+  restrictedContributionsCount: countSchema,
+  totalIssueContributions: countSchema,
+  totalRepositoryContributions: countSchema,
+  totalPullRequestContributions: countSchema,
+  totalPullRequestReviewContributions: countSchema,
+  contributionCalendar: contributionCalendarSchema
+});
+var monthlyContributionSchema = external_exports.object({
+  month: monthSchema,
+  contributions: countSchema
+});
+var yearlyContributionSchema = external_exports.object({
+  year: yearSchema,
+  contributions: countSchema
+});
+var peakDaySchema = external_exports.object({
+  date: dateSchema,
+  contributions: countSchema
+});
+var contributionStatsSchema = external_exports.object({
+  longestStreak: countSchema,
+  currentStreak: countSchema,
+  mostActiveDay: external_exports.string(),
+  averagePerDay: nonnegativeNumberSchema,
+  averagePerWeek: nonnegativeNumberSchema,
+  averagePerMonth: nonnegativeNumberSchema,
+  monthlyBreakdown: external_exports.array(monthlyContributionSchema),
+  yearlyBreakdown: external_exports.array(yearlyContributionSchema),
+  peakDay: peakDaySchema.nullable()
+});
+var rateLimitInfoSchema = external_exports.object({
+  limit: countSchema,
+  remaining: countSchema,
+  used: countSchema,
+  resetAt: dateTimeSchema
+});
+var collectionSourceSchema = external_exports.enum([
+  "owned",
+  "affiliated",
+  "contributed",
+  "profile-contribution",
+  "cache"
+]);
+var repositoryContributionCountsSchema = external_exports.object({
+  commits: countSchema,
+  issues: countSchema,
+  pullRequests: countSchema,
+  pullRequestReviews: countSchema,
+  repositoryCreations: countSchema
+});
+var repoDetailsSchema = external_exports.object({
+  name: external_exports.string().min(1),
+  nameWithOwner: external_exports.string().min(1),
+  description: external_exports.string().nullable(),
+  stars: countSchema,
+  forks: countSchema,
+  isArchived: external_exports.boolean(),
+  isFork: external_exports.boolean(),
+  isPrivate: external_exports.boolean(),
+  primaryLanguage: external_exports.string().nullable(),
+  topics: external_exports.array(external_exports.string()),
+  updatedAt: dateTimeSchema,
+  createdAt: dateTimeSchema
+});
+var repositoryRecordSchema = repoDetailsSchema.extend({
+  id: external_exports.string().min(1),
+  owner: external_exports.string().min(1),
+  ownerType: external_exports.string().nullable(),
+  url: external_exports.string().nullable(),
+  visibility: external_exports.string().nullable(),
+  viewerPermission: external_exports.string().nullable(),
+  pushedAt: dateTimeSchema.nullable(),
+  defaultBranchOid: external_exports.string().nullable(),
+  languages: external_exports.array(languageSchema),
+  codeByteTotal: countSchema,
+  sources: external_exports.array(collectionSourceSchema),
+  contributionCounts: repositoryContributionCountsSchema,
+  metadataFetchedAt: timestampSchema
+});
+var repoStatsSchema = external_exports.object({
+  totalRepos: countSchema,
+  publicRepos: countSchema,
+  privateRepos: countSchema,
+  archivedRepos: countSchema,
+  forkedRepos: countSchema,
+  originalRepos: countSchema,
+  activeRepos: countSchema,
+  reposWithStars: countSchema,
+  reposCreatedThisYear: countSchema,
+  averageStarsPerRepo: nonnegativeNumberSchema
+});
+var topicCountSchema = external_exports.object({
+  name: external_exports.string(),
+  count: countSchema
+});
+var computedStatsSchema = repoStatsSchema.extend({
+  languageCount: countSchema,
+  primaryLanguage: external_exports.string().nullable(),
+  primaryLanguageThisYear: external_exports.string().nullable(),
+  topLanguagesThisYear: external_exports.array(languageSchema),
+  totalTopics: countSchema,
+  topTopics: external_exports.array(topicCountSchema),
+  allTopics: external_exports.array(external_exports.string()),
+  contributionsThisYear: countSchema,
+  contributionsLastYear: countSchema,
+  yearOverYearGrowth: external_exports.number().finite().nullable(),
+  mostProductiveMonth: monthlyContributionSchema.nullable()
+});
+var userProfileSchema = external_exports.object({
+  name: external_exports.string(),
+  login: githubUsernameSchema,
+  bio: external_exports.string().nullable(),
+  company: external_exports.string().nullable(),
+  location: external_exports.string().nullable(),
+  email: external_exports.string().nullable(),
+  twitterUsername: external_exports.string().nullable(),
+  websiteUrl: external_exports.string().nullable(),
+  avatarUrl: external_exports.string(),
+  createdAt: dateTimeSchema,
+  followers: countSchema,
+  following: countSchema
+});
+var activityStatsSchema = external_exports.object({
+  totalPullRequests: countSchema,
+  openIssues: countSchema,
+  closedIssues: countSchema,
+  repositoriesContributedTo: countSchema,
+  discussionsStarted: countSchema,
+  discussionsAnswered: countSchema,
+  starsGiven: countSchema
+});
+var repositoryContributionSummarySchema = external_exports.object({
+  repositoryId: external_exports.string().min(1),
+  nameWithOwner: external_exports.string().min(1),
+  owner: external_exports.string().min(1),
+  counts: repositoryContributionCountsSchema
+});
+var profileContributionsSchema = contributionsCollectionSchema.extend({
+  totalContributions: countSchema,
+  stats: contributionStatsSchema,
+  repositoryContributions: external_exports.array(repositoryContributionSummarySchema),
+  completeness: external_exports.object({
+    complete: external_exports.boolean(),
+    yearsFetched: external_exports.array(yearSchema),
+    yearsFromCache: external_exports.array(yearSchema),
+    missingYears: external_exports.array(yearSchema)
+  })
+});
+var repositoryMetricCoverageSchema = external_exports.object({
+  reposCompleted: countSchema,
+  reposPending: countSchema,
+  reposFailed: countSchema
+});
+var contributorStatsSchema = repositoryMetricCoverageSchema.extend({
+  totalCommits: countSchema,
+  linesAdded: countSchema,
+  linesDeleted: countSchema,
+  linesOfCodeChanged: countSchema
+});
+var trafficSchema = repositoryMetricCoverageSchema.extend({
+  repoViews: countSchema,
+  repoViewUniques: countSchema
+});
+var repoMetricsSchema = external_exports.object({
+  starCount: countSchema,
+  forkCount: countSchema,
+  codeByteTotal: countSchema,
+  topLanguages: external_exports.array(languageSchema),
+  topTopics: external_exports.array(topicCountSchema),
+  profile: external_exports.object({
+    totalRepos: countSchema.optional(),
+    publicRepos: countSchema,
+    privateRepos: countSchema.optional(),
+    originalRepos: countSchema,
+    forkedRepos: countSchema,
+    activeOriginalRepos: countSchema,
+    archivedOriginalRepos: countSchema,
+    reposWithStars: countSchema,
+    starsReceived: countSchema,
+    forksReceived: countSchema,
+    codeByteTotal: countSchema,
+    topLanguages: external_exports.array(languageSchema)
+  }).optional(),
+  contributorStats: contributorStatsSchema,
+  traffic: trafficSchema,
+  repoStats: repoStatsSchema,
+  computedStats: computedStatsSchema
+});
+var packageDownloadCountsSchema = external_exports.object({
+  lastDay: countSchema,
+  lastWeek: countSchema,
+  lastMonth: countSchema,
+  lastYear: countSchema,
+  allTime: countSchema
+});
+var packageMetricSchema = external_exports.object({
+  provider: external_exports.string().min(1),
+  name: external_exports.string().min(1),
+  url: external_exports.string().url(),
+  latestVersion: external_exports.string().nullable(),
+  latestPublishedAt: dateTimeSchema.nullable(),
+  downloads: packageDownloadCountsSchema
+});
+var packageMetricsSchema = external_exports.object({
+  packageCount: countSchema,
+  providers: external_exports.array(external_exports.string()),
+  downloads: packageDownloadCountsSchema,
+  packages: external_exports.array(packageMetricSchema),
+  complete: external_exports.boolean(),
+  warnings: external_exports.array(external_exports.string())
+});
+var metricCardSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  label: external_exports.string().min(1),
+  value: external_exports.union([external_exports.string(), external_exports.number().finite()]),
+  detail: external_exports.string().optional()
+});
+var timelinePointSchema = external_exports.object({
+  period: external_exports.string().min(1),
+  contributions: countSchema
+});
+var presentationSchema = external_exports.object({
+  readmeSummary: external_exports.object({
+    name: external_exports.string(),
+    username: githubUsernameSchema,
+    totalContributions: countSchema,
+    currentStreak: countSchema,
+    longestStreak: countSchema,
+    topLanguages: external_exports.array(languageSchema),
+    starsReceived: countSchema,
+    forksReceived: countSchema,
+    totalRepos: countSchema.optional(),
+    originalRepos: countSchema.optional(),
+    activeRepos: countSchema,
+    languageCount: countSchema.optional(),
+    codeByteTotal: countSchema.optional(),
+    refreshedAt: dateTimeSchema,
+    complete: external_exports.boolean()
+  }),
+  cards: external_exports.array(metricCardSchema),
+  timeline: external_exports.array(timelinePointSchema),
+  highlights: external_exports.array(metricCardSchema),
+  remotion: external_exports.object({
+    scenes: external_exports.array(
+      external_exports.object({
+        id: external_exports.string().min(1),
+        title: external_exports.string(),
+        metric: external_exports.union([external_exports.string(), external_exports.number().finite()]),
+        supportingText: external_exports.string().optional()
+      })
+    )
+  })
+});
+var privacyReportSchema = external_exports.object({
+  privateRepositoryMetricsIncluded: external_exports.boolean(),
+  privateRepositoryDetailsIncluded: external_exports.boolean(),
+  privateCacheDetailsIncluded: external_exports.boolean(),
+  redactedPrivateRepositories: countSchema,
+  redactedRepositoryContributions: countSchema,
+  redactedOptionalMetrics: countSchema
+});
+var collectionStatusSchema = external_exports.object({
+  startedAt: timestampSchema,
+  finishedAt: timestampSchema,
+  durationMs: countSchema,
+  complete: external_exports.boolean(),
+  coreComplete: external_exports.boolean(),
+  cache: external_exports.object({
+    stablePath: external_exports.string(),
+    volatilePath: external_exports.string(),
+    contributionYearsFromCache: countSchema,
+    contributionYearsFetched: countSchema,
+    repositoriesFromCache: countSchema,
+    repositoriesFetched: countSchema
+  }),
+  backfill: external_exports.object({
+    enabled: external_exports.boolean(),
+    completedThisRun: countSchema,
+    pending: countSchema,
+    failedThisRun: countSchema,
+    skippedThisRun: countSchema
+  }),
+  rateLimit: external_exports.object({
+    graphql: rateLimitInfoSchema.nullable(),
+    rest: rateLimitInfoSchema.nullable()
+  }),
+  warnings: external_exports.array(external_exports.string()),
+  errors: external_exports.array(external_exports.string())
+});
+var legacyStatsSchema = userProfileSchema.omit({ login: true }).extend({
+  username: githubUsernameSchema,
+  repoViews: countSchema,
+  linesOfCodeChanged: countSchema,
+  linesAdded: countSchema,
+  linesDeleted: countSchema,
+  commitCount: countSchema,
+  totalCommits: countSchema,
+  ...activityStatsSchema.shape,
+  totalPullRequestReviews: countSchema,
+  fetchedAt: timestampSchema,
+  forkCount: countSchema,
+  starCount: countSchema,
+  totalContributions: countSchema,
+  codeByteTotal: countSchema,
+  topLanguages: external_exports.array(languageSchema),
+  contributionStats: contributionStatsSchema,
+  repoStats: repoStatsSchema,
+  computedStats: computedStatsSchema,
+  contributionsCollection: contributionsCollectionSchema,
+  topRepos: external_exports.array(repoDetailsSchema)
+});
+var githubStatsOutputSchema = external_exports.object({
+  schemaVersion: external_exports.literal(OUTPUT_SCHEMA_VERSION),
+  generatedAt: dateTimeSchema,
+  profile: userProfileSchema,
+  profileContributions: profileContributionsSchema,
+  activity: activityStatsSchema,
+  repositories: external_exports.array(repositoryRecordSchema),
+  repoMetrics: repoMetricsSchema,
+  packageMetrics: packageMetricsSchema,
+  presentation: presentationSchema,
+  privacy: privacyReportSchema,
+  collectionStatus: collectionStatusSchema
+});
+function emptyPackageMetrics() {
+  return {
+    packageCount: 0,
+    providers: [],
+    downloads: { lastDay: 0, lastWeek: 0, lastMonth: 0, lastYear: 0, allTime: 0 },
+    packages: [],
+    complete: true,
+    warnings: []
+  };
+}
+
+// ../schemas/src/input.ts
+var renderLanguageSchema = languageSchema.partial({
+  percentage: true
+});
+var privacyInputSchema = privacyReportSchema.extend({
+  privateRepositoryMetricsIncluded: external_exports.boolean().default(false)
+});
+var legacyLanguageInputSchema = external_exports.union([
+  renderLanguageSchema.extend({
+    color: languageSchema.shape.color.default(null)
+  }),
+  external_exports.object({
+    name: languageSchema.shape.languageName,
+    bytes: languageSchema.shape.value,
+    color: languageSchema.shape.color.default(null),
+    percentage: languageSchema.shape.percentage.optional()
+  }).transform(({ name, bytes, color, percentage }) => ({
+    languageName: name,
+    value: bytes,
+    color,
+    ...percentage === void 0 ? {} : { percentage }
+  }))
+]);
+var githubStatsV2InputSchema = githubStatsOutputSchema.partial().required({
+  schemaVersion: true,
+  generatedAt: true,
+  profile: true,
+  profileContributions: true
+}).extend({
+  repoMetrics: repoMetricsSchema.partial({
+    contributorStats: true,
+    traffic: true
+  }).optional(),
+  presentation: presentationSchema.partial().optional(),
+  privacy: privacyInputSchema.optional(),
+  // Historical v2 exports may carry aliases; validate them before the privacy guard.
+  topRepos: legacyStatsSchema.shape.topRepos.optional(),
+  legacy: legacyStatsSchema.partial().optional(),
+  error: external_exports.never().optional(),
+  errors: external_exports.never().optional()
+});
+var legacyStatsInputSchema = legacyStatsSchema.partial().required({
+  username: true,
+  fetchedAt: true,
+  totalContributions: true
+}).extend({
+  schemaVersion: external_exports.undefined().optional(),
+  generatedAt: external_exports.never().optional(),
+  profile: external_exports.never().optional(),
+  profileContributions: external_exports.never().optional(),
+  repoMetrics: external_exports.never().optional(),
+  legacy: external_exports.never().optional(),
+  error: external_exports.never().optional(),
+  errors: external_exports.never().optional(),
+  topLanguages: external_exports.array(legacyLanguageInputSchema).optional(),
+  contributionStats: contributionStatsSchema.partial().optional(),
+  contributionsCollection: contributionsCollectionSchema.partial().required({
+    contributionCalendar: true
+  }).optional(),
+  repoStats: repoStatsSchema.partial().optional(),
+  computedStats: computedStatsSchema.partial().optional(),
+  privacy: privacyInputSchema.optional(),
+  packageMetrics: packageMetricsSchema.optional(),
+  linesChanged: countSchema.optional(),
+  totalRepos: countSchema.optional()
+}).refine(
+  (stats) => stats.totalCommits !== void 0 || stats.commitCount !== void 0 || stats.contributionsCollection?.totalCommitContributions !== void 0,
+  {
+    message: "Legacy stats require totalCommits, commitCount or contribution commit totals",
+    path: ["totalCommits"]
+  }
+);
+var githubStatsInputSchema = external_exports.union([
+  githubStatsV2InputSchema,
+  legacyStatsInputSchema
+]);
+function hasPrivateRepositoryDetails(stats) {
+  return stats.privacy?.privateRepositoryDetailsIncluded === true || stats.topRepos?.some((repository) => repository.isPrivate) === true || stats.schemaVersion === 2 && (stats.repositories?.some((repository) => repository.isPrivate || repository.visibility === "PRIVATE") === true || stats.legacy?.topRepos?.some((repository) => repository.isPrivate) === true);
+}
+
+// ../schemas/src/zod.ts
+var userStatsSchema = external_exports.object({
+  // Keep the public number | null field type; only the known raw version is valid.
+  schemaVersion: external_exports.number().refine(
+    (version2) => version2 === 2,
+    "Unsupported stats schema version"
+  ).nullable(),
+  name: external_exports.string(),
+  username: githubUsernameSchema,
+  avatarUrl: external_exports.string(),
+  bio: external_exports.string().nullable(),
+  websiteUrl: external_exports.string().nullable(),
+  location: external_exports.string().nullable(),
+  generatedAt: dateTimeSchema,
+  fetchedAt: timestampSchema,
+  isComplete: external_exports.boolean(),
+  summary: external_exports.object({
+    totalContributions: countSchema,
+    currentStreak: countSchema,
+    longestStreak: countSchema,
+    starsReceived: countSchema,
+    forksReceived: countSchema,
+    activeRepos: countSchema,
+    totalRepos: countSchema,
+    languageCount: countSchema,
+    profileMetricsComplete: external_exports.boolean(),
+    refreshedAt: dateTimeSchema
+  }),
+  contributions: external_exports.object({
+    totalContributions: countSchema,
+    totalCommits: countSchema,
+    restrictedContributionsCount: countSchema,
+    currentStreak: countSchema,
+    longestStreak: countSchema,
+    peakDay: peakDaySchema.nullable(),
+    mostProductiveMonth: monthlyContributionSchema.nullable(),
+    calendar: external_exports.array(contributionDaySchema),
+    timeline: external_exports.array(timelinePointSchema)
+  }),
+  code: external_exports.object({
+    codeByteTotal: countSchema,
+    linesAdded: countSchema,
+    linesDeleted: countSchema,
+    linesChanged: countSchema,
+    linesOfCodeChanged: countSchema,
+    contributorReposCompleted: countSchema,
+    contributorReposPending: countSchema,
+    contributorReposFailed: countSchema
+  }),
+  community: external_exports.object({
+    totalPullRequests: countSchema,
+    totalPullRequestReviews: countSchema,
+    openIssues: countSchema,
+    closedIssues: countSchema,
+    repositoriesContributedTo: countSchema,
+    discussionsStarted: countSchema,
+    discussionsAnswered: countSchema,
+    starsGiven: countSchema,
+    followers: countSchema,
+    following: countSchema
+  }),
+  repositories: external_exports.object({
+    totalRepos: countSchema,
+    publicRepos: countSchema,
+    privateRepos: countSchema,
+    activeRepos: countSchema,
+    archivedRepos: countSchema,
+    forkedRepos: countSchema,
+    originalRepos: countSchema,
+    reposWithStars: countSchema,
+    repoViews: countSchema,
+    repoViewUniques: countSchema,
+    trafficReposCompleted: countSchema,
+    trafficReposPending: countSchema,
+    trafficReposFailed: countSchema,
+    starCount: countSchema,
+    forkCount: countSchema
+  }),
+  topLanguages: external_exports.array(renderLanguageSchema),
+  packages: packageMetricsSchema,
+  cards: external_exports.array(metricCardSchema),
+  highlights: external_exports.array(metricCardSchema),
+  privacy: privacyReportSchema,
+  collectionStatus: external_exports.object({
+    complete: external_exports.boolean(),
+    coreComplete: external_exports.boolean(),
+    coverageKnown: external_exports.object({ contributors: external_exports.boolean(), traffic: external_exports.boolean() }).optional(),
+    backfillPending: countSchema,
+    backfillCompletedThisRun: countSchema,
+    backfillFailedThisRun: countSchema,
+    warnings: external_exports.array(external_exports.string()),
+    errors: external_exports.array(external_exports.string())
+  }),
+  repoViews: countSchema,
+  linesOfCodeChanged: countSchema,
+  linesAdded: countSchema,
+  linesDeleted: countSchema,
+  linesChanged: countSchema,
+  totalCommits: countSchema,
+  totalPullRequests: countSchema,
+  totalPullRequestReviews: countSchema,
+  openIssues: countSchema,
+  closedIssues: countSchema,
+  forkCount: countSchema,
+  starCount: countSchema,
+  totalContributions: countSchema,
+  codeByteTotal: countSchema
+});
+var sourcePropsSchema = external_exports.object({
+  username: githubUsernameSchema.optional(),
+  usernames: external_exports.array(githubUsernameSchema).min(1).refine(
+    (names) => new Set(names.map((name) => name.toLowerCase())).size === names.length,
+    "Duplicate GitHub usernames"
+  ).optional(),
+  statsUrl: external_exports.string().url().regex(/^https?:\/\//i, "Expected an HTTP(S) stats URL").optional(),
+  stats: githubStatsInputSchema.optional(),
+  userStats: userStatsSchema.optional(),
+  allowPrivateRepositoryDetails: external_exports.boolean().optional()
+}).refine(
+  (props) => props.stats !== void 0 || props.statsUrl !== void 0 || props.usernames !== void 0 || props.username !== void 0 || props.userStats !== void 0,
+  "Provide stats, statsUrl, usernames, username or normalized userStats"
+);
+var mainSchema = external_exports.object({
+  userStats: userStatsSchema
+});
+
+// ../schemas/src/aggregate.ts
+function emptyContributionsCollection() {
+  return {
+    totalCommitContributions: 0,
+    restrictedContributionsCount: 0,
+    totalIssueContributions: 0,
+    totalRepositoryContributions: 0,
+    totalPullRequestContributions: 0,
+    totalPullRequestReviewContributions: 0,
+    contributionCalendar: {
+      totalContributions: 0,
+      weeks: []
+    }
+  };
+}
+function mergeContributionsCollections(collections) {
+  const merged = emptyContributionsCollection();
+  for (const collection of collections) {
+    merged.totalCommitContributions += collection.totalCommitContributions;
+    merged.restrictedContributionsCount += collection.restrictedContributionsCount;
+    merged.totalIssueContributions += collection.totalIssueContributions;
+    merged.totalRepositoryContributions += collection.totalRepositoryContributions;
+    merged.totalPullRequestContributions += collection.totalPullRequestContributions;
+    merged.totalPullRequestReviewContributions += collection.totalPullRequestReviewContributions;
+    merged.contributionCalendar.totalContributions += collection.contributionCalendar.totalContributions;
+    merged.contributionCalendar.weeks.push(...collection.contributionCalendar.weeks);
+  }
+  return merged;
+}
+function calculateContributionStats(contributionsCollection, now = Date.now()) {
+  const today = new Date(now).toISOString().slice(0, 10);
+  const allDays = [];
+  const monthlyMap = /* @__PURE__ */ new Map();
+  const yearlyMap = /* @__PURE__ */ new Map();
+  const dayOfWeekCounts = /* @__PURE__ */ new Map();
+  let peakDay = null;
+  for (const week of contributionsCollection.contributionCalendar.weeks) {
+    for (const day of week.contributionDays) {
+      if (day.date > today) continue;
+      allDays.push({ date: day.date, count: day.contributionCount });
+      const month = day.date.substring(0, 7);
+      monthlyMap.set(month, (monthlyMap.get(month) || 0) + day.contributionCount);
+      const year = day.date.substring(0, 4);
+      yearlyMap.set(year, (yearlyMap.get(year) || 0) + day.contributionCount);
+      const dayOfWeek = (/* @__PURE__ */ new Date(`${day.date}T00:00:00.000Z`)).toLocaleDateString(
+        "en-US",
+        { weekday: "long", timeZone: "UTC" }
+      );
+      dayOfWeekCounts.set(
+        dayOfWeek,
+        (dayOfWeekCounts.get(dayOfWeek) || 0) + day.contributionCount
+      );
+      if (!peakDay || day.contributionCount > peakDay.contributions) {
+        peakDay = { date: day.date, contributions: day.contributionCount };
+      }
+    }
+  }
+  allDays.sort((a, b) => a.date.localeCompare(b.date));
+  let longestStreak = 0;
+  let tempStreak = 0;
+  let previousDate = 0;
+  for (const day of allDays) {
+    const date5 = Date.parse(`${day.date}T00:00:00.000Z`);
+    if (date5 - previousDate !== 864e5) tempStreak = 0;
+    previousDate = date5;
+    if (day.count > 0) {
+      tempStreak++;
+      longestStreak = Math.max(longestStreak, tempStreak);
+    } else {
+      tempStreak = 0;
+    }
+  }
+  let currentStreak = 0;
+  let expectedDate = Date.parse(`${today}T00:00:00.000Z`);
+  if (allDays.at(-1)?.date !== today || allDays.at(-1)?.count === 0) expectedDate -= 864e5;
+  for (let i = allDays.length - 1; i >= 0; i--) {
+    const day = allDays[i];
+    if (day.date === today && day.count === 0) continue;
+    if (Date.parse(`${day.date}T00:00:00.000Z`) !== expectedDate) break;
+    if (day.count > 0) {
+      currentStreak++;
+      expectedDate -= 864e5;
+      continue;
+    }
+    if (day.date !== today) break;
+  }
+  let mostActiveDay = "Sunday";
+  let maxDayCount = 0;
+  for (const [day, count] of dayOfWeekCounts) {
+    if (count > maxDayCount) {
+      maxDayCount = count;
+      mostActiveDay = day;
+    }
+  }
+  const totalDays = allDays.length || 1;
+  const totalContributions = contributionsCollection.contributionCalendar.totalContributions;
+  const averagePerDay = totalContributions / totalDays;
+  const monthlyBreakdown = Array.from(monthlyMap.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([month, contributions]) => ({ month, contributions }));
+  const yearlyBreakdown = Array.from(yearlyMap.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([year, contributions]) => ({ year, contributions }));
+  return {
+    longestStreak,
+    currentStreak,
+    mostActiveDay,
+    averagePerDay: Math.round(averagePerDay * 100) / 100,
+    averagePerWeek: Math.round(averagePerDay * 700) / 100,
+    averagePerMonth: Math.round(averagePerDay * 3e3) / 100,
+    monthlyBreakdown,
+    yearlyBreakdown,
+    peakDay
+  };
+}
+function aggregateLanguages(repos) {
+  const languageMap = /* @__PURE__ */ new Map();
+  let codeByteTotal = 0;
+  for (const repo of repos) {
+    for (const edge of repo.languages.edges) {
+      const langName = edge.node.name;
+      const existing = languageMap.get(langName);
+      if (existing) {
+        existing.value += edge.size;
+      } else {
+        languageMap.set(langName, {
+          color: edge.node.color,
+          value: edge.size
+        });
+      }
+      codeByteTotal += edge.size;
+    }
+  }
+  const languages = Array.from(languageMap.entries()).map(([languageName, data]) => ({
+    languageName,
+    color: data.color,
+    value: data.value,
+    percentage: codeByteTotal > 0 ? Math.round(data.value / codeByteTotal * 1e4) / 100 : 0
+  })).sort((a, b) => b.value - a.value || a.languageName.localeCompare(b.languageName));
+  return { languages, codeByteTotal };
+}
+function calculateProfileRepoMetrics(repositories, fetchedAt = Date.now()) {
+  const owned = repositories.filter((repo) => repo.sources.includes("owned"));
+  const originals = owned.filter((repo) => !repo.isFork);
+  const { languages, codeByteTotal } = aggregateRepositoryLanguages(originals);
+  const year = String(new Date(fetchedAt).getUTCFullYear());
+  return {
+    totalRepos: owned.length,
+    publicRepos: owned.filter((repo) => !repo.isPrivate).length,
+    privateRepos: owned.filter((repo) => repo.isPrivate).length,
+    originalRepos: originals.length,
+    forkedRepos: owned.length - originals.length,
+    activeOriginalRepos: originals.filter((repo) => (repo.pushedAt || repo.updatedAt).startsWith(year)).length,
+    archivedOriginalRepos: originals.filter((repo) => repo.isArchived).length,
+    reposWithStars: originals.filter((repo) => repo.stars > 0).length,
+    starsReceived: originals.reduce((sum2, repo) => sum2 + repo.stars, 0),
+    forksReceived: originals.reduce((sum2, repo) => sum2 + repo.forks, 0),
+    codeByteTotal,
+    topLanguages: languages
+  };
+}
+function aggregateRepositoryLanguages(repos) {
+  const languageMap = /* @__PURE__ */ new Map();
+  let codeByteTotal = 0;
+  for (const repo of repos) {
+    for (const language of repo.languages) {
+      const existing = languageMap.get(language.languageName);
+      if (existing) {
+        existing.value += language.value;
+      } else {
+        languageMap.set(language.languageName, {
+          color: language.color,
+          value: language.value
+        });
+      }
+      codeByteTotal += language.value;
+    }
+  }
+  const languages = Array.from(languageMap.entries()).map(([languageName, data]) => ({
+    languageName,
+    color: data.color,
+    value: data.value,
+    percentage: codeByteTotal > 0 ? Math.round(data.value / codeByteTotal * 1e4) / 100 : 0
+  })).sort((a, b) => b.value - a.value || a.languageName.localeCompare(b.languageName));
+  return { languages, codeByteTotal };
+}
+function calculateRepoStats(repoInfoList) {
+  const currentYearStr = `${(/* @__PURE__ */ new Date()).getFullYear()}`;
+  const totalRepos = repoInfoList.length;
+  const publicRepos = repoInfoList.filter((r) => !r.isPrivate).length;
+  const privateRepos = repoInfoList.filter((r) => r.isPrivate).length;
+  const archivedRepos = repoInfoList.filter((r) => r.isArchived).length;
+  const forkedRepos = repoInfoList.filter((r) => r.isFork).length;
+  const originalRepos = totalRepos - forkedRepos;
+  const activeRepos = repoInfoList.filter(
+    (r) => (r.pushedAt || r.updatedAt).startsWith(currentYearStr)
+  ).length;
+  const reposWithStars = repoInfoList.filter((r) => r.stars > 0).length;
+  const reposCreatedThisYear = repoInfoList.filter(
+    (r) => r.createdAt.startsWith(currentYearStr)
+  ).length;
+  const totalStars = repoInfoList.reduce((sum2, r) => sum2 + r.stars, 0);
+  const averageStarsPerRepo = totalRepos > 0 ? Math.round(totalStars / totalRepos * 100) / 100 : 0;
+  return {
+    totalRepos,
+    publicRepos,
+    privateRepos,
+    archivedRepos,
+    forkedRepos,
+    originalRepos,
+    activeRepos,
+    reposWithStars,
+    reposCreatedThisYear,
+    averageStarsPerRepo
+  };
+}
+function calculateComputedStats(repoInfoList, topLanguages, contributionStats) {
+  const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
+  const currentYearStr = `${currentYear}`;
+  const lastYearStr = `${currentYear - 1}`;
+  const repoStats = calculateRepoStats(repoInfoList);
+  const languageCount = topLanguages.length;
+  const primaryLanguage2 = topLanguages[0]?.languageName || null;
+  const reposThisYear = repoInfoList.filter(
+    (r) => (r.pushedAt || r.updatedAt).startsWith(currentYearStr)
+  );
+  const { languages: languagesThisYear } = aggregateLanguages(reposThisYear);
+  const topLanguagesThisYear = languagesThisYear.slice(0, 10);
+  const primaryLanguageThisYear = topLanguagesThisYear[0]?.languageName || null;
+  const contributionsThisYear = contributionStats.monthlyBreakdown.filter((m) => m.month.startsWith(currentYearStr)).reduce((sum2, m) => sum2 + m.contributions, 0);
+  const contributionsLastYear = contributionStats.monthlyBreakdown.filter((m) => m.month.startsWith(lastYearStr)).reduce((sum2, m) => sum2 + m.contributions, 0);
+  const yearOverYearGrowth = contributionsLastYear > 0 ? Math.round(
+    (contributionsThisYear - contributionsLastYear) / contributionsLastYear * 1e4
+  ) / 100 : null;
+  let mostProductiveMonth = null;
+  for (const m of contributionStats.monthlyBreakdown) {
+    if (!mostProductiveMonth || m.contributions > mostProductiveMonth.contributions) {
+      mostProductiveMonth = m;
+    }
+  }
+  const topicCountMap = /* @__PURE__ */ new Map();
+  const allTopicsSet = /* @__PURE__ */ new Set();
+  for (const repo of repoInfoList) {
+    for (const topic of repo.topics) {
+      topicCountMap.set(topic, (topicCountMap.get(topic) || 0) + 1);
+      allTopicsSet.add(topic);
+    }
+  }
+  const topTopics = Array.from(topicCountMap.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 20);
+  return {
+    ...repoStats,
+    languageCount,
+    primaryLanguage: primaryLanguage2,
+    primaryLanguageThisYear,
+    topLanguagesThisYear,
+    totalTopics: allTopicsSet.size,
+    topTopics,
+    allTopics: Array.from(allTopicsSet).sort(),
+    contributionsThisYear,
+    contributionsLastYear,
+    yearOverYearGrowth,
+    mostProductiveMonth
+  };
+}
+function formatBytes(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+function formatNumber(num) {
+  if (num < 1e3) return num.toString();
+  if (num < 1e6) return `${(num / 1e3).toFixed(1)}K`;
+  return `${(num / 1e6).toFixed(1)}M`;
+}
+
+// ../schemas/src/presentation.ts
+function buildPresentationData(params) {
+  const profileMetrics = params.repoMetrics.profile;
+  if (!profileMetrics) {
+    throw new Error("Profile repository metrics are required for presentation output");
+  }
+  const topLanguage = profileMetrics.topLanguages[0];
+  const contributionStats = params.profileContributions.stats;
+  const mostProductiveMonth = params.repoMetrics.computedStats.mostProductiveMonth;
+  const peakDay = contributionStats.peakDay;
+  const totalContributions = params.profileContributions.totalContributions;
+  return {
+    readmeSummary: {
+      name: params.profile.name,
+      username: params.profile.login,
+      totalContributions,
+      currentStreak: contributionStats.currentStreak,
+      longestStreak: contributionStats.longestStreak,
+      topLanguages: profileMetrics.topLanguages.slice(0, 5),
+      starsReceived: profileMetrics.starsReceived,
+      forksReceived: profileMetrics.forksReceived,
+      totalRepos: profileMetrics.totalRepos ?? profileMetrics.publicRepos,
+      originalRepos: profileMetrics.originalRepos,
+      activeRepos: profileMetrics.activeOriginalRepos,
+      languageCount: profileMetrics.topLanguages.length,
+      codeByteTotal: profileMetrics.codeByteTotal,
+      refreshedAt: new Date(params.fetchedAt).toISOString(),
+      complete: params.complete
+    },
+    cards: [
+      {
+        id: "total-contributions",
+        label: "Total contributions",
+        value: formatNumber(totalContributions)
+      },
+      {
+        id: "current-streak",
+        label: "Current streak",
+        value: `${contributionStats.currentStreak} days`
+      },
+      {
+        id: "languages",
+        label: "Languages",
+        value: profileMetrics.topLanguages.length,
+        detail: topLanguage ? `${topLanguage.languageName} leads` : void 0
+      },
+      {
+        id: "code-volume",
+        label: "Code volume",
+        value: formatBytes(profileMetrics.codeByteTotal)
+      },
+      {
+        id: "stars",
+        label: "Stars received",
+        value: formatNumber(profileMetrics.starsReceived)
+      }
+    ],
+    timeline: contributionStats.yearlyBreakdown.map((year) => ({
+      period: year.year,
+      contributions: year.contributions
+    })),
+    highlights: [
+      ...peakDay ? [
+        {
+          id: "peak-day",
+          label: "Peak day",
+          value: peakDay.contributions,
+          detail: peakDay.date
+        }
+      ] : [],
+      ...mostProductiveMonth ? [
+        {
+          id: "top-month",
+          label: "Most productive month",
+          value: mostProductiveMonth.contributions,
+          detail: mostProductiveMonth.month
+        }
+      ] : [],
+      ...topLanguage ? [
+        {
+          id: "top-language",
+          label: "Top language",
+          value: topLanguage.languageName,
+          detail: `${topLanguage.percentage}%`
+        }
+      ] : []
+    ],
+    remotion: {
+      scenes: [
+        {
+          id: "intro",
+          title: params.profile.name || params.profile.login,
+          metric: params.profile.login,
+          supportingText: "GitHub profile activity"
+        },
+        {
+          id: "contributions",
+          title: "Contribution history",
+          metric: formatNumber(totalContributions),
+          supportingText: `${contributionStats.longestStreak} day longest streak`
+        },
+        {
+          id: "repositories",
+          title: "Repository footprint",
+          metric: profileMetrics.totalRepos ?? profileMetrics.publicRepos,
+          supportingText: `${profileMetrics.originalRepos} original repositories`
+        },
+        {
+          id: "languages",
+          title: "Language mix",
+          metric: topLanguage?.languageName || "N/A",
+          supportingText: `${profileMetrics.topLanguages.length} languages detected`
+        }
+      ]
+    }
+  };
+}
+
+// ../schemas/src/merge.ts
+function mergeProfileContributions(contributions, throughDate) {
+  const observedCalendar = mergeContributionCalendars(
+    contributions.map((c) => c.contributionCalendar),
+    throughDate
+  );
+  const calendar = {
+    ...observedCalendar,
+    totalContributions: contributions.reduce((sum2, c) => sum2 + c.contributionCalendar.totalContributions, 0)
+  };
+  const calendarsComplete = contributions.every(
+    (c) => [...observedCalendarDays(c.contributionCalendar, throughDate).values()].reduce((sum2, count) => sum2 + count, 0) === c.contributionCalendar.totalContributions
+  );
+  const collection = {
+    totalCommitContributions: contributions.reduce(
+      (sum2, c) => sum2 + c.totalCommitContributions,
+      0
+    ),
+    restrictedContributionsCount: contributions.reduce(
+      (sum2, c) => sum2 + c.restrictedContributionsCount,
+      0
+    ),
+    totalIssueContributions: contributions.reduce(
+      (sum2, c) => sum2 + c.totalIssueContributions,
+      0
+    ),
+    totalRepositoryContributions: contributions.reduce(
+      (sum2, c) => sum2 + c.totalRepositoryContributions,
+      0
+    ),
+    totalPullRequestContributions: contributions.reduce(
+      (sum2, c) => sum2 + c.totalPullRequestContributions,
+      0
+    ),
+    totalPullRequestReviewContributions: contributions.reduce(
+      (sum2, c) => sum2 + c.totalPullRequestReviewContributions,
+      0
+    ),
+    contributionCalendar: calendar
+  };
+  return {
+    totalContributions: calendar.totalContributions,
+    totalCommitContributions: collection.totalCommitContributions,
+    restrictedContributionsCount: collection.restrictedContributionsCount,
+    totalIssueContributions: collection.totalIssueContributions,
+    totalRepositoryContributions: collection.totalRepositoryContributions,
+    totalPullRequestContributions: collection.totalPullRequestContributions,
+    totalPullRequestReviewContributions: collection.totalPullRequestReviewContributions,
+    contributionCalendar: calendar,
+    stats: calculateContributionStats(collection, throughDate ? Date.parse(throughDate) : Date.now()),
+    repositoryContributions: mergeRepositoryContributionSummaries(
+      contributions.flatMap((c) => c.repositoryContributions)
+    ),
+    completeness: {
+      complete: calendarsComplete && contributions.every((c) => c.completeness.complete && c.completeness.missingYears.length === 0 && c.contributionCalendar.weeks.some((week) => week.contributionDays.length > 0)),
+      yearsFetched: unionSorted(contributions.map((c) => c.completeness.yearsFetched)),
+      yearsFromCache: unionSorted(contributions.map((c) => c.completeness.yearsFromCache)),
+      // Coverage is per account: one account cannot fill another account's missing year.
+      missingYears: unionSorted(contributions.map((c) => c.completeness.missingYears))
+    }
+  };
+}
+function mergeContributionCalendars(calendars, throughDate) {
+  const byDate = /* @__PURE__ */ new Map();
+  for (const calendar of calendars) {
+    for (const [date5, count] of observedCalendarDays(calendar, throughDate)) byDate.set(date5, (byDate.get(date5) ?? 0) + count);
+  }
+  const dates = [...byDate.keys()].sort();
+  const days = [];
+  if (dates.length > 0) {
+    const end = throughDate ?? dates[dates.length - 1];
+    const date5 = /* @__PURE__ */ new Date(`${dates[0]}T00:00:00.000Z`);
+    while (date5.toISOString().slice(0, 10) <= end) {
+      const isoDate = date5.toISOString().slice(0, 10);
+      days.push({ date: isoDate, contributionCount: byDate.get(isoDate) ?? 0 });
+      date5.setUTCDate(date5.getUTCDate() + 1);
+    }
+  }
+  const weeks = [];
+  let currentWeek = [];
+  for (const day of days) {
+    const weekday = (/* @__PURE__ */ new Date(`${day.date}T00:00:00.000Z`)).getUTCDay();
+    if (weekday === 0 && currentWeek.length > 0) {
+      weeks.push({ contributionDays: currentWeek });
+      currentWeek = [];
+    }
+    currentWeek.push(day);
+  }
+  if (currentWeek.length > 0) {
+    weeks.push({ contributionDays: currentWeek });
+  }
+  return {
+    totalContributions: days.reduce((sum2, day) => sum2 + day.contributionCount, 0),
+    weeks
+  };
+}
+function observedCalendarDays(calendar, throughDate) {
+  const days = /* @__PURE__ */ new Map();
+  for (const week of calendar.weeks) {
+    for (const day of week.contributionDays) {
+      if (!throughDate || day.date <= throughDate) {
+        days.set(day.date, Math.max(days.get(day.date) ?? 0, day.contributionCount));
+      }
+    }
+  }
+  return days;
+}
+function mergeRepositories(repositories) {
+  const byId = /* @__PURE__ */ new Map();
+  for (const repository of repositories) {
+    const current = byId.get(repository.id);
+    if (!current) {
+      byId.set(repository.id, { ...repository, sources: [...new Set(repository.sources)] });
+      continue;
+    }
+    const newer = repository.metadataFetchedAt >= current.metadataFetchedAt ? repository : current;
+    byId.set(repository.id, {
+      ...newer,
+      sources: [.../* @__PURE__ */ new Set([...current.sources, ...repository.sources])],
+      contributionCounts: {
+        commits: current.contributionCounts.commits + repository.contributionCounts.commits,
+        issues: current.contributionCounts.issues + repository.contributionCounts.issues,
+        pullRequests: current.contributionCounts.pullRequests + repository.contributionCounts.pullRequests,
+        pullRequestReviews: current.contributionCounts.pullRequestReviews + repository.contributionCounts.pullRequestReviews,
+        repositoryCreations: current.contributionCounts.repositoryCreations + repository.contributionCounts.repositoryCreations
+      },
+      metadataFetchedAt: Math.max(current.metadataFetchedAt, repository.metadataFetchedAt)
+    });
+  }
+  return Array.from(byId.values()).sort(
+    (a, b) => a.nameWithOwner.localeCompare(b.nameWithOwner)
+  );
+}
+function mergeRepositoryContributionSummaries(summaries) {
+  const byId = /* @__PURE__ */ new Map();
+  for (const summary of summaries) {
+    const current = byId.get(summary.repositoryId);
+    if (!current) {
+      byId.set(summary.repositoryId, { ...summary, counts: { ...summary.counts } });
+      continue;
+    }
+    current.counts = {
+      commits: current.counts.commits + summary.counts.commits,
+      issues: current.counts.issues + summary.counts.issues,
+      pullRequests: current.counts.pullRequests + summary.counts.pullRequests,
+      pullRequestReviews: current.counts.pullRequestReviews + summary.counts.pullRequestReviews,
+      repositoryCreations: current.counts.repositoryCreations + summary.counts.repositoryCreations
+    };
+  }
+  return Array.from(byId.values()).sort(
+    (a, b) => a.nameWithOwner.localeCompare(b.nameWithOwner)
+  );
+}
+function mergePackageMetrics(metrics) {
+  const packages = new Map(
+    metrics.flatMap((metric) => metric.packages).map((item) => [`${item.provider}:${item.name}`, item])
+  );
+  const values = Array.from(packages.values());
+  const sumDownloads2 = (period) => values.reduce((total, item) => total + item.downloads[period], 0);
+  return {
+    packageCount: values.length,
+    providers: [...new Set(metrics.flatMap((metric) => metric.providers))].sort(),
+    downloads: {
+      lastDay: sumDownloads2("lastDay"),
+      lastWeek: sumDownloads2("lastWeek"),
+      lastMonth: sumDownloads2("lastMonth"),
+      lastYear: sumDownloads2("lastYear"),
+      allTime: sumDownloads2("allTime")
+    },
+    packages: values.sort((a, b) => b.downloads.lastMonth - a.downloads.lastMonth),
+    complete: metrics.every((metric) => metric.complete),
+    warnings: [...new Set(metrics.flatMap((metric) => metric.warnings))]
+  };
+}
+function unionSorted(lists) {
+  return [...new Set(lists.flat())].sort((a, b) => a.localeCompare(b));
+}
+
+// ../schemas/src/cards.ts
+var DEFAULT_DURATION_SECONDS = 10;
+var cardDefinitions = [
+  {
+    id: "readme",
+    title: "Signature",
+    width: 560,
+    height: 390,
+    durationInSeconds: DEFAULT_DURATION_SECONDS,
+    playback: "loop"
+  },
+  {
+    id: "readme-classic",
+    title: "Classic \xB7 2024",
+    width: 500,
+    height: 350,
+    durationInSeconds: DEFAULT_DURATION_SECONDS,
+    playback: "once"
+  },
+  {
+    id: "readme-spotlight",
+    title: "Spotlight",
+    width: 560,
+    height: 440,
+    durationInSeconds: 12,
+    playback: "loop"
+  },
+  {
+    id: "stats",
+    title: "GitHub stats",
+    width: 500,
+    height: 360,
+    durationInSeconds: DEFAULT_DURATION_SECONDS,
+    playback: "once"
+  },
+  {
+    id: "languages",
+    title: "Language mix",
+    width: 500,
+    height: 270,
+    durationInSeconds: DEFAULT_DURATION_SECONDS,
+    playback: "once"
+  },
+  {
+    id: "main-stats",
+    title: "At a glance",
+    width: 500,
+    height: 300,
+    durationInSeconds: DEFAULT_DURATION_SECONDS,
+    playback: "once"
+  },
+  {
+    id: "repo-impact",
+    title: "Repository impact",
+    width: 500,
+    height: 280,
+    durationInSeconds: DEFAULT_DURATION_SECONDS,
+    playback: "once"
+  },
+  {
+    id: "issue-tracking",
+    title: "Issues & collaboration",
+    width: 500,
+    height: 280,
+    durationInSeconds: DEFAULT_DURATION_SECONDS,
+    playback: "once"
+  },
+  {
+    id: "code-metrics",
+    title: "Code footprint",
+    width: 500,
+    height: 280,
+    durationInSeconds: DEFAULT_DURATION_SECONDS,
+    playback: "once"
+  },
+  {
+    id: "activity-overview",
+    title: "Contribution history",
+    width: 500,
+    height: 360,
+    durationInSeconds: DEFAULT_DURATION_SECONDS,
+    playback: "once"
+  },
+  {
+    id: "commit-streak",
+    title: "Contribution rhythm",
+    width: 500,
+    height: 230,
+    durationInSeconds: DEFAULT_DURATION_SECONDS,
+    playback: "once"
+  },
+  {
+    id: "top-languages",
+    title: "Language details",
+    width: 500,
+    height: 300,
+    durationInSeconds: DEFAULT_DURATION_SECONDS,
+    playback: "once"
+  },
+  {
+    id: "package-impact",
+    title: "Package impact",
+    width: 500,
+    height: 300,
+    durationInSeconds: DEFAULT_DURATION_SECONDS,
+    playback: "once"
+  }
+];
+var cardIds = cardDefinitions.map((card) => card.id);
+function isCardId(value) {
+  return cardIds.some((id) => id === value);
+}
+
 // src/config.ts
+var import_dotenv = __toESM(require_main(), 1);
+var import_yaml = __toESM(require_dist(), 1);
+import { readFileSync } from "node:fs";
 function resolveEnv(value) {
   if (typeof value !== "string") return value;
   if (value.startsWith("${") && value.endsWith("}")) {
@@ -36677,39 +37944,56 @@ function deepResolveEnv(obj) {
   }
   return obj;
 }
+var NonEmptyStringSchema = external_exports.string().trim().min(1);
+var PathSchema = external_exports.string().refine(
+  (value) => value.trim().length > 0 && !value.includes("\0"),
+  "Expected a non-empty path without null bytes"
+);
+var UsernameSchema = NonEmptyStringSchema.pipe(githubUsernameSchema);
+var TokenSchema = external_exports.preprocess(resolveEnv, NonEmptyStringSchema);
+var ApiUrlSchema = NonEmptyStringSchema.url().regex(
+  /^https?:\/\/[^@?#\s]+$/i,
+  "Expected an HTTP(S) API URL without credentials, query, or fragment"
+);
 var GitHubProfileConfigSchema = external_exports.object({
-  username: external_exports.string(),
-  token: external_exports.string().default("${GITHUB_TOKEN}")
+  username: UsernameSchema,
+  token: TokenSchema.default("${GITHUB_TOKEN}")
 });
 var GitHubConfigSchema = external_exports.object({
-  username: external_exports.string().nullable().default(null),
-  usernames: external_exports.array(external_exports.string()).default([]),
-  token: external_exports.string().default("${GITHUB_TOKEN}"),
-  profiles: external_exports.array(GitHubProfileConfigSchema).default([]),
-  apiUrl: external_exports.string().default("https://api.github.com"),
-  graphqlUrl: external_exports.string().default("https://api.github.com/graphql"),
+  username: UsernameSchema.nullable().default(null),
+  usernames: external_exports.array(UsernameSchema).default([]),
+  token: TokenSchema.default("${GITHUB_TOKEN}"),
+  profiles: external_exports.array(GitHubProfileConfigSchema.extend({ token: TokenSchema.optional() })).default([]),
+  apiUrl: ApiUrlSchema.default("https://api.github.com"),
+  graphqlUrl: ApiUrlSchema.default("https://api.github.com/graphql"),
   includeOrgs: external_exports.boolean().default(false),
   largeRepoMode: external_exports.boolean().default(false)
-});
+}).transform((github) => ({
+  ...github,
+  profiles: github.profiles.map((profile) => ({
+    ...profile,
+    token: profile.token ?? github.token
+  }))
+}));
 var TemplateConfigSchema = external_exports.object({
-  main: external_exports.string().default("profile.md.j2"),
-  directory: external_exports.string().default(".github/diffler"),
+  main: PathSchema.default("profile.md.j2"),
+  directory: PathSchema.default(".github/diffler"),
   builtins: external_exports.boolean().default(true)
 });
 var CacheConfigSchema = external_exports.object({
   enabled: external_exports.boolean().default(true),
-  ttl: external_exports.number().int().default(3600),
-  directory: external_exports.string().nullable().default(null)
+  ttl: external_exports.number().int().nonnegative().default(3600),
+  directory: PathSchema.nullable().default(null)
 });
 var StatsActionConfigSchema = external_exports.object({
-  outputPath: external_exports.string().default(".diffler/stats.json"),
-  cachePath: external_exports.string().default(".diffler/cache-stable.json"),
-  volatileCachePath: external_exports.string().default(".diffler/cache-volatile.json"),
-  maxRuntimeSeconds: external_exports.number().int().default(480),
-  graphqlConcurrency: external_exports.number().int().default(2),
-  restConcurrency: external_exports.number().int().default(4),
-  minGraphqlRemaining: external_exports.number().int().default(500),
-  minRestRemaining: external_exports.number().int().default(750),
+  outputPath: PathSchema.default(".diffler/stats.json"),
+  cachePath: PathSchema.default(".diffler/cache-stable.json"),
+  volatileCachePath: PathSchema.default(".diffler/cache-volatile.json"),
+  maxRuntimeSeconds: external_exports.number().int().positive().default(480),
+  graphqlConcurrency: external_exports.number().int().positive().default(2),
+  restConcurrency: external_exports.number().int().positive().default(4),
+  minGraphqlRemaining: external_exports.number().int().nonnegative().default(500),
+  minRestRemaining: external_exports.number().int().nonnegative().default(750),
   includeTraffic: external_exports.boolean().default(true),
   includeRestRepoStats: external_exports.boolean().default(true),
   includePrivateRepositoryMetrics: external_exports.boolean().default(false),
@@ -36723,15 +38007,40 @@ var StatsActionConfigSchema = external_exports.object({
     })
   ).default([])
 });
+var ProfileAssetsConfigSchema = external_exports.object({
+  baseUrl: NonEmptyStringSchema.refine((value) => {
+    if (/[\s<>"'?#\\]/.test(value) || value.includes("${") || value.startsWith("//")) return false;
+    if (!/^[a-z][a-z\d+.-]*:/i.test(value)) return true;
+    try {
+      const url2 = new URL(value);
+      return ["http:", "https:"].includes(url2.protocol) && !url2.username && !url2.password;
+    } catch {
+      return false;
+    }
+  }, "Expected an HTTP(S) URL or a relative asset directory, without credentials, query, or fragment").default("./assets"),
+  format: external_exports.enum(["webp", "gif"]).default("webp")
+});
 var DifflerConfigSchema = external_exports.object({
   version: external_exports.string().default("1"),
   github: GitHubConfigSchema.prefault({}),
   templates: TemplateConfigSchema.prefault({}),
   cache: CacheConfigSchema.prefault({}),
   statsAction: StatsActionConfigSchema.prefault({}),
+  assets: ProfileAssetsConfigSchema.optional(),
   helpers: external_exports.record(external_exports.string(), external_exports.unknown()).default({}),
   plugins: external_exports.array(external_exports.string()).default([])
 });
+var statsActionOverrides = /* @__PURE__ */ Symbol("statsActionOverrides");
+function parseConfig(schema, value) {
+  const result = schema.safeParse(value);
+  if (result.success) return result.data;
+  const fields = result.error.issues.map((issue2) => {
+    const path = issue2.path.join(".") || "configuration";
+    const message = issue2.code === "invalid_value" ? `expected one of ${issue2.values.join(", ")}` : issue2.code === "invalid_type" ? `expected ${issue2.expected}` : issue2.message;
+    return `${path}: ${message}`;
+  });
+  throw new Error(`Invalid Diffler config: ${fields.join("; ")}`);
+}
 function getUsernames(github) {
   if (github.usernames.length > 0) return github.usernames;
   if (github.username) return [github.username];
@@ -36757,13 +38066,14 @@ function buildStatsActionConfig(config2) {
   function envBool(name, defaultValue) {
     const val = env(name, "");
     if (!val) return defaultValue;
-    return ["1", "true", "yes", "on"].includes(val.toLowerCase());
+    if (["1", "true", "yes", "on"].includes(val.toLowerCase())) return true;
+    if (["0", "false", "no", "off"].includes(val.toLowerCase())) return false;
+    throw new Error(`Invalid STATS_${name.toUpperCase().replace(/-/g, "_")}: expected a boolean`);
   }
   function envNum(name, defaultValue) {
     const val = env(name, "");
     if (!val) return defaultValue;
-    const parsed = Number(val);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultValue;
+    return Number(val);
   }
   base.outputPath = env("output-path", base.outputPath);
   base.cachePath = env("cache-path", base.cachePath);
@@ -36788,9 +38098,6 @@ function buildStatsActionConfig(config2) {
     base.includePrivateCacheDetails
   );
   const backfillMode = env("backfill-mode", base.backfillMode);
-  if (backfillMode === "resume" || backfillMode === "refresh" || backfillMode === "off") {
-    base.backfillMode = backfillMode;
-  }
   const npmPackages = env("npm-packages", "").split(",").map((packageName) => packageName.trim()).filter(Boolean);
   if (npmPackages.length > 0) {
     const configuredSources = base.packageSources.filter(
@@ -36801,45 +38108,91 @@ function buildStatsActionConfig(config2) {
       { provider: "npm", packages: npmPackages }
     ];
   }
-  return base;
+  return parseConfig(StatsActionConfigSchema, { ...base, backfillMode, ...config2[statsActionOverrides] });
+}
+function withStatsActionOverrides(config2, overrides) {
+  const combined = { ...config2[statsActionOverrides], ...overrides };
+  return {
+    ...config2,
+    statsAction: parseConfig(StatsActionConfigSchema, { ...buildStatsActionConfig(config2), ...combined }),
+    [statsActionOverrides]: combined
+  };
 }
 var DEFAULT_CONFIG_PATH = ".github/diffler.yml";
 function loadConfigFromFile(path = DEFAULT_CONFIG_PATH) {
-  (0, import_dotenv.config)();
+  (0, import_dotenv.config)({ quiet: true });
   const raw = readFileSync(path, "utf-8");
-  const parsed = (0, import_yaml.parse)(raw);
+  let parsed;
+  try {
+    parsed = (0, import_yaml.parse)(raw);
+  } catch {
+    throw new Error(`Invalid YAML in Diffler config file: ${path}`);
+  }
   const resolved = deepResolveEnv(parsed);
-  return DifflerConfigSchema.parse(resolved);
+  const config2 = parseConfig(DifflerConfigSchema, resolved);
+  return parseConfig(DifflerConfigSchema, {
+    ...config2,
+    github: getProfiles(config2.github).length > 0 ? config2.github : {
+      ...config2.github,
+      username: process.env.DIFFLER_GITHUB_USERNAME || process.env.GITHUB_REPOSITORY_OWNER || null
+    },
+    assets: config2.assets ?? (process.env.DIFFLER_ASSET_BASE_URL ? { baseUrl: process.env.DIFFLER_ASSET_BASE_URL } : void 0)
+  });
 }
 function loadConfigFromEnv() {
-  (0, import_dotenv.config)();
-  const config2 = DifflerConfigSchema.parse({});
-  const envUsername = process.env.DIFFLER_GITHUB_USERNAME;
-  const envToken = process.env.GITHUB_TOKEN;
-  const envMain = process.env.DIFFLER_TEMPLATE_MAIN;
-  if (envUsername) {
-    config2.github.username = envUsername;
-  }
-  if (envToken) {
-    config2.github.token = envToken;
-  }
-  if (envMain) {
-    config2.templates.main = envMain;
-  }
-  return config2;
+  (0, import_dotenv.config)({ quiet: true });
+  return parseConfig(DifflerConfigSchema, {
+    github: {
+      username: process.env.DIFFLER_GITHUB_USERNAME || process.env.GITHUB_REPOSITORY_OWNER || null,
+      token: process.env.GITHUB_TOKEN || void 0
+    },
+    templates: {
+      main: process.env.DIFFLER_TEMPLATE_MAIN || void 0,
+      directory: process.env.DIFFLER_TEMPLATE_DIRECTORY || void 0
+    },
+    assets: process.env.DIFFLER_ASSET_BASE_URL ? { baseUrl: process.env.DIFFLER_ASSET_BASE_URL } : void 0
+  });
 }
 function loadConfig(path) {
-  if (path) {
+  if (path !== void 0) {
+    if (!path.trim()) throw new Error("Config file path must not be empty");
     return loadConfigFromFile(path);
   }
   try {
     return loadConfigFromFile(DEFAULT_CONFIG_PATH);
-  } catch {
-    return loadConfigFromEnv();
+  } catch (error51) {
+    if (error51 instanceof Error && "code" in error51 && error51.code === "ENOENT") {
+      return loadConfigFromEnv();
+    }
+    throw error51;
   }
 }
 
+// src/core/engine.ts
+import { existsSync as existsSync2, readFileSync as readFileSync4, writeFileSync as writeFileSync5 } from "node:fs";
+
+// src/core/git.ts
+import { execFileSync } from "node:child_process";
+var README_PATH = "README.md";
+function hasChanges(path = README_PATH) {
+  try {
+    execFileSync("git", ["diff", "--quiet", path], { stdio: "pipe" });
+    return false;
+  } catch {
+    return true;
+  }
+}
+function commitAndPush(message, path = README_PATH) {
+  execFileSync("git", ["add", path], { stdio: "inherit" });
+  execFileSync("git", ["commit", "-m", message], { stdio: "inherit" });
+  execFileSync("git", ["push"], { stdio: "inherit" });
+}
+
 // src/github/client.ts
+var graphqlEnvelopeSchema = external_exports.object({
+  data: external_exports.unknown().optional(),
+  errors: external_exports.array(external_exports.unknown()).optional()
+});
 function authHeaders(token) {
   const headers = {};
   if (token && !token.startsWith("${")) {
@@ -36848,14 +38201,14 @@ function authHeaders(token) {
   return headers;
 }
 function sleep(ms) {
-  return new Promise((resolve4) => setTimeout(resolve4, ms));
+  return new Promise((resolve5) => setTimeout(resolve5, ms));
 }
 async function retryFetch(url2, options, maxRetries = 3, backoff = 2) {
   let lastError = null;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const response = await fetch(url2, options);
-      if (response.status < 500) {
+      if (response.status < 500 || attempt === maxRetries) {
         return response;
       }
       if (attempt < maxRetries) {
@@ -36864,8 +38217,6 @@ async function retryFetch(url2, options, maxRetries = 3, backoff = 2) {
           `HTTP ${response.status} (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${sleepTime.toFixed(1)}s...`
         );
         await sleep(sleepTime * 1e3);
-      } else {
-        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
       }
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
@@ -36880,10 +38231,26 @@ async function retryFetch(url2, options, maxRetries = 3, backoff = 2) {
   }
   throw lastError ?? new Error("Retry exhausted");
 }
+var GitHubHttpError = class extends Error {
+  status;
+  headers;
+  constructor(api, response) {
+    super(`GitHub ${api} error: HTTP ${response.status} ${response.statusText}`.trim());
+    this.name = "GitHubHttpError";
+    this.status = response.status;
+    this.headers = responseHeaders(response);
+  }
+};
+function responseHeaders(response) {
+  return Object.fromEntries(response.headers.entries());
+}
 var GitHubClient = class {
   config;
   constructor(config2) {
-    this.config = config2;
+    this.config = { ...config2 };
+  }
+  get targetUsername() {
+    return this.config.username;
   }
   async restGet(path, params) {
     const response = await this.restGetRaw(path, params);
@@ -36906,24 +38273,20 @@ var GitHubClient = class {
       method: "GET",
       headers
     });
-    const responseHeaders = {};
-    response.headers.forEach((value, key) => {
-      responseHeaders[key] = value;
-    });
     let data;
     if (response.status === 304) {
       data = null;
     } else if (response.status === 202) {
       data = null;
     } else if (!response.ok) {
-      throw new Error(`GitHub REST error: ${response.status} ${response.statusText}`);
+      throw new GitHubHttpError("REST", response);
     } else {
       data = await response.json();
     }
-    return { data, headers: responseHeaders, status: response.status };
+    return { data, headers: responseHeaders(response), status: response.status };
   }
-  async graphqlQuery(query, variables) {
-    const url2 = new URL("/graphql", this.config.apiUrl);
+  async graphqlQuery(query, variables, options = {}) {
+    const url2 = new URL(this.config.graphqlUrl);
     const headers = {
       ...authHeaders(this.config.token),
       "Content-Type": "application/json"
@@ -36935,34 +38298,30 @@ var GitHubClient = class {
       body
     });
     if (!response.ok) {
-      throw new Error(`GitHub GraphQL error: ${response.status} ${response.statusText}`);
+      throw new GitHubHttpError("GraphQL", response);
     }
-    const data = await response.json();
-    if (data.errors) {
+    const parsed = graphqlEnvelopeSchema.safeParse(await response.json());
+    if (!parsed.success) throw new Error("Invalid GitHub GraphQL response");
+    const data = parsed.data;
+    if (data.errors?.length && !(options.allowMissingNodes && onlyMissingNodes(data.data, data.errors))) {
       throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
     }
     return data.data;
   }
 };
-
-// src/core/engine.ts
-import { existsSync as existsSync2, readFileSync as readFileSync3, writeFileSync as writeFileSync3 } from "node:fs";
-
-// src/core/git.ts
-import { execFileSync } from "node:child_process";
-var README_PATH = "README.md";
-function hasChanges(path = README_PATH) {
-  try {
-    execFileSync("git", ["diff", "--quiet", path], { stdio: "pipe" });
+function onlyMissingNodes(data, errors) {
+  if (typeof data !== "object" || data === null || !("nodes" in data) || !Array.isArray(data.nodes)) {
     return false;
-  } catch {
-    return true;
   }
-}
-function commitAndPush(message, path = README_PATH) {
-  execFileSync("git", ["add", path], { stdio: "inherit" });
-  execFileSync("git", ["commit", "-m", message], { stdio: "inherit" });
-  execFileSync("git", ["push"], { stdio: "inherit" });
+  const nodes = data.nodes;
+  return errors.every((error51) => {
+    if (typeof error51 !== "object" || error51 === null || !("type" in error51) || error51.type !== "NOT_FOUND") {
+      return false;
+    }
+    if (!("path" in error51) || !Array.isArray(error51.path) || error51.path.length !== 2) return false;
+    const [field, index] = error51.path;
+    return field === "nodes" && typeof index === "number" && Number.isInteger(index) && index >= 0 && nodes[index] === null;
+  });
 }
 
 // src/helpers/prefetch.ts
@@ -36982,6 +38341,7 @@ var SourceStore = class {
   constructor(defaultUsername = "unknown") {
     this.defaultUsername = defaultUsername;
   }
+  defaultUsername;
   data = /* @__PURE__ */ new Map();
   set(name, key, value) {
     let byKey = this.data.get(name);
@@ -37313,1232 +38673,85 @@ function lookupPath(variables, path) {
   return current;
 }
 
-// ../schemas/src/v2.ts
-var OUTPUT_SCHEMA_VERSION = 2;
-var CACHE_SCHEMA_VERSION = 1;
-
-// ../schemas/src/zod.ts
-var renderLanguageSchema = external_exports.object({
-  languageName: external_exports.string(),
-  color: external_exports.string().nullable(),
-  value: external_exports.number(),
-  percentage: external_exports.number().optional()
-});
-var contributionDaySchema = external_exports.object({
-  contributionCount: external_exports.number(),
-  date: external_exports.string()
-});
-var timelinePointSchema = external_exports.object({
-  period: external_exports.string(),
-  contributions: external_exports.number()
-});
-var metricCardSchema = external_exports.object({
-  id: external_exports.string(),
-  label: external_exports.string(),
-  value: external_exports.union([external_exports.string(), external_exports.number()]),
-  detail: external_exports.string().optional()
-});
-var packageDownloadCountsSchema = external_exports.object({
-  lastDay: external_exports.number(),
-  lastWeek: external_exports.number(),
-  lastMonth: external_exports.number(),
-  lastYear: external_exports.number(),
-  allTime: external_exports.number()
-});
-var packageMetricSchema = external_exports.object({
-  provider: external_exports.string(),
-  name: external_exports.string(),
-  url: external_exports.string(),
-  latestVersion: external_exports.string().nullable(),
-  latestPublishedAt: external_exports.string().nullable(),
-  downloads: packageDownloadCountsSchema
-});
-var userStatsSchema = external_exports.object({
-  schemaVersion: external_exports.number().nullable(),
-  name: external_exports.string(),
-  username: external_exports.string(),
-  avatarUrl: external_exports.string(),
-  bio: external_exports.string().nullable(),
-  websiteUrl: external_exports.string().nullable(),
-  location: external_exports.string().nullable(),
-  generatedAt: external_exports.string(),
-  fetchedAt: external_exports.number(),
-  isComplete: external_exports.boolean(),
-  summary: external_exports.object({
-    totalContributions: external_exports.number(),
-    currentStreak: external_exports.number(),
-    longestStreak: external_exports.number(),
-    starsReceived: external_exports.number(),
-    forksReceived: external_exports.number(),
-    activeRepos: external_exports.number(),
-    totalRepos: external_exports.number(),
-    languageCount: external_exports.number(),
-    profileMetricsComplete: external_exports.boolean(),
-    refreshedAt: external_exports.string()
-  }),
-  contributions: external_exports.object({
-    totalContributions: external_exports.number(),
-    totalCommits: external_exports.number(),
-    restrictedContributionsCount: external_exports.number(),
-    currentStreak: external_exports.number(),
-    longestStreak: external_exports.number(),
-    peakDay: external_exports.object({
-      date: external_exports.string(),
-      contributions: external_exports.number()
-    }).nullable(),
-    mostProductiveMonth: external_exports.object({
-      month: external_exports.string(),
-      contributions: external_exports.number()
-    }).nullable(),
-    calendar: external_exports.array(contributionDaySchema),
-    timeline: external_exports.array(timelinePointSchema)
-  }),
-  code: external_exports.object({
-    codeByteTotal: external_exports.number(),
-    linesAdded: external_exports.number(),
-    linesDeleted: external_exports.number(),
-    linesChanged: external_exports.number(),
-    linesOfCodeChanged: external_exports.number(),
-    contributorReposCompleted: external_exports.number(),
-    contributorReposPending: external_exports.number(),
-    contributorReposFailed: external_exports.number()
-  }),
-  community: external_exports.object({
-    totalPullRequests: external_exports.number(),
-    totalPullRequestReviews: external_exports.number(),
-    openIssues: external_exports.number(),
-    closedIssues: external_exports.number(),
-    repositoriesContributedTo: external_exports.number(),
-    discussionsStarted: external_exports.number(),
-    discussionsAnswered: external_exports.number(),
-    starsGiven: external_exports.number(),
-    followers: external_exports.number(),
-    following: external_exports.number()
-  }),
-  repositories: external_exports.object({
-    totalRepos: external_exports.number(),
-    publicRepos: external_exports.number(),
-    privateRepos: external_exports.number(),
-    activeRepos: external_exports.number(),
-    archivedRepos: external_exports.number(),
-    forkedRepos: external_exports.number(),
-    originalRepos: external_exports.number(),
-    reposWithStars: external_exports.number(),
-    repoViews: external_exports.number().nullable(),
-    repoViewUniques: external_exports.number().nullable(),
-    trafficReposCompleted: external_exports.number(),
-    trafficReposPending: external_exports.number(),
-    trafficReposFailed: external_exports.number(),
-    starCount: external_exports.number(),
-    forkCount: external_exports.number()
-  }),
-  topLanguages: external_exports.array(renderLanguageSchema),
-  packages: external_exports.object({
-    packageCount: external_exports.number(),
-    providers: external_exports.array(external_exports.string()),
-    downloads: packageDownloadCountsSchema,
-    packages: external_exports.array(packageMetricSchema),
-    complete: external_exports.boolean(),
-    warnings: external_exports.array(external_exports.string())
-  }),
-  cards: external_exports.array(metricCardSchema),
-  highlights: external_exports.array(metricCardSchema),
-  privacy: external_exports.object({
-    privateRepositoryMetricsIncluded: external_exports.boolean(),
-    privateRepositoryDetailsIncluded: external_exports.boolean(),
-    privateCacheDetailsIncluded: external_exports.boolean(),
-    redactedPrivateRepositories: external_exports.number(),
-    redactedRepositoryContributions: external_exports.number(),
-    redactedOptionalMetrics: external_exports.number()
-  }),
-  collectionStatus: external_exports.object({
-    complete: external_exports.boolean(),
-    coreComplete: external_exports.boolean(),
-    backfillPending: external_exports.number(),
-    backfillCompletedThisRun: external_exports.number(),
-    backfillFailedThisRun: external_exports.number(),
-    warnings: external_exports.array(external_exports.string()),
-    errors: external_exports.array(external_exports.string())
-  }),
-  repoViews: external_exports.number().nullable(),
-  linesOfCodeChanged: external_exports.number(),
-  linesAdded: external_exports.number(),
-  linesDeleted: external_exports.number(),
-  linesChanged: external_exports.number(),
-  totalCommits: external_exports.number(),
-  totalPullRequests: external_exports.number(),
-  totalPullRequestReviews: external_exports.number(),
-  openIssues: external_exports.number(),
-  closedIssues: external_exports.number(),
-  forkCount: external_exports.number(),
-  starCount: external_exports.number(),
-  totalContributions: external_exports.number(),
-  codeByteTotal: external_exports.number()
-});
-var sourcePropsSchema = external_exports.object({
-  username: external_exports.string().optional(),
-  usernames: external_exports.array(external_exports.string()).optional(),
-  statsUrl: external_exports.string().optional(),
-  stats: external_exports.unknown().optional(),
-  allowPrivateRepositoryDetails: external_exports.boolean().optional()
-});
-var mainSchema = external_exports.object({
-  userStats: userStatsSchema
-});
-var languageSchema = external_exports.object({
-  languageName: external_exports.string(),
-  color: external_exports.string().nullable(),
-  value: external_exports.number(),
-  percentage: external_exports.number()
-});
-var contributionDay = external_exports.object({
-  contributionCount: external_exports.number(),
-  date: external_exports.string()
-});
-var contributionWeek = external_exports.object({ contributionDays: external_exports.array(contributionDay) });
-var contributionStatsSchema = external_exports.object({
-  longestStreak: external_exports.number(),
-  currentStreak: external_exports.number(),
-  mostActiveDay: external_exports.string(),
-  averagePerDay: external_exports.number(),
-  averagePerWeek: external_exports.number(),
-  averagePerMonth: external_exports.number(),
-  monthlyBreakdown: external_exports.array(
-    external_exports.object({ month: external_exports.string(), contributions: external_exports.number() })
-  ),
-  yearlyBreakdown: external_exports.array(
-    external_exports.object({ year: external_exports.string(), contributions: external_exports.number() })
-  ),
-  peakDay: external_exports.object({ date: external_exports.string(), contributions: external_exports.number() }).nullable()
-});
-var repositoryContributionCountsSchema = external_exports.object({
-  commits: external_exports.number(),
-  issues: external_exports.number(),
-  pullRequests: external_exports.number(),
-  pullRequestReviews: external_exports.number(),
-  repositoryCreations: external_exports.number()
-});
-var repositoryRecordSchema = external_exports.object({
-  id: external_exports.string(),
-  name: external_exports.string(),
-  nameWithOwner: external_exports.string(),
-  owner: external_exports.string(),
-  ownerType: external_exports.string().nullable(),
-  description: external_exports.string().nullable(),
-  url: external_exports.string().nullable(),
-  isArchived: external_exports.boolean(),
-  isFork: external_exports.boolean(),
-  isPrivate: external_exports.boolean(),
-  visibility: external_exports.string().nullable(),
-  viewerPermission: external_exports.string().nullable(),
-  createdAt: external_exports.string(),
-  updatedAt: external_exports.string(),
-  pushedAt: external_exports.string().nullable(),
-  defaultBranchOid: external_exports.string().nullable(),
-  stars: external_exports.number(),
-  forks: external_exports.number(),
-  primaryLanguage: external_exports.string().nullable(),
-  topics: external_exports.array(external_exports.string()),
-  languages: external_exports.array(languageSchema),
-  codeByteTotal: external_exports.number(),
-  sources: external_exports.array(
-    external_exports.enum(["owned", "affiliated", "contributed", "profile-contribution", "cache"])
-  ),
-  contributionCounts: repositoryContributionCountsSchema,
-  metadataFetchedAt: external_exports.number()
-});
-var repoStatsSchema = external_exports.object({
-  totalRepos: external_exports.number(),
-  publicRepos: external_exports.number(),
-  privateRepos: external_exports.number(),
-  archivedRepos: external_exports.number(),
-  forkedRepos: external_exports.number(),
-  originalRepos: external_exports.number(),
-  activeRepos: external_exports.number(),
-  reposWithStars: external_exports.number(),
-  reposCreatedThisYear: external_exports.number(),
-  averageStarsPerRepo: external_exports.number()
-});
-var computedStatsSchema = repoStatsSchema.extend({
-  languageCount: external_exports.number(),
-  primaryLanguage: external_exports.string().nullable(),
-  primaryLanguageThisYear: external_exports.string().nullable(),
-  topLanguagesThisYear: external_exports.array(languageSchema),
-  totalTopics: external_exports.number(),
-  topTopics: external_exports.array(external_exports.object({ name: external_exports.string(), count: external_exports.number() })),
-  allTopics: external_exports.array(external_exports.string()),
-  contributionsThisYear: external_exports.number(),
-  contributionsLastYear: external_exports.number(),
-  yearOverYearGrowth: external_exports.number().nullable(),
-  mostProductiveMonth: external_exports.object({ month: external_exports.string(), contributions: external_exports.number() }).nullable()
-});
-var userProfileSchema = external_exports.object({
-  name: external_exports.string(),
-  login: external_exports.string(),
-  bio: external_exports.string().nullable(),
-  company: external_exports.string().nullable(),
-  location: external_exports.string().nullable(),
-  email: external_exports.string().nullable(),
-  twitterUsername: external_exports.string().nullable(),
-  websiteUrl: external_exports.string().nullable(),
-  avatarUrl: external_exports.string(),
-  createdAt: external_exports.string(),
-  followers: external_exports.number(),
-  following: external_exports.number()
-});
-var activityStatsSchema = external_exports.object({
-  totalPullRequests: external_exports.number(),
-  openIssues: external_exports.number(),
-  closedIssues: external_exports.number(),
-  repositoriesContributedTo: external_exports.number(),
-  discussionsStarted: external_exports.number(),
-  discussionsAnswered: external_exports.number(),
-  starsGiven: external_exports.number()
-});
-var repoMetricsSchema = external_exports.object({
-  starCount: external_exports.number(),
-  forkCount: external_exports.number(),
-  codeByteTotal: external_exports.number(),
-  topLanguages: external_exports.array(languageSchema),
-  topTopics: external_exports.array(external_exports.object({ name: external_exports.string(), count: external_exports.number() })),
-  profile: external_exports.object({
-    totalRepos: external_exports.number().optional(),
-    publicRepos: external_exports.number(),
-    privateRepos: external_exports.number().optional(),
-    originalRepos: external_exports.number(),
-    forkedRepos: external_exports.number(),
-    activeOriginalRepos: external_exports.number(),
-    archivedOriginalRepos: external_exports.number(),
-    reposWithStars: external_exports.number(),
-    starsReceived: external_exports.number(),
-    forksReceived: external_exports.number(),
-    codeByteTotal: external_exports.number(),
-    topLanguages: external_exports.array(languageSchema)
-  }).optional(),
-  contributorStats: external_exports.object({
-    totalCommits: external_exports.number(),
-    linesAdded: external_exports.number(),
-    linesDeleted: external_exports.number(),
-    linesOfCodeChanged: external_exports.number(),
-    reposCompleted: external_exports.number(),
-    reposPending: external_exports.number(),
-    reposFailed: external_exports.number()
-  }),
-  traffic: external_exports.object({
-    repoViews: external_exports.number(),
-    repoViewUniques: external_exports.number(),
-    reposCompleted: external_exports.number(),
-    reposPending: external_exports.number(),
-    reposFailed: external_exports.number()
-  }),
-  repoStats: repoStatsSchema,
-  computedStats: computedStatsSchema
-});
-var packageDownloadCountsSchema2 = external_exports.object({
-  lastDay: external_exports.number(),
-  lastWeek: external_exports.number(),
-  lastMonth: external_exports.number(),
-  lastYear: external_exports.number(),
-  allTime: external_exports.number()
-});
-var packageMetricsSchema2 = external_exports.object({
-  packageCount: external_exports.number(),
-  providers: external_exports.array(external_exports.string()),
-  downloads: packageDownloadCountsSchema2,
-  packages: external_exports.array(
-    external_exports.object({
-      provider: external_exports.string(),
-      name: external_exports.string(),
-      url: external_exports.string(),
-      latestVersion: external_exports.string().nullable(),
-      latestPublishedAt: external_exports.string().nullable(),
-      downloads: packageDownloadCountsSchema2
-    })
-  ),
-  complete: external_exports.boolean(),
-  warnings: external_exports.array(external_exports.string())
-});
-var presentationDataSchema = external_exports.object({
-  readmeSummary: external_exports.object({
-    name: external_exports.string(),
-    username: external_exports.string(),
-    totalContributions: external_exports.number(),
-    currentStreak: external_exports.number(),
-    longestStreak: external_exports.number(),
-    topLanguages: external_exports.array(languageSchema),
-    starsReceived: external_exports.number(),
-    forksReceived: external_exports.number(),
-    totalRepos: external_exports.number().optional(),
-    originalRepos: external_exports.number().optional(),
-    activeRepos: external_exports.number(),
-    languageCount: external_exports.number().optional(),
-    codeByteTotal: external_exports.number().optional(),
-    refreshedAt: external_exports.string(),
-    complete: external_exports.boolean()
-  }),
-  cards: external_exports.array(metricCardSchema),
-  timeline: external_exports.array(timelinePointSchema),
-  highlights: external_exports.array(metricCardSchema),
-  remotion: external_exports.object({
-    scenes: external_exports.array(
-      external_exports.object({
-        id: external_exports.string(),
-        title: external_exports.string(),
-        metric: external_exports.union([external_exports.string(), external_exports.number()]),
-        supportingText: external_exports.string().optional()
-      })
-    )
-  })
-});
-var privacyReportSchema = external_exports.object({
-  privateRepositoryMetricsIncluded: external_exports.boolean(),
-  privateRepositoryDetailsIncluded: external_exports.boolean(),
-  privateCacheDetailsIncluded: external_exports.boolean(),
-  redactedPrivateRepositories: external_exports.number(),
-  redactedRepositoryContributions: external_exports.number(),
-  redactedOptionalMetrics: external_exports.number()
-});
-var collectionStatusSchema = external_exports.object({
-  startedAt: external_exports.number(),
-  finishedAt: external_exports.number(),
-  durationMs: external_exports.number(),
-  complete: external_exports.boolean(),
-  coreComplete: external_exports.boolean(),
-  cache: external_exports.object({
-    stablePath: external_exports.string(),
-    volatilePath: external_exports.string(),
-    contributionYearsFromCache: external_exports.number(),
-    contributionYearsFetched: external_exports.number(),
-    repositoriesFromCache: external_exports.number(),
-    repositoriesFetched: external_exports.number()
-  }),
-  backfill: external_exports.object({
-    enabled: external_exports.boolean(),
-    completedThisRun: external_exports.number(),
-    pending: external_exports.number(),
-    failedThisRun: external_exports.number(),
-    skippedThisRun: external_exports.number()
-  }),
-  rateLimit: external_exports.object({
-    graphql: external_exports.object({
-      limit: external_exports.number(),
-      remaining: external_exports.number(),
-      used: external_exports.number(),
-      resetAt: external_exports.string()
-    }).nullable(),
-    rest: external_exports.object({
-      limit: external_exports.number(),
-      remaining: external_exports.number(),
-      used: external_exports.number(),
-      resetAt: external_exports.string()
-    }).nullable()
-  }),
-  warnings: external_exports.array(external_exports.string()),
-  errors: external_exports.array(external_exports.string())
-});
-var githubStatsOutputSchema = external_exports.object({
-  schemaVersion: external_exports.literal(OUTPUT_SCHEMA_VERSION),
-  generatedAt: external_exports.string(),
-  profile: userProfileSchema,
-  profileContributions: external_exports.object({
-    totalContributions: external_exports.number(),
-    totalCommitContributions: external_exports.number(),
-    restrictedContributionsCount: external_exports.number(),
-    totalIssueContributions: external_exports.number(),
-    totalRepositoryContributions: external_exports.number(),
-    totalPullRequestContributions: external_exports.number(),
-    totalPullRequestReviewContributions: external_exports.number(),
-    contributionCalendar: external_exports.object({
-      totalContributions: external_exports.number(),
-      weeks: external_exports.array(contributionWeek)
-    }),
-    stats: contributionStatsSchema,
-    repositoryContributions: external_exports.array(
-      external_exports.object({
-        repositoryId: external_exports.string(),
-        nameWithOwner: external_exports.string(),
-        owner: external_exports.string(),
-        counts: repositoryContributionCountsSchema
-      })
-    ),
-    completeness: external_exports.object({
-      complete: external_exports.boolean(),
-      yearsFetched: external_exports.array(external_exports.string()),
-      yearsFromCache: external_exports.array(external_exports.string()),
-      missingYears: external_exports.array(external_exports.string())
-    })
-  }),
-  activity: activityStatsSchema,
-  repositories: external_exports.array(repositoryRecordSchema),
-  repoMetrics: repoMetricsSchema,
-  packageMetrics: packageMetricsSchema2,
-  presentation: presentationDataSchema,
-  privacy: privacyReportSchema,
-  collectionStatus: collectionStatusSchema
-});
-
-// ../schemas/src/aggregate.ts
-function emptyContributionsCollection() {
-  return {
-    totalCommitContributions: 0,
-    restrictedContributionsCount: 0,
-    totalIssueContributions: 0,
-    totalRepositoryContributions: 0,
-    totalPullRequestContributions: 0,
-    totalPullRequestReviewContributions: 0,
-    contributionCalendar: {
-      totalContributions: 0,
-      weeks: []
-    }
-  };
-}
-function mergeContributionsCollections(collections) {
-  const merged = emptyContributionsCollection();
-  for (const collection of collections) {
-    merged.totalCommitContributions += collection.totalCommitContributions;
-    merged.restrictedContributionsCount += collection.restrictedContributionsCount;
-    merged.totalIssueContributions += collection.totalIssueContributions;
-    merged.totalRepositoryContributions += collection.totalRepositoryContributions;
-    merged.totalPullRequestContributions += collection.totalPullRequestContributions;
-    merged.totalPullRequestReviewContributions += collection.totalPullRequestReviewContributions;
-    merged.contributionCalendar.totalContributions += collection.contributionCalendar.totalContributions;
-    merged.contributionCalendar.weeks.push(...collection.contributionCalendar.weeks);
-  }
-  return merged;
-}
-function calculateContributionStats(contributionsCollection) {
-  const allDays = [];
-  const monthlyMap = /* @__PURE__ */ new Map();
-  const yearlyMap = /* @__PURE__ */ new Map();
-  const dayOfWeekCounts = /* @__PURE__ */ new Map();
-  let peakDay = null;
-  for (const week of contributionsCollection.contributionCalendar.weeks) {
-    for (const day of week.contributionDays) {
-      allDays.push({ date: day.date, count: day.contributionCount });
-      const month = day.date.substring(0, 7);
-      monthlyMap.set(month, (monthlyMap.get(month) || 0) + day.contributionCount);
-      const year = day.date.substring(0, 4);
-      yearlyMap.set(year, (yearlyMap.get(year) || 0) + day.contributionCount);
-      const dayOfWeek = (/* @__PURE__ */ new Date(`${day.date}T00:00:00.000Z`)).toLocaleDateString(
-        "en-US",
-        { weekday: "long", timeZone: "UTC" }
-      );
-      dayOfWeekCounts.set(
-        dayOfWeek,
-        (dayOfWeekCounts.get(dayOfWeek) || 0) + day.contributionCount
-      );
-      if (!peakDay || day.contributionCount > peakDay.contributions) {
-        peakDay = { date: day.date, contributions: day.contributionCount };
-      }
-    }
-  }
-  allDays.sort((a, b) => a.date.localeCompare(b.date));
-  let longestStreak = 0;
-  let tempStreak = 0;
-  for (const day of allDays) {
-    if (day.count > 0) {
-      tempStreak++;
-      longestStreak = Math.max(longestStreak, tempStreak);
-    } else {
-      tempStreak = 0;
-    }
-  }
-  const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
-  let currentStreak = 0;
-  for (let i = allDays.length - 1; i >= 0; i--) {
-    const day = allDays[i];
-    if (day.count > 0) {
-      currentStreak++;
-      continue;
-    }
-    if (day.date !== today) break;
-  }
-  let mostActiveDay = "Sunday";
-  let maxDayCount = 0;
-  for (const [day, count] of dayOfWeekCounts) {
-    if (count > maxDayCount) {
-      maxDayCount = count;
-      mostActiveDay = day;
-    }
-  }
-  const totalDays = allDays.length || 1;
-  const totalContributions = contributionsCollection.contributionCalendar.totalContributions;
-  const averagePerDay = totalContributions / totalDays;
-  const monthlyBreakdown = Array.from(monthlyMap.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([month, contributions]) => ({ month, contributions }));
-  const yearlyBreakdown = Array.from(yearlyMap.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([year, contributions]) => ({ year, contributions }));
-  return {
-    longestStreak,
-    currentStreak,
-    mostActiveDay,
-    averagePerDay: Math.round(averagePerDay * 100) / 100,
-    averagePerWeek: Math.round(averagePerDay * 700) / 100,
-    averagePerMonth: Math.round(averagePerDay * 3e3) / 100,
-    monthlyBreakdown,
-    yearlyBreakdown,
-    peakDay
-  };
-}
-function aggregateLanguages(repos) {
-  const languageMap = /* @__PURE__ */ new Map();
-  let codeByteTotal = 0;
-  for (const repo of repos) {
-    for (const edge of repo.languages.edges) {
-      const langName = edge.node.name;
-      const existing = languageMap.get(langName);
-      if (existing) {
-        existing.value += edge.size;
-      } else {
-        languageMap.set(langName, {
-          color: edge.node.color,
-          value: edge.size
-        });
-      }
-      codeByteTotal += edge.size;
-    }
-  }
-  const languages = Array.from(languageMap.entries()).map(([languageName, data]) => ({
-    languageName,
-    color: data.color,
-    value: data.value,
-    percentage: codeByteTotal > 0 ? Math.round(data.value / codeByteTotal * 1e4) / 100 : 0
-  })).sort((a, b) => b.value - a.value || a.languageName.localeCompare(b.languageName));
-  return { languages, codeByteTotal };
-}
-function aggregateRepositoryLanguages(repos) {
-  const languageMap = /* @__PURE__ */ new Map();
-  let codeByteTotal = 0;
-  for (const repo of repos) {
-    for (const language of repo.languages) {
-      const existing = languageMap.get(language.languageName);
-      if (existing) {
-        existing.value += language.value;
-      } else {
-        languageMap.set(language.languageName, {
-          color: language.color,
-          value: language.value
-        });
-      }
-      codeByteTotal += language.value;
-    }
-  }
-  const languages = Array.from(languageMap.entries()).map(([languageName, data]) => ({
-    languageName,
-    color: data.color,
-    value: data.value,
-    percentage: codeByteTotal > 0 ? Math.round(data.value / codeByteTotal * 1e4) / 100 : 0
-  })).sort((a, b) => b.value - a.value || a.languageName.localeCompare(b.languageName));
-  return { languages, codeByteTotal };
-}
-function calculateRepoStats(repoInfoList) {
-  const currentYearStr = `${(/* @__PURE__ */ new Date()).getFullYear()}`;
-  const totalRepos = repoInfoList.length;
-  const publicRepos = repoInfoList.filter((r) => !r.isPrivate).length;
-  const privateRepos = repoInfoList.filter((r) => r.isPrivate).length;
-  const archivedRepos = repoInfoList.filter((r) => r.isArchived).length;
-  const forkedRepos = repoInfoList.filter((r) => r.isFork).length;
-  const originalRepos = totalRepos - forkedRepos;
-  const activeRepos = repoInfoList.filter(
-    (r) => (r.pushedAt || r.updatedAt).startsWith(currentYearStr)
-  ).length;
-  const reposWithStars = repoInfoList.filter((r) => r.stars > 0).length;
-  const reposCreatedThisYear = repoInfoList.filter(
-    (r) => r.createdAt.startsWith(currentYearStr)
-  ).length;
-  const totalStars = repoInfoList.reduce((sum, r) => sum + r.stars, 0);
-  const averageStarsPerRepo = totalRepos > 0 ? Math.round(totalStars / totalRepos * 100) / 100 : 0;
-  return {
-    totalRepos,
-    publicRepos,
-    privateRepos,
-    archivedRepos,
-    forkedRepos,
-    originalRepos,
-    activeRepos,
-    reposWithStars,
-    reposCreatedThisYear,
-    averageStarsPerRepo
-  };
-}
-function calculateComputedStats(repoInfoList, topLanguages, contributionStats) {
-  const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
-  const currentYearStr = `${currentYear}`;
-  const lastYearStr = `${currentYear - 1}`;
-  const repoStats = calculateRepoStats(repoInfoList);
-  const languageCount = topLanguages.length;
-  const primaryLanguage = topLanguages[0]?.languageName || null;
-  const reposThisYear = repoInfoList.filter(
-    (r) => (r.pushedAt || r.updatedAt).startsWith(currentYearStr)
-  );
-  const { languages: languagesThisYear } = aggregateLanguages(reposThisYear);
-  const topLanguagesThisYear = languagesThisYear.slice(0, 10);
-  const primaryLanguageThisYear = topLanguagesThisYear[0]?.languageName || null;
-  const contributionsThisYear = contributionStats.monthlyBreakdown.filter((m) => m.month.startsWith(currentYearStr)).reduce((sum, m) => sum + m.contributions, 0);
-  const contributionsLastYear = contributionStats.monthlyBreakdown.filter((m) => m.month.startsWith(lastYearStr)).reduce((sum, m) => sum + m.contributions, 0);
-  const yearOverYearGrowth = contributionsLastYear > 0 ? Math.round(
-    (contributionsThisYear - contributionsLastYear) / contributionsLastYear * 1e4
-  ) / 100 : null;
-  let mostProductiveMonth = null;
-  for (const m of contributionStats.monthlyBreakdown) {
-    if (!mostProductiveMonth || m.contributions > mostProductiveMonth.contributions) {
-      mostProductiveMonth = m;
-    }
-  }
-  const topicCountMap = /* @__PURE__ */ new Map();
-  const allTopicsSet = /* @__PURE__ */ new Set();
-  for (const repo of repoInfoList) {
-    for (const topic of repo.topics) {
-      topicCountMap.set(topic, (topicCountMap.get(topic) || 0) + 1);
-      allTopicsSet.add(topic);
-    }
-  }
-  const topTopics = Array.from(topicCountMap.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 20);
-  return {
-    ...repoStats,
-    languageCount,
-    primaryLanguage,
-    primaryLanguageThisYear,
-    topLanguagesThisYear,
-    totalTopics: allTopicsSet.size,
-    topTopics,
-    allTopics: Array.from(allTopicsSet).sort(),
-    contributionsThisYear,
-    contributionsLastYear,
-    yearOverYearGrowth,
-    mostProductiveMonth
-  };
-}
-function formatBytes(bytes) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-}
-function formatNumber(num) {
-  if (num < 1e3) return num.toString();
-  if (num < 1e6) return `${(num / 1e3).toFixed(1)}K`;
-  return `${(num / 1e6).toFixed(1)}M`;
-}
-
-// ../schemas/src/presentation.ts
-function buildPresentationData(params) {
-  const profileMetrics = params.repoMetrics.profile;
-  if (!profileMetrics) {
-    throw new Error("Profile repository metrics are required for presentation output");
-  }
-  const topLanguage = profileMetrics.topLanguages[0];
-  const contributionStats = params.profileContributions.stats;
-  const mostProductiveMonth = params.repoMetrics.computedStats.mostProductiveMonth;
-  const peakDay = contributionStats.peakDay;
-  const totalContributions = params.profileContributions.totalContributions;
-  return {
-    readmeSummary: {
-      name: params.profile.name,
-      username: params.profile.login,
-      totalContributions,
-      currentStreak: contributionStats.currentStreak,
-      longestStreak: contributionStats.longestStreak,
-      topLanguages: profileMetrics.topLanguages.slice(0, 5),
-      starsReceived: profileMetrics.starsReceived,
-      forksReceived: profileMetrics.forksReceived,
-      totalRepos: profileMetrics.totalRepos ?? profileMetrics.publicRepos,
-      originalRepos: profileMetrics.originalRepos,
-      activeRepos: profileMetrics.activeOriginalRepos,
-      languageCount: profileMetrics.topLanguages.length,
-      codeByteTotal: profileMetrics.codeByteTotal,
-      refreshedAt: new Date(params.fetchedAt).toISOString(),
-      complete: params.complete
-    },
-    cards: [
-      {
-        id: "total-contributions",
-        label: "Total contributions",
-        value: formatNumber(totalContributions)
-      },
-      {
-        id: "current-streak",
-        label: "Current streak",
-        value: `${contributionStats.currentStreak} days`
-      },
-      {
-        id: "languages",
-        label: "Languages",
-        value: profileMetrics.topLanguages.length,
-        detail: topLanguage ? `${topLanguage.languageName} leads` : void 0
-      },
-      {
-        id: "code-volume",
-        label: "Code volume",
-        value: formatBytes(profileMetrics.codeByteTotal)
-      },
-      {
-        id: "stars",
-        label: "Stars received",
-        value: formatNumber(profileMetrics.starsReceived)
-      }
-    ],
-    timeline: contributionStats.yearlyBreakdown.map((year) => ({
-      period: year.year,
-      contributions: year.contributions
-    })),
-    highlights: [
-      ...peakDay ? [
-        {
-          id: "peak-day",
-          label: "Peak day",
-          value: peakDay.contributions,
-          detail: peakDay.date
-        }
-      ] : [],
-      ...mostProductiveMonth ? [
-        {
-          id: "top-month",
-          label: "Most productive month",
-          value: mostProductiveMonth.contributions,
-          detail: mostProductiveMonth.month
-        }
-      ] : [],
-      ...topLanguage ? [
-        {
-          id: "top-language",
-          label: "Top language",
-          value: topLanguage.languageName,
-          detail: `${topLanguage.percentage}%`
-        }
-      ] : []
-    ],
-    remotion: {
-      scenes: [
-        {
-          id: "intro",
-          title: params.profile.name || params.profile.login,
-          metric: params.profile.login,
-          supportingText: "GitHub profile activity"
-        },
-        {
-          id: "contributions",
-          title: "Contribution history",
-          metric: formatNumber(totalContributions),
-          supportingText: `${contributionStats.longestStreak} day longest streak`
-        },
-        {
-          id: "repositories",
-          title: "Repository footprint",
-          metric: profileMetrics.totalRepos ?? profileMetrics.publicRepos,
-          supportingText: `${profileMetrics.originalRepos} original repositories`
-        },
-        {
-          id: "languages",
-          title: "Language mix",
-          metric: topLanguage?.languageName || "N/A",
-          supportingText: `${profileMetrics.topLanguages.length} languages detected`
-        }
-      ]
-    }
-  };
-}
-
-// ../schemas/src/merge.ts
-function mergeStatsOutputs(outputs) {
-  if (outputs.length === 0) {
-    throw new Error("mergeStatsOutputs requires at least one output");
-  }
-  if (outputs.length === 1) {
-    return outputs[0];
-  }
-  const repositories = mergeRepositories(outputs.flatMap((output) => output.repositories));
-  const profileContributions = mergeProfileContributions(
-    outputs.map((output) => output.profileContributions)
-  );
-  const activity = mergeActivity(outputs.map((output) => output.activity));
-  const repoMetrics = mergeRepoMetrics(outputs, repositories);
-  const privacy = mergePrivacy(outputs);
-  const collectionStatus = mergeCollectionStatus(outputs);
-  const packageMetrics = mergePackageMetrics(outputs.map((output) => output.packageMetrics));
-  const generatedAt = outputs.map((output) => output.generatedAt).reduce((latest, at) => at > latest ? at : latest);
-  const fetchedAt = Date.parse(generatedAt);
-  const profile = pickPrimaryProfile(outputs);
-  const presentation = buildPresentationData({
-    profile,
-    profileContributions,
-    repoMetrics,
-    complete: outputs.every((output) => output.collectionStatus.complete),
-    fetchedAt
-  });
-  return {
-    schemaVersion: outputs[0].schemaVersion,
-    generatedAt,
-    profile,
-    profileContributions,
-    activity,
-    repositories,
-    repoMetrics,
-    packageMetrics,
-    presentation,
-    privacy,
-    collectionStatus
-  };
-}
-function pickPrimaryProfile(outputs) {
-  return outputs[0].profile;
-}
-function mergeProfileContributions(contributions) {
-  const calendar = mergeContributionCalendars(
-    contributions.map((c) => c.contributionCalendar)
-  );
-  const collection = {
-    totalCommitContributions: contributions.reduce(
-      (sum, c) => sum + c.totalCommitContributions,
-      0
-    ),
-    restrictedContributionsCount: contributions.reduce(
-      (sum, c) => sum + c.restrictedContributionsCount,
-      0
-    ),
-    totalIssueContributions: contributions.reduce(
-      (sum, c) => sum + c.totalIssueContributions,
-      0
-    ),
-    totalRepositoryContributions: contributions.reduce(
-      (sum, c) => sum + c.totalRepositoryContributions,
-      0
-    ),
-    totalPullRequestContributions: contributions.reduce(
-      (sum, c) => sum + c.totalPullRequestContributions,
-      0
-    ),
-    totalPullRequestReviewContributions: contributions.reduce(
-      (sum, c) => sum + c.totalPullRequestReviewContributions,
-      0
-    ),
-    contributionCalendar: calendar
-  };
-  return {
-    totalContributions: calendar.totalContributions,
-    totalCommitContributions: collection.totalCommitContributions,
-    restrictedContributionsCount: collection.restrictedContributionsCount,
-    totalIssueContributions: collection.totalIssueContributions,
-    totalRepositoryContributions: collection.totalRepositoryContributions,
-    totalPullRequestContributions: collection.totalPullRequestContributions,
-    totalPullRequestReviewContributions: collection.totalPullRequestReviewContributions,
-    contributionCalendar: calendar,
-    stats: calculateContributionStats(collection),
-    repositoryContributions: mergeRepositoryContributionSummaries(
-      contributions.flatMap((c) => c.repositoryContributions)
-    ),
-    completeness: {
-      complete: contributions.every((c) => c.completeness.complete),
-      yearsFetched: unionSorted(contributions.map((c) => c.completeness.yearsFetched)),
-      yearsFromCache: unionSorted(contributions.map((c) => c.completeness.yearsFromCache)),
-      // A year is only missing when every output is missing it.
-      missingYears: intersectSorted(contributions.map((c) => c.completeness.missingYears))
-    }
-  };
-}
-function mergeContributionCalendars(calendars) {
-  const byDate = /* @__PURE__ */ new Map();
-  for (const calendar of calendars) {
-    for (const week of calendar.weeks) {
-      for (const day of week.contributionDays) {
-        byDate.set(day.date, (byDate.get(day.date) || 0) + day.contributionCount);
-      }
-    }
-  }
-  const days = Array.from(byDate.entries()).map(([date5, contributionCount]) => ({ date: date5, contributionCount })).sort((a, b) => a.date.localeCompare(b.date));
-  const weeks = [];
-  let currentWeek = [];
-  for (const day of days) {
-    const weekday = (/* @__PURE__ */ new Date(`${day.date}T00:00:00.000Z`)).getUTCDay();
-    if (weekday === 0 && currentWeek.length > 0) {
-      weeks.push({ contributionDays: currentWeek });
-      currentWeek = [];
-    }
-    currentWeek.push(day);
-  }
-  if (currentWeek.length > 0) {
-    weeks.push({ contributionDays: currentWeek });
-  }
-  return {
-    totalContributions: days.reduce((sum, day) => sum + day.contributionCount, 0),
-    weeks
-  };
-}
-function mergeActivity(activities) {
-  const sum = (pick2) => activities.reduce((total, activity) => total + pick2(activity), 0);
-  return {
-    totalPullRequests: sum((a) => a.totalPullRequests),
-    openIssues: sum((a) => a.openIssues),
-    closedIssues: sum((a) => a.closedIssues),
-    repositoriesContributedTo: sum((a) => a.repositoriesContributedTo),
-    discussionsStarted: sum((a) => a.discussionsStarted),
-    discussionsAnswered: sum((a) => a.discussionsAnswered),
-    starsGiven: sum((a) => a.starsGiven)
-  };
-}
-function mergeRepositories(repositories) {
-  const byId = /* @__PURE__ */ new Map();
-  for (const repository of repositories) {
-    const current = byId.get(repository.id);
-    if (!current) {
-      byId.set(repository.id, { ...repository, sources: [...new Set(repository.sources)] });
-      continue;
-    }
-    const newer = repository.metadataFetchedAt >= current.metadataFetchedAt ? repository : current;
-    byId.set(repository.id, {
-      ...newer,
-      sources: [.../* @__PURE__ */ new Set([...current.sources, ...repository.sources])],
-      contributionCounts: {
-        commits: current.contributionCounts.commits + repository.contributionCounts.commits,
-        issues: current.contributionCounts.issues + repository.contributionCounts.issues,
-        pullRequests: current.contributionCounts.pullRequests + repository.contributionCounts.pullRequests,
-        pullRequestReviews: current.contributionCounts.pullRequestReviews + repository.contributionCounts.pullRequestReviews,
-        repositoryCreations: current.contributionCounts.repositoryCreations + repository.contributionCounts.repositoryCreations
-      },
-      metadataFetchedAt: Math.max(current.metadataFetchedAt, repository.metadataFetchedAt)
-    });
-  }
-  return Array.from(byId.values()).sort(
-    (a, b) => a.nameWithOwner.localeCompare(b.nameWithOwner)
-  );
-}
-function mergeRepositoryContributionSummaries(summaries) {
-  const byId = /* @__PURE__ */ new Map();
-  for (const summary of summaries) {
-    const current = byId.get(summary.repositoryId);
-    if (!current) {
-      byId.set(summary.repositoryId, { ...summary, counts: { ...summary.counts } });
-      continue;
-    }
-    current.counts = {
-      commits: current.counts.commits + summary.counts.commits,
-      issues: current.counts.issues + summary.counts.issues,
-      pullRequests: current.counts.pullRequests + summary.counts.pullRequests,
-      pullRequestReviews: current.counts.pullRequestReviews + summary.counts.pullRequestReviews,
-      repositoryCreations: current.counts.repositoryCreations + summary.counts.repositoryCreations
-    };
-  }
-  return Array.from(byId.values()).sort(
-    (a, b) => a.nameWithOwner.localeCompare(b.nameWithOwner)
-  );
-}
-function mergeRepoMetrics(outputs, repositories) {
-  const ownedOriginal = repositories.filter(
-    (repo) => repo.sources.includes("owned") && !repo.isFork
-  );
-  const { languages: topLanguages, codeByteTotal } = aggregateRepositoryLanguages(repositories);
-  const profileLanguages = aggregateRepositoryLanguages(ownedOriginal);
-  const computedRepos = repositories.map(toComputedRepo);
-  const mergedCalendar = mergeContributionCalendars(
-    outputs.map((output) => output.profileContributions.contributionCalendar)
-  );
-  const contributionStats = calculateContributionStats({
-    totalCommitContributions: 0,
-    restrictedContributionsCount: 0,
-    totalIssueContributions: 0,
-    totalRepositoryContributions: 0,
-    totalPullRequestContributions: 0,
-    totalPullRequestReviewContributions: 0,
-    contributionCalendar: mergedCalendar
-  });
-  const computedStats = calculateComputedStats(computedRepos, topLanguages, contributionStats);
-  const sumOver = (key, field) => outputs.reduce(
-    (total, output) => total + (output.repoMetrics[key][field] ?? 0),
-    0
-  );
-  return {
-    starCount: ownedOriginal.reduce((sum, repo) => sum + repo.stars, 0),
-    forkCount: ownedOriginal.reduce((sum, repo) => sum + repo.forks, 0),
-    codeByteTotal,
-    topLanguages,
-    topTopics: computedStats.topTopics,
-    profile: {
-      totalRepos: sumOver("profile", "totalRepos") || void 0,
-      publicRepos: sumOver("profile", "publicRepos"),
-      privateRepos: sumOver("profile", "privateRepos"),
-      originalRepos: sumOver("profile", "originalRepos"),
-      forkedRepos: sumOver("profile", "forkedRepos"),
-      activeOriginalRepos: sumOver("profile", "activeOriginalRepos"),
-      archivedOriginalRepos: sumOver("profile", "archivedOriginalRepos"),
-      reposWithStars: sumOver("profile", "reposWithStars"),
-      starsReceived: sumOver("profile", "starsReceived"),
-      forksReceived: sumOver("profile", "forksReceived"),
-      codeByteTotal: profileLanguages.codeByteTotal,
-      topLanguages: profileLanguages.languages
-    },
-    contributorStats: {
-      totalCommits: sumOver("contributorStats", "totalCommits"),
-      linesAdded: sumOver("contributorStats", "linesAdded"),
-      linesDeleted: sumOver("contributorStats", "linesDeleted"),
-      linesOfCodeChanged: sumOver("contributorStats", "linesOfCodeChanged"),
-      reposCompleted: sumOver("contributorStats", "reposCompleted"),
-      reposPending: sumOver("contributorStats", "reposPending"),
-      reposFailed: sumOver("contributorStats", "reposFailed")
-    },
-    traffic: {
-      repoViews: sumOver("traffic", "repoViews"),
-      repoViewUniques: sumOver("traffic", "repoViewUniques"),
-      reposCompleted: sumOver("traffic", "reposCompleted"),
-      reposPending: sumOver("traffic", "reposPending"),
-      reposFailed: sumOver("traffic", "reposFailed")
-    },
-    repoStats: calculateRepoStats(computedRepos),
-    computedStats
-  };
-}
-function toComputedRepo(repo) {
-  return {
-    ...repo,
-    languages: {
-      edges: repo.languages.map((language) => ({
-        size: language.value,
-        node: {
-          name: language.languageName,
-          color: language.color
-        }
-      }))
-    }
-  };
-}
-function mergePrivacy(outputs) {
-  const sum = (pick2) => outputs.reduce((total, output) => total + pick2(output.privacy), 0);
-  return {
-    privateRepositoryMetricsIncluded: outputs.some(
-      (output) => output.privacy.privateRepositoryMetricsIncluded
-    ),
-    privateRepositoryDetailsIncluded: outputs.some(
-      (output) => output.privacy.privateRepositoryDetailsIncluded
-    ),
-    privateCacheDetailsIncluded: outputs.some(
-      (output) => output.privacy.privateCacheDetailsIncluded
-    ),
-    redactedPrivateRepositories: sum((p) => p.redactedPrivateRepositories),
-    redactedRepositoryContributions: sum((p) => p.redactedRepositoryContributions),
-    redactedOptionalMetrics: sum((p) => p.redactedOptionalMetrics)
-  };
-}
-function mergeCollectionStatus(outputs) {
-  const [first] = outputs;
-  const startedAt = Math.min(...outputs.map((output) => output.collectionStatus.startedAt));
-  const finishedAt = Math.max(...outputs.map((output) => output.collectionStatus.finishedAt));
-  return {
-    startedAt,
-    finishedAt,
-    durationMs: finishedAt - startedAt,
-    complete: outputs.every((output) => output.collectionStatus.complete),
-    coreComplete: outputs.every((output) => output.collectionStatus.coreComplete),
-    cache: {
-      stablePath: first.collectionStatus.cache.stablePath,
-      volatilePath: first.collectionStatus.cache.volatilePath,
-      contributionYearsFromCache: outputs.reduce(
-        (sum, output) => sum + output.collectionStatus.cache.contributionYearsFromCache,
-        0
-      ),
-      contributionYearsFetched: outputs.reduce(
-        (sum, output) => sum + output.collectionStatus.cache.contributionYearsFetched,
-        0
-      ),
-      repositoriesFromCache: outputs.reduce(
-        (sum, output) => sum + output.collectionStatus.cache.repositoriesFromCache,
-        0
-      ),
-      repositoriesFetched: outputs.reduce(
-        (sum, output) => sum + output.collectionStatus.cache.repositoriesFetched,
-        0
-      )
-    },
-    backfill: {
-      enabled: outputs.some((output) => output.collectionStatus.backfill.enabled),
-      completedThisRun: outputs.reduce(
-        (sum, output) => sum + output.collectionStatus.backfill.completedThisRun,
-        0
-      ),
-      pending: outputs.reduce(
-        (sum, output) => sum + output.collectionStatus.backfill.pending,
-        0
-      ),
-      failedThisRun: outputs.reduce(
-        (sum, output) => sum + output.collectionStatus.backfill.failedThisRun,
-        0
-      ),
-      skippedThisRun: outputs.reduce(
-        (sum, output) => sum + output.collectionStatus.backfill.skippedThisRun,
-        0
-      )
-    },
-    rateLimit: first.collectionStatus.rateLimit,
-    warnings: unionSorted(outputs.map((output) => output.collectionStatus.warnings)),
-    errors: unionSorted(outputs.map((output) => output.collectionStatus.errors))
-  };
-}
-function mergePackageMetrics(metrics) {
-  const packages = new Map(
-    metrics.flatMap((metric) => metric.packages).map((item) => [`${item.provider}:${item.name}`, item])
-  );
-  const values = Array.from(packages.values());
-  const sumDownloads2 = (period) => values.reduce((total, item) => total + item.downloads[period], 0);
-  return {
-    packageCount: values.length,
-    providers: [...new Set(metrics.flatMap((metric) => metric.providers))].sort(),
-    downloads: {
-      lastDay: sumDownloads2("lastDay"),
-      lastWeek: sumDownloads2("lastWeek"),
-      lastMonth: sumDownloads2("lastMonth"),
-      lastYear: sumDownloads2("lastYear"),
-      allTime: sumDownloads2("allTime")
-    },
-    packages: values.sort((a, b) => b.downloads.lastMonth - a.downloads.lastMonth),
-    complete: metrics.every((metric) => metric.complete),
-    warnings: [...new Set(metrics.flatMap((metric) => metric.warnings))]
-  };
-}
-function unionSorted(lists) {
-  return [...new Set(lists.flat())].sort((a, b) => a.localeCompare(b));
-}
-function intersectSorted(lists) {
-  if (lists.length === 0) return [];
-  const [first, ...rest] = lists;
-  return first.filter((value) => rest.every((list) => list.includes(value))).sort((a, b) => a.localeCompare(b));
-}
-
 // src/engine/plan.ts
-var VAR_REF = /\{\{[\s\-]*([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)/g;
-var FUNC_CALL = /\{\{[\s\-]*([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g;
-var TAG_VAR_REF = /\{%[\+\s\-]*(?:for\s+\w+\s+in|if|elif|set\s+\w+\s*=)\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)/g;
+var import_parser = __toESM(require_parser2(), 1);
+var CORE = ["needsProfile", "needsContributions", "needsRepositories"];
+var STATS = [
+  ...CORE,
+  "needsActivity",
+  "needsDiscussions",
+  "needsStarsGiven",
+  "needsRepoStats",
+  "needsComputedStats"
+];
+var ALL_STATS = [...STATS, "needsTraffic", "needsContributorStats"];
+var REPO_METRICS = {
+  starCount: ["needsRepositories"],
+  forkCount: ["needsRepositories"],
+  codeByteTotal: ["needsRepositories"],
+  topLanguages: ["needsRepositories"],
+  topTopics: ["needsComputedStats"],
+  traffic: ["needsTraffic"],
+  contributorStats: ["needsContributorStats"],
+  repoStats: ["needsRepoStats"],
+  computedStats: ["needsComputedStats"],
+  profile: ["needsRepositories"]
+};
 var REF_MAP = {
   profile: ["needsProfile"],
-  github: ["needsProfile", "needsActivity", "needsDiscussions", "needsStarsGiven"],
+  profiles: ["needsProfile"],
+  github: STATS,
   user: ["needsProfile"],
   contributions: ["needsContributions"],
   streak: ["needsContributions"],
   calendar: ["needsContributions"],
   repositories: ["needsRepositories"],
   repos: ["needsRepositories"],
+  organizations: ["needsOrganizations"],
+  orgs: ["needsOrganizations"],
+  gists: ["needsGists"],
   traffic: ["needsTraffic"],
   contributor_stats: ["needsContributorStats"],
   activity: ["needsActivity"],
   discussions: ["needsDiscussions"],
   stars_given: ["needsStarsGiven"],
+  repo_contributions: ["needsContributions"],
   repo_stats: ["needsRepoStats"],
-  computed_stats: ["needsComputedStats"]
+  computed_stats: ["needsComputedStats"],
+  collection_status: ALL_STATS,
+  extras: [...STATS, "needsOrganizations", "needsGists"],
+  "extras.organizations": ["needsOrganizations"],
+  "extras.gists": ["needsGists"],
+  stats: ALL_STATS,
+  "stats.profile": ["needsProfile"],
+  "stats.profileContributions": ["needsContributions"],
+  "stats.contributionsCollection": ["needsContributions"],
+  "stats.contributionStats": ["needsContributions"],
+  "stats.totalContributions": ["needsContributions"],
+  "stats.totalCommits": ["needsContributions"],
+  "stats.totalPullRequestReviews": ["needsContributions"],
+  "stats.repositories": ["needsRepositories"],
+  "stats.topRepos": ["needsRepositories"],
+  "stats.activity": ["needsActivity"],
+  "stats.presentation": STATS,
+  "stats.repoMetrics": ALL_STATS,
+  "stats.repoViews": ["needsTraffic"],
+  "stats.commitCount": ["needsContributorStats"],
+  "stats.linesAdded": ["needsContributorStats"],
+  "stats.linesDeleted": ["needsContributorStats"],
+  "stats.linesOfCodeChanged": ["needsContributorStats"]
 };
+for (const [name, requirements] of Object.entries(REPO_METRICS)) {
+  REF_MAP[`stats.repoMetrics.${name}`] = requirements;
+  REF_MAP[`stats.${name}`] = requirements;
+}
 function analyzeTemplate(templateSource) {
-  const refs = /* @__PURE__ */ new Set();
-  let m;
-  VAR_REF.lastIndex = 0;
-  while ((m = VAR_REF.exec(templateSource)) !== null) {
-    refs.add(m[1]);
-  }
-  FUNC_CALL.lastIndex = 0;
-  while ((m = FUNC_CALL.exec(templateSource)) !== null) {
-    refs.add(m[1]);
-  }
-  TAG_VAR_REF.lastIndex = 0;
-  while ((m = TAG_VAR_REF.exec(templateSource)) !== null) {
-    refs.add(m[1]);
-  }
   const plan = {
     needsProfile: false,
     needsContributions: false,
     needsRepositories: false,
+    needsOrganizations: false,
+    needsGists: false,
     needsTraffic: false,
     needsContributorStats: false,
     needsActivity: false,
@@ -38547,30 +38760,133 @@ function analyzeTemplate(templateSource) {
     needsRepoStats: false,
     needsComputedStats: false
   };
-  for (const ref of refs) {
-    const segments = ref.split(".");
-    const keys = REF_MAP[segments[0]];
-    if (keys) {
-      for (const key of keys) {
-        plan[key] = true;
+  const requireData = (keys) => {
+    for (const key of keys) plan[key] = true;
+  };
+  const requirePath = (path, locals) => {
+    if (locals.has(path[0])) return;
+    const normalized = path[0] === "stats" && path[1] === "legacy" ? [path[0], ...path.slice(2)] : path;
+    for (let length = normalized.length; length > 0; length--) {
+      const key = normalized.slice(0, length).join(".");
+      const keys = Object.hasOwn(REF_MAP, key) ? REF_MAP[key] : void 0;
+      if (keys) {
+        requireData(keys);
+        return;
       }
     }
-    if (segments.includes("traffic")) plan.needsTraffic = true;
-    if (segments.includes("contributorStats") || segments.includes("contributor_stats")) {
-      plan.needsContributorStats = true;
+  };
+  const walk = (value, locals) => {
+    if (Array.isArray(value)) {
+      const children = value;
+      for (const child of children) walk(child, locals);
+      return;
     }
+    if (!isNode(value)) return;
+    switch (value.typename) {
+      case "TemplateData":
+      case "Literal":
+        return;
+      case "Symbol":
+      case "LookupVal": {
+        const path = referencePath(value);
+        if (path) requirePath(path, locals);
+        else {
+          walk(value.target, locals);
+          walk(value.val, locals);
+        }
+        return;
+      }
+      case "FunCall":
+        if (isNode(value.name) && value.name.typename === "LookupVal") {
+          walk(value.name, locals);
+        }
+        walk(value.args, locals);
+        return;
+      case "Filter":
+        walk(value.args, locals);
+        return;
+      case "Pair":
+        walk(value.value, locals);
+        return;
+      case "Set":
+        walk(value.value, locals);
+        walk(value.body, new Set(locals));
+        bindTargets(value.targets, locals);
+        return;
+      case "If":
+      case "IfAsync":
+      case "InlineIf":
+        walk(value.cond, locals);
+        if (isNode(value.cond) && value.cond.typename === "Literal" && typeof value.cond.value === "boolean") {
+          walk(value.cond.value ? value.body : value.else_, locals);
+        } else {
+          walk(value.body, new Set(locals));
+          walk(value.else_, new Set(locals));
+        }
+        return;
+      case "For":
+      case "AsyncEach":
+      case "AsyncAll": {
+        walk(value.arr, locals);
+        const loopLocals = new Set(locals);
+        bindTargets(value.name, loopLocals);
+        walk(value.body, loopLocals);
+        walk(value.else_, locals);
+        return;
+      }
+      case "Macro":
+      case "Caller": {
+        bindTargets(value.name, locals);
+        const macroLocals = new Set(locals);
+        bindTargets(value.args, macroLocals);
+        walk(value.args, macroLocals);
+        walk(value.body, macroLocals);
+        return;
+      }
+      case "Import":
+      case "FromImport":
+      case "Include":
+      case "Extends":
+        requireData([...ALL_STATS, "needsOrganizations", "needsGists"]);
+        return;
+      default:
+        for (const child of Object.values(value)) walk(child, locals);
+    }
+  };
+  try {
+    walk((0, import_parser.parse)(templateSource), /* @__PURE__ */ new Set());
+  } catch {
+    requireData([...ALL_STATS, "needsOrganizations", "needsGists"]);
   }
-  const anyNeeded = Object.values(plan).some(Boolean);
-  if (anyNeeded) {
-    plan.needsProfile = true;
-    plan.needsContributions = true;
-    plan.needsRepositories = true;
-  }
+  if (Object.values(plan).some(Boolean)) requireData(CORE);
   return plan;
+}
+function isNode(value) {
+  return typeof value === "object" && value !== null && "typename" in value && typeof value.typename === "string";
+}
+function referencePath(value) {
+  if (!isNode(value)) return void 0;
+  if (value.typename === "Symbol" && typeof value.value === "string") return [value.value];
+  if (value.typename === "LookupVal" && isNode(value.val) && value.val.typename === "Literal" && (typeof value.val.value === "string" || typeof value.val.value === "number")) {
+    const target = referencePath(value.target);
+    if (target) return [...target, String(value.val.value)];
+  }
+  return void 0;
+}
+function bindTargets(value, locals) {
+  if (Array.isArray(value)) {
+    const targets = value;
+    for (const target of targets) bindTargets(target, locals);
+  } else if (isNode(value)) {
+    if (value.typename === "Symbol" && typeof value.value === "string") locals.add(value.value);
+    else if (value.typename === "Pair") bindTargets(value.key, locals);
+    else bindTargets(value.children, locals);
+  }
 }
 
 // src/engine/unified.ts
-import { resolve } from "node:path";
+import { readFileSync as readFileSync3, writeFileSync as writeFileSync3, mkdirSync as mkdirSync3 } from "node:fs";
+import { dirname as dirname4, resolve as resolve2 } from "node:path";
 
 // src/stats/index.ts
 import { mkdirSync as mkdirSync2, writeFileSync as writeFileSync2 } from "node:fs";
@@ -38602,11 +38918,19 @@ function createEmptyVolatileCache(now = Date.now()) {
     restEtags: {}
   };
 }
-function readStableCache(path) {
-  return readJsonFile(path, createEmptyStableCache, isStableCache);
+function readStableCache(path, ownerLogin) {
+  return isolateCacheOwner(
+    readJsonFile(path, createEmptyStableCache, isStableCache),
+    ownerLogin,
+    createEmptyStableCache
+  );
 }
-function readVolatileCache(path) {
-  return readJsonFile(path, createEmptyVolatileCache, isVolatileCache);
+function readVolatileCache(path, ownerLogin) {
+  return isolateCacheOwner(
+    readJsonFile(path, createEmptyVolatileCache, isVolatileCache),
+    ownerLogin,
+    createEmptyVolatileCache
+  );
 }
 function writeStableCache(path, cache, includePrivateDetails = false, includePrivateMetrics = false) {
   writeJsonFile(path, {
@@ -38614,8 +38938,12 @@ function writeStableCache(path, cache, includePrivateDetails = false, includePri
     updatedAt: Date.now()
   });
 }
-function writeVolatileCache(path, cache) {
-  writeJsonFile(path, { ...cache, updatedAt: Date.now() });
+function writeVolatileCache(path, cache, repositoryIds) {
+  writeJsonFile(path, {
+    ...cache,
+    restEtags: repositoryIds ? filterBackfillRecord(cache.restEtags, repositoryIds) : cache.restEtags,
+    updatedAt: Date.now()
+  });
 }
 function cacheContributionYear(cache, year, includePrivateDetails = false) {
   cache.contributionYears[year.year] = sanitizeContributionYear(
@@ -38624,7 +38952,12 @@ function cacheContributionYear(cache, year, includePrivateDetails = false) {
   );
 }
 function cacheRepository(cache, repository, includePrivateDetails = false) {
-  if (repository.isPrivate && !includePrivateDetails) return;
+  const current = cache.repositories[repository.id];
+  if (current && current.repository.metadataFetchedAt > repository.metadataFetchedAt) return;
+  if (repository.isPrivate && !includePrivateDetails) {
+    delete cache.repositories[repository.id];
+    return;
+  }
   cache.repositories[repository.id] = {
     fetchedAt: Date.now(),
     repository: metadataOnlyRepository(repository)
@@ -38685,14 +39018,17 @@ function hashPrivateMetricValue(value) {
 function shouldReuseContributionYear(cached2, year, currentYear) {
   if (!cached2) return false;
   if (year >= currentYear - 1) return false;
-  return cached2.immutable;
+  return cached2.immutable && cached2.enrichmentComplete !== false;
 }
 function mergeBackfillQueue(existing, next) {
   const byKey = /* @__PURE__ */ new Map();
   for (const item of existing) byKey.set(item.key, item);
   for (const item of next) {
     const current = byKey.get(item.key);
-    if (!current || item.priority < current.priority) byKey.set(item.key, item);
+    byKey.set(item.key, {
+      ...item,
+      priority: Math.min(current?.priority ?? item.priority, item.priority)
+    });
   }
   return Array.from(byKey.values()).sort(
     (a, b) => a.priority - b.priority || a.key.localeCompare(b.key)
@@ -38717,6 +39053,14 @@ function readJsonFile(path, createEmpty, validate) {
   }
   return createEmpty();
 }
+function isolateCacheOwner(cache, ownerLogin, createEmpty) {
+  if (ownerLogin === void 0) return cache;
+  const owner = ownerLogin.toLowerCase();
+  return {
+    ...cache.ownerLogin?.toLowerCase() === owner ? cache : createEmpty(),
+    ownerLogin: owner
+  };
+}
 function writeJsonFile(path, value) {
   const dir = dirname(path);
   if (dir && dir !== ".") mkdirSync(dir, { recursive: true });
@@ -38724,11 +39068,11 @@ function writeJsonFile(path, value) {
 }
 function isStableCache(value) {
   if (!isRecord(value)) return false;
-  return value["schemaVersion"] === CACHE_SCHEMA_VERSION && isRecord(value["contributionYears"]) && isRecord(value["repositories"]) && isRecord(value["contributorStats"]) && isRecord(value["traffic"]) && isRecord(value["backfill"]);
+  return value["schemaVersion"] === CACHE_SCHEMA_VERSION && (value["ownerLogin"] === void 0 || typeof value["ownerLogin"] === "string") && isRecord(value["contributionYears"]) && isRecord(value["repositories"]) && isRecord(value["contributorStats"]) && isRecord(value["traffic"]) && isRecord(value["backfill"]);
 }
 function isVolatileCache(value) {
   if (!isRecord(value)) return false;
-  return value["schemaVersion"] === CACHE_SCHEMA_VERSION && isRecord(value["restEtags"]);
+  return value["schemaVersion"] === CACHE_SCHEMA_VERSION && (value["ownerLogin"] === void 0 || typeof value["ownerLogin"] === "string") && isRecord(value["restEtags"]);
 }
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -38737,11 +39081,13 @@ function sanitizeContributionYear(year, includePrivateDetails, publicRepositoryI
   year.repositories.filter((repository) => !repository.isPrivate).map((repo) => repo.id)
 )) {
   if (includePrivateDetails) return year;
+  const repositories = year.repositories.filter((repository) => !repository.isPrivate && publicRepositoryIds.has(repository.id)).map(metadataOnlyRepository);
+  const visibleRepositoryIds = new Set(repositories.map((repository) => repository.id));
   return {
     ...year,
-    repositories: year.repositories.filter((repository) => publicRepositoryIds.has(repository.id)).map(metadataOnlyRepository),
+    repositories,
     repositoryContributions: year.repositoryContributions.filter(
-      (summary) => publicRepositoryIds.has(summary.repositoryId)
+      (summary) => visibleRepositoryIds.has(summary.repositoryId)
     )
   };
 }
@@ -38765,9 +39111,13 @@ function filterRecordByPublicRepoId(record2, publicRepositoryIds) {
 function filterBackfillRecord(record2, publicRepositoryIds) {
   return Object.fromEntries(
     Object.entries(record2).filter(
-      ([key]) => Array.from(publicRepositoryIds).some((repoId) => key.includes(repoId))
+      ([key]) => hasRepositoryKey(key, publicRepositoryIds)
     )
   );
+}
+function hasRepositoryKey(key, repositoryIds) {
+  const [type, repositoryId] = key.split(":");
+  return (type === "contributors" || type === "traffic") && repositoryIds.has(repositoryId);
 }
 
 // src/stats/scheduler.ts
@@ -38782,10 +39132,12 @@ var RequestScheduler = class {
     this.config = config2;
     this.startedAt = startedAt;
   }
+  config;
   startedAt;
   graphqlRateLimit = null;
   restRateLimit = null;
   warnings = [];
+  retryAt = { graphql: 0, rest: 0 };
   state() {
     return {
       graphqlRateLimit: this.graphqlRateLimit,
@@ -38794,85 +39146,89 @@ var RequestScheduler = class {
     };
   }
   shouldStartOptional(kind) {
-    if (this.isRuntimeExhausted()) return false;
+    if (this.isRuntimeExhausted() || Date.now() < this.retryAt[kind]) return false;
     const rate = kind === "graphql" ? this.graphqlRateLimit : this.restRateLimit;
-    const minimum = kind === "graphql" ? this.config.minGraphqlRemaining : this.config.minRestRemaining;
-    return !rate || rate.remaining > minimum;
+    return !rate || Date.parse(rate.resetAt) <= Date.now() || rate.remaining > this.minimumRemaining(kind);
   }
   async graphql(label, request, optional2 = false, retries = 3) {
-    if (optional2 && !this.shouldStartOptional("graphql")) {
-      throw new BudgetStoppedError(`GraphQL budget exhausted before ${label}`);
-    }
     let attempt = 0;
     while (true) {
+      this.checkOptionalBudget("graphql", label, optional2);
       try {
         const response = await request();
-        if (response.rateLimit) {
-          this.graphqlRateLimit = response.rateLimit;
-          if (response.rateLimit.remaining <= this.config.minGraphqlRemaining) {
-            this.warnings.push(
-              `GraphQL budget near threshold after ${label}: ${response.rateLimit.remaining} remaining`
-            );
-          }
-        }
+        if (response.rateLimit) this.recordRateLimit("graphql", response.rateLimit);
         return response;
       } catch (error51) {
-        const status = getErrorStatus(error51);
-        const retryAfterMs = getRetryAfterMs(error51);
-        if (attempt >= retries || !isRetryableGraphQLError(status, error51)) {
-          throw error51;
-        }
-        attempt++;
-        const backoffMs = retryAfterMs ?? Math.min(3e4, 1e3 * Math.pow(2, attempt - 1));
-        this.warnings.push(
-          `${label} GraphQL request returned ${status ?? "transient error"}; retrying in ${Math.round(backoffMs)}ms`
-        );
-        await delay(backoffMs + Math.floor(Math.random() * 250));
+        await this.retryAfterError("graphql", label, error51, attempt++, retries, optional2);
       }
     }
   }
   async rest(label, request, optional2 = true, retries = 3) {
-    if (optional2 && !this.shouldStartOptional("rest")) {
-      throw new BudgetStoppedError(`REST budget exhausted before ${label}`);
-    }
     let attempt = 0;
     while (true) {
+      this.checkOptionalBudget("rest", label, optional2);
       try {
         const response = await request();
-        this.updateRestRateLimit(response.headers);
+        this.updateRateLimitFromHeaders("rest", response.headers);
         return response;
       } catch (error51) {
-        const status = getErrorStatus(error51);
-        const retryAfterMs = getRetryAfterMs(error51);
-        if (attempt >= retries || !isRetryableStatus(status)) throw error51;
-        attempt++;
-        const backoffMs = retryAfterMs ?? Math.min(3e4, 1e3 * Math.pow(2, attempt - 1));
-        this.warnings.push(
-          `${label} returned ${status}; retrying in ${Math.round(backoffMs)}ms`
-        );
-        await delay(backoffMs + Math.floor(Math.random() * 250));
+        await this.retryAfterError("rest", label, error51, attempt++, retries, optional2);
       }
     }
+  }
+  checkOptionalBudget(kind, label, optional2) {
+    if (optional2 && !this.shouldStartOptional(kind)) {
+      throw new BudgetStoppedError(`${kind} budget exhausted before ${label}`);
+    }
+  }
+  async retryAfterError(kind, label, error51, attempt, retries, optional2) {
+    const status = getErrorStatus(error51);
+    const headers = error51 instanceof GitHubHttpError ? error51.headers : void 0;
+    this.updateRateLimitFromHeaders(kind, headers);
+    const backoffMs = retryDelayMs(headers, attempt);
+    const retryableStatus = isRetryableStatus(status, headers);
+    if (status === 429 || status === 403 && retryableStatus) {
+      this.retryAt[kind] = Math.max(this.retryAt[kind], Date.now() + backoffMs);
+    }
+    const retryable = retryableStatus || kind === "graphql" && isTransientGraphQLError(error51);
+    if (attempt >= retries || !retryable) throw error51;
+    const waitMs = backoffMs + Math.floor(Math.random() * 250);
+    if (optional2 && Date.now() + waitMs >= this.startedAt + this.config.maxRuntimeSeconds * 1e3) {
+      this.warnings.push(`${label} deferred because the retry would exceed the runtime budget`);
+      throw new BudgetStoppedError(`${kind} retry exceeds the runtime budget before ${label}`);
+    }
+    this.warnings.push(
+      `${label} returned ${status ?? "transient error"}; retrying in ${Math.round(waitMs)}ms`
+    );
+    await delay(waitMs);
   }
   isRuntimeExhausted() {
     return Date.now() - this.startedAt >= this.config.maxRuntimeSeconds * 1e3;
   }
-  updateRestRateLimit(headers) {
-    if (!headers) return;
+  minimumRemaining(kind) {
+    return kind === "graphql" ? this.config.minGraphqlRemaining : this.config.minRestRemaining;
+  }
+  recordRateLimit(kind, rateLimit) {
+    if (kind === "graphql") this.graphqlRateLimit = rateLimit;
+    else this.restRateLimit = rateLimit;
+    if (rateLimit.remaining <= this.minimumRemaining(kind)) {
+      this.warnings.push(
+        `${kind === "graphql" ? "GraphQL" : "REST"} budget near threshold: ${rateLimit.remaining} remaining`
+      );
+    }
+  }
+  updateRateLimitFromHeaders(kind, headers) {
     const limit = readHeaderNumber(headers, "x-ratelimit-limit");
     const remaining = readHeaderNumber(headers, "x-ratelimit-remaining");
     const used = readHeaderNumber(headers, "x-ratelimit-used");
     const reset = readHeaderNumber(headers, "x-ratelimit-reset");
     if (limit === null || remaining === null || reset === null) return;
-    this.restRateLimit = {
+    this.recordRateLimit(kind, {
       limit,
       remaining,
       used: used ?? Math.max(0, limit - remaining),
       resetAt: new Date(reset * 1e3).toISOString()
-    };
-    if (remaining <= this.config.minRestRemaining) {
-      this.warnings.push(`REST budget near threshold: ${remaining} remaining`);
-    }
+    });
   }
 };
 async function runLimited(items, concurrency, worker) {
@@ -38901,33 +39257,41 @@ function isBudgetStopped(error51) {
   return error51 instanceof BudgetStoppedError;
 }
 function delay(ms) {
-  return new Promise((resolve4) => setTimeout(resolve4, ms));
+  return new Promise((resolve5) => setTimeout(resolve5, ms));
 }
 function readHeaderNumber(headers, name) {
-  const value = headers[name] ?? headers[name.toLowerCase()];
-  if (typeof value === "number") return value;
-  if (typeof value !== "string") return null;
+  const value = headers?.[name];
+  if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) return null;
   const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 function getErrorStatus(error51) {
-  if (typeof error51 !== "object" || error51 === null) return null;
-  const status = error51.status;
-  return typeof status === "number" ? status : null;
+  if (typeof error51 !== "object" || error51 === null || !("status" in error51)) return null;
+  return typeof error51.status === "number" ? error51.status : null;
 }
-function getRetryAfterMs(error51) {
-  if (typeof error51 !== "object" || error51 === null) return null;
-  const response = error51.response;
-  const retryAfter = response?.headers?.["retry-after"];
-  if (!retryAfter) return null;
+function getRetryAfterMs(headers) {
+  const retryAfter = headers?.["retry-after"];
+  if (retryAfter === void 0 || retryAfter === "") return null;
   const seconds = Number(retryAfter);
-  return Number.isFinite(seconds) ? seconds * 1e3 : null;
+  if (Number.isFinite(seconds)) return seconds >= 0 ? seconds * 1e3 : null;
+  const date5 = Date.parse(String(retryAfter));
+  return Number.isFinite(date5) ? Math.max(0, date5 - Date.now()) : null;
 }
-function isRetryableStatus(status) {
-  return status === 403 || status === 429 || status === 500 || status === 502 || status === 503;
+function retryDelayMs(headers, attempt) {
+  const retryAfter = getRetryAfterMs(headers);
+  const reset = readHeaderNumber(headers, "x-ratelimit-reset");
+  const exhausted = readHeaderNumber(headers, "x-ratelimit-remaining") === 0;
+  const resetDelay = exhausted && reset !== null ? Math.max(0, reset * 1e3 - Date.now()) : null;
+  if (retryAfter !== null || resetDelay !== null) return Math.max(retryAfter ?? 0, resetDelay ?? 0);
+  return Math.min(3e4, 1e3 * Math.pow(2, attempt));
 }
-function isRetryableGraphQLError(status, error51) {
-  if (isRetryableStatus(status) || status === 504) return true;
+function isRetryableStatus(status, headers) {
+  if (status === 403) {
+    return getRetryAfterMs(headers) !== null || readHeaderNumber(headers, "x-ratelimit-remaining") === 0;
+  }
+  return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+function isTransientGraphQLError(error51) {
   const message = error51 instanceof Error ? error51.message : String(error51);
   return /502 Bad Gateway|503 Service Unavailable|504 Gateway Timeout|nginx/i.test(message);
 }
@@ -38989,6 +39353,9 @@ var REPO_DISCOVERY_FIELDS = `
     login
     __typename
   }
+  isPrivate
+  visibility
+  viewerPermission
   updatedAt
   pushedAt
   defaultBranchRef {
@@ -39005,12 +39372,30 @@ var RATE_LIMIT_FIELDS = `
     resetAt
   }
 `;
+var contributorResponseSchema = external_exports.array(external_exports.object({
+  author: external_exports.object({ login: external_exports.string() }).nullable(),
+  weeks: external_exports.array(external_exports.object({
+    a: external_exports.number().finite().nonnegative(),
+    d: external_exports.number().finite().nonnegative(),
+    c: external_exports.number().finite().nonnegative()
+  }))
+}));
+var trafficResponseSchema = external_exports.object({
+  count: external_exports.number().finite().nonnegative(),
+  uniques: external_exports.number().finite().nonnegative(),
+  views: external_exports.array(external_exports.object({
+    timestamp: external_exports.string(),
+    count: external_exports.number().finite().nonnegative(),
+    uniques: external_exports.number().finite().nonnegative()
+  }))
+});
 async function collectProfile(client, scheduler) {
+  const target = userQueryTarget(client);
   const response = await scheduler.graphql(
-    "viewer profile",
+    "account profile",
     () => client.graphqlQuery(
-      `query viewerProfile {
-          viewer {
+      `query viewerProfile${target.declaration} {
+          ${target.field} {
             name
             login
             bio
@@ -39050,11 +39435,18 @@ async function collectProfile(client, scheduler) {
             }
           }
           ${RATE_LIMIT_FIELDS}
-        }`
+        }`,
+      target.variables
     ),
     false
   );
   const viewer = response.viewer;
+  if (!viewer) {
+    throw new Error("Configured GitHub account was not found");
+  }
+  if (client.targetUsername && viewer.login.toLowerCase() !== client.targetUsername.toLowerCase()) {
+    throw new Error("GitHub profile does not match the configured account");
+  }
   return {
     profile: {
       name: viewer.name || "",
@@ -39081,15 +39473,16 @@ async function collectProfile(client, scheduler) {
     }
   };
 }
-async function collectRepositoryUniverse(client, scheduler, cache, includePrivateCacheDetails, username) {
+async function collectRepositoryUniverse(client, scheduler, cache, includePrivateCacheDetails, username, contributionRepositories = []) {
   const fetchedAt = Date.now();
+  const target = userQueryTarget(client, ["$cursor: String"]);
   const discoveredRepositories = [];
   const affiliated = await paginateRepositoryDiscoveryConnection(
-    "viewer repositories",
+    "account repositories",
     scheduler,
     (cursor) => client.graphqlQuery(
-      `query viewerRepositories($cursor: String) {
-          viewer {
+      `query viewerRepositories${target.declaration} {
+          ${target.field} {
             repositories(
               first: 100
               after: $cursor
@@ -39107,20 +39500,20 @@ async function collectRepositoryUniverse(client, scheduler, cache, includePrivat
           }
           ${RATE_LIMIT_FIELDS}
         }`,
-      { cursor }
+      { ...target.variables, cursor }
     ),
     (response) => response.viewer.repositories
   );
   for (const repository of affiliated) {
-    const source = repository.owner.login === username ? "owned" : "affiliated";
+    const source = repository.owner.login.toLowerCase() === username.toLowerCase() ? "owned" : "affiliated";
     discoveredRepositories.push({ repository, source });
   }
   const contributed = await paginateRepositoryDiscoveryConnection(
     "repositories contributed to",
     scheduler,
     (cursor) => client.graphqlQuery(
-      `query viewerContributedRepositories($cursor: String) {
-          viewer {
+      `query viewerContributedRepositories${target.declaration} {
+          ${target.field} {
             repositoriesContributedTo(
               first: 100
               after: $cursor
@@ -39139,7 +39532,7 @@ async function collectRepositoryUniverse(client, scheduler, cache, includePrivat
           }
           ${RATE_LIMIT_FIELDS}
         }`,
-      { cursor }
+      { ...target.variables, cursor }
     ),
     (response) => response.viewer.repositoriesContributedTo
   );
@@ -39151,20 +39544,24 @@ async function collectRepositoryUniverse(client, scheduler, cache, includePrivat
     scheduler,
     cache,
     discoveredRepositories,
-    fetchedAt
+    fetchedAt,
+    [
+      ...Object.values(cache.repositories).map((entry) => ({
+        ...metadataOnlyRepository(entry.repository),
+        sources: addSource(entry.repository.sources, "cache")
+      })),
+      ...contributionRepositories.map(metadataOnlyRepository)
+    ]
   );
-  const merged = mergeRepositories2([
-    ...Object.values(cache.repositories).map((entry) => ({
-      ...entry.repository,
-      sources: addSource(entry.repository.sources, "cache")
-    })),
-    ...materialized.repositories
-  ]);
-  for (const repository of merged) {
+  const liveRepositoryIds = new Set(materialized.repositories.map((repo) => repo.id));
+  for (const id of Object.keys(cache.repositories)) {
+    if (!liveRepositoryIds.has(id)) delete cache.repositories[id];
+  }
+  for (const repository of materialized.repositories) {
     cacheRepository(cache, repository, includePrivateCacheDetails);
   }
   return {
-    repositories: merged,
+    repositories: materialized.repositories,
     repositoriesFetched: materialized.fetched,
     repositoriesFromCache: materialized.reused
   };
@@ -39191,18 +39588,19 @@ async function collectContributionYears(client, scheduler, cache, createdAt, inc
         scheduler,
         createdAt,
         year,
-        currentYear
+        currentYear,
+        cached2
       );
       fetched.push(contributionYear);
       cacheContributionYear(cache, contributionYear, includePrivateCacheDetails);
-    } catch (error51) {
+    } catch {
       if (cached2) {
         fromCache.push(cached2);
       } else {
         missingYears.push(String(year));
       }
       console.warn(
-        `Failed to collect contribution year ${year}: ${error51 instanceof Error ? error51.message : String(error51)}`
+        `Failed to collect contribution year ${year}; ${cached2 ? "using cached data" : "no cached data available"}`
       );
     }
   });
@@ -39213,9 +39611,15 @@ async function collectContributionYears(client, scheduler, cache, createdAt, inc
   const repositoryContributions = mergeRepositoryContributions(
     orderedYears.flatMap((year) => year.repositoryContributions)
   );
+  const contributionsByRepository = new Map(
+    repositoryContributions.map((summary) => [summary.repositoryId, summary.counts])
+  );
   const repositories = mergeRepositories2(
     orderedYears.flatMap((year) => year.repositories || [])
-  );
+  ).map((repository) => ({
+    ...repository,
+    contributionCounts: contributionsByRepository.get(repository.id) ?? repository.contributionCounts
+  }));
   for (const repository of repositories) {
     cacheRepository(cache, repository, includePrivateCacheDetails);
   }
@@ -39225,18 +39629,21 @@ async function collectContributionYears(client, scheduler, cache, createdAt, inc
     repositories,
     yearsFetched: fetched.map((year) => year.year).sort(),
     yearsFromCache: fromCache.map((year) => year.year).sort(),
-    missingYears
+    missingYears: missingYears.sort(),
+    incompleteEnrichmentYears: orderedYears.filter((year) => year.enrichmentComplete === false).map((year) => year.year)
   };
 }
 function buildBackfillQueue(repositories, cache, config2) {
   if (config2.backfillMode === "off") return [];
   const next = [];
   const forceRefresh = config2.backfillMode === "refresh";
+  const pendingKeys = new Set(cache.backfill.pending.map((item) => item.key));
   for (const repo of repositories) {
     if (repo.isPrivate && !config2.includePrivateRepositoryMetrics && !config2.includePrivateRepositoryDetails) {
       continue;
     }
     const basePriority = getRepositoryPriority(repo);
+    const contributorKey = `contributors:${repo.id}:${repo.defaultBranchOid}`;
     const metricCacheKey = repositoryMetricCacheKey(
       repo,
       config2.includePrivateRepositoryDetails
@@ -39247,9 +39654,9 @@ function buildBackfillQueue(repositories, cache, config2) {
     );
     const contributorStats = cache.contributorStats[metricCacheKey];
     const contributorStatsComplete = contributorStats?.defaultBranchOid === metricVersion && ["fresh", "cached"].includes(contributorStats.status);
-    if (config2.includeRestRepoStats && repo.defaultBranchOid && (forceRefresh || !contributorStatsComplete)) {
+    if (config2.includeRestRepoStats && repo.defaultBranchOid && (forceRefresh || !contributorStatsComplete || pendingKeys.has(contributorKey))) {
       next.push({
-        key: `contributors:${repo.id}:${repo.defaultBranchOid}`,
+        key: contributorKey,
         type: "contributors",
         repoId: repo.id,
         nameWithOwner: repo.nameWithOwner,
@@ -39257,10 +39664,11 @@ function buildBackfillQueue(repositories, cache, config2) {
         reason: "default branch stats missing or stale"
       });
     }
+    const trafficKey = `traffic:${repo.id}`;
     const traffic = cache.traffic[metricCacheKey];
-    if (config2.includeTraffic && canReadTraffic(repo) && (forceRefresh || !traffic || Date.now() - traffic.fetchedAt > 20 * 60 * 60 * 1e3)) {
+    if (config2.includeTraffic && canReadTraffic(repo) && (forceRefresh || pendingKeys.has(trafficKey) || !traffic || !["fresh", "cached"].includes(traffic.status) || Date.now() - traffic.fetchedAt > 20 * 60 * 60 * 1e3)) {
       next.push({
-        key: `traffic:${repo.id}`,
+        key: trafficKey,
         type: "traffic",
         repoId: repo.id,
         nameWithOwner: repo.nameWithOwner,
@@ -39269,7 +39677,11 @@ function buildBackfillQueue(repositories, cache, config2) {
       });
     }
   }
-  const merged = forceRefresh ? next : mergeBackfillQueue(cache.backfill.pending, next);
+  const eligibleKeys = new Set(next.map((item) => item.key));
+  const merged = forceRefresh ? next : mergeBackfillQueue(
+    cache.backfill.pending.filter((item) => eligibleKeys.has(item.key)),
+    next
+  );
   return merged.sort((a, b) => a.priority - b.priority || a.key.localeCompare(b.key));
 }
 async function processBackfillQueue(client, scheduler, cache, volatileCache, repositories, queue, username, config2) {
@@ -39298,22 +39710,22 @@ async function processBackfillQueue(client, scheduler, cache, volatileCache, rep
         repo,
         config2.includePrivateRepositoryDetails
       );
+      let status;
       if (item.type === "contributors") {
+        const previous = cache.contributorStats[metricCacheKey];
         const contributorStats = await fetchContributorStats(
           client,
           scheduler,
           volatileCache,
-          cache.contributorStats[metricCacheKey],
+          previous,
           repo,
           username
         );
         cache.contributorStats[metricCacheKey] = {
           ...contributorStats,
-          defaultBranchOid: repositoryMetricVersion(
-            repo,
-            config2.includePrivateRepositoryDetails
-          )
+          defaultBranchOid: contributorStats.status === "fresh" || contributorStats.status === "cached" ? repositoryMetricVersion(repo, config2.includePrivateRepositoryDetails) : previous?.defaultBranchOid ?? repositoryMetricVersion(repo, config2.includePrivateRepositoryDetails)
         };
+        status = contributorStats.status;
       } else {
         cache.traffic[metricCacheKey] = await fetchTraffic(
           client,
@@ -39322,9 +39734,14 @@ async function processBackfillQueue(client, scheduler, cache, volatileCache, rep
           cache.traffic[metricCacheKey],
           repo
         );
+        status = cache.traffic[metricCacheKey].status;
+      }
+      delete cache.backfill.failures[item.key];
+      if (status !== "fresh" && status !== "cached") {
+        delete cache.backfill.completed[item.key];
+        return;
       }
       cache.backfill.completed[item.key] = Date.now();
-      delete cache.backfill.failures[item.key];
       pending.delete(item.key);
       completed++;
     } catch (error51) {
@@ -39333,7 +39750,7 @@ async function processBackfillQueue(client, scheduler, cache, volatileCache, rep
         return;
       }
       failed++;
-      pending.delete(item.key);
+      delete cache.backfill.completed[item.key];
       recordBackfillFailure(
         cache.backfill.failures,
         item,
@@ -39411,13 +39828,14 @@ function normalizeRepository(repository, source, fetchedAt, contributionCounts =
     metadataFetchedAt: fetchedAt
   };
 }
-async function fetchContributionYear(client, scheduler, createdAt, year, currentYear) {
+async function fetchContributionYear(client, scheduler, createdAt, year, currentYear, cached2) {
   const from = year === new Date(createdAt).getUTCFullYear() ? createdAt : `${year}-01-01T00:00:00.000Z`;
   const to = year === currentYear ? (/* @__PURE__ */ new Date()).toISOString() : `${year + 1}-01-01T00:00:00.000Z`;
   const data = await fetchContributionYearCore(client, scheduler, from, to, year);
   const fetchedAt = Date.now();
-  let summaries = [];
-  let repositories = [];
+  let summaries = cached2?.repositoryContributions ?? [];
+  let repositories = cached2?.repositories ?? [];
+  let enrichmentComplete = false;
   try {
     const enrichment = await fetchContributionYearRepositoryEnrichment(
       client,
@@ -39426,12 +39844,13 @@ async function fetchContributionYear(client, scheduler, createdAt, year, current
       to,
       year
     );
-    const extracted = extractContributionRepositories(enrichment, fetchedAt);
+    const extracted = extractContributionRepositories(enrichment, Date.now());
     summaries = extracted.summaries;
     repositories = extracted.repositories;
-  } catch (error51) {
+    enrichmentComplete = true;
+  } catch {
     console.warn(
-      `Skipped repository contribution enrichment for ${year}: ${error51 instanceof Error ? error51.message : String(error51)}`
+      `Repository contribution enrichment is incomplete for ${year}; it will be retried`
     );
   }
   return {
@@ -39439,18 +39858,20 @@ async function fetchContributionYear(client, scheduler, createdAt, year, current
     from,
     to,
     fetchedAt,
-    immutable: year < currentYear - 1,
+    immutable: year < currentYear - 1 && enrichmentComplete,
+    enrichmentComplete,
     data,
     repositoryContributions: summaries,
     repositories
   };
 }
 async function fetchContributionYearCore(client, scheduler, from, to, year) {
+  const target = userQueryTarget(client, ["$from: DateTime!", "$to: DateTime!"]);
   const response = await scheduler.graphql(
     `contribution year ${year} core`,
     () => client.graphqlQuery(
-      `query contributionYearCore($from: DateTime!, $to: DateTime!) {
-          viewer {
+      `query contributionYearCore${target.declaration} {
+          ${target.field} {
             contributionsCollection(from: $from, to: $to) {
               totalCommitContributions
               restrictedContributionsCount
@@ -39471,18 +39892,19 @@ async function fetchContributionYearCore(client, scheduler, from, to, year) {
           }
           ${RATE_LIMIT_FIELDS}
         }`,
-      { from, to }
+      { ...target.variables, from, to }
     ),
     false
   );
   return response.viewer.contributionsCollection;
 }
 async function fetchContributionYearRepositoryEnrichment(client, scheduler, from, to, year) {
+  const target = userQueryTarget(client, ["$from: DateTime!", "$to: DateTime!"]);
   const response = await scheduler.graphql(
     `contribution year ${year} repository enrichment`,
     () => client.graphqlQuery(
-      `query contributionYearRepositoryEnrichment($from: DateTime!, $to: DateTime!) {
-          viewer {
+      `query contributionYearRepositoryEnrichment${target.declaration} {
+          ${target.field} {
             contributionsCollection(from: $from, to: $to) {
               commitContributionsByRepository(maxRepositories: 100) {
                 repository {
@@ -39532,7 +39954,7 @@ async function fetchContributionYearRepositoryEnrichment(client, scheduler, from
           }
           ${RATE_LIMIT_FIELDS}
         }`,
-      { from, to }
+      { ...target.variables, from, to }
     ),
     true,
     2
@@ -39580,12 +40002,13 @@ function extractContributionRepositories(collection, fetchedAt) {
     repositories: mergeRepositories2(repositories)
   };
 }
-async function materializeDiscoveredRepositories(client, scheduler, cache, discovered, fetchedAt) {
+async function materializeDiscoveredRepositories(client, scheduler, cache, discovered, fetchedAt, knownRepositories) {
   const byId = /* @__PURE__ */ new Map();
   for (const item of discovered) {
     const current = byId.get(item.repository.id);
     if (current) {
       current.sources = addSource(current.sources, item.source);
+      current.repository = item.repository;
     } else {
       byId.set(item.repository.id, {
         repository: item.repository,
@@ -39593,15 +40016,24 @@ async function materializeDiscoveredRepositories(client, scheduler, cache, disco
       });
     }
   }
+  for (const repository of knownRepositories) {
+    const current = byId.get(repository.id);
+    if (current) {
+      current.sources = unique([...current.sources, ...repository.sources]);
+    } else {
+      byId.set(repository.id, { repository: null, sources: repository.sources });
+    }
+  }
   const repositories = [];
   const idsToFetch = [];
   let reused = 0;
   for (const [id, item] of byId) {
     const cached2 = cache.repositories[id]?.repository;
-    if (cached2 && !repositoryDiscoveryChanged(cached2, item.repository)) {
+    if (cached2 && item.repository && !repositoryDiscoveryChanged(cached2, item.repository)) {
       repositories.push({
-        ...cached2,
-        sources: unique([...cached2.sources, ...item.sources])
+        ...metadataOnlyRepository(cached2),
+        sources: unique([...cached2.sources, ...item.sources]),
+        metadataFetchedAt: fetchedAt
       });
       reused++;
     } else {
@@ -39644,14 +40076,15 @@ async function fetchRepositoryDetails(client, scheduler, ids) {
           }
           ${RATE_LIMIT_FIELDS}
         }`,
-      { ids }
+      { ids },
+      { allowMissingNodes: true }
     ),
     false
   );
   return response.nodes.filter((node) => Boolean(node));
 }
 function repositoryDiscoveryChanged(cached2, discovered) {
-  return cached2.nameWithOwner !== discovered.nameWithOwner || cached2.updatedAt !== discovered.updatedAt || cached2.pushedAt !== (discovered.pushedAt || null) || cached2.defaultBranchOid !== (discovered.defaultBranchRef?.target?.oid || null);
+  return cached2.nameWithOwner !== discovered.nameWithOwner || cached2.isPrivate !== discovered.isPrivate || cached2.visibility !== (discovered.visibility || null) || cached2.viewerPermission !== (discovered.viewerPermission || null) || cached2.updatedAt !== discovered.updatedAt || cached2.pushedAt !== (discovered.pushedAt || null) || cached2.defaultBranchOid !== (discovered.defaultBranchRef?.target?.oid || null);
 }
 async function paginateRepositoryDiscoveryConnection(label, scheduler, request, getConnection) {
   const repositories = [];
@@ -39667,51 +40100,53 @@ async function paginateRepositoryDiscoveryConnection(label, scheduler, request, 
 async function fetchContributorStats(client, scheduler, volatileCache, cached2, repo, username) {
   const [owner, repoName] = repo.nameWithOwner.split("/");
   const etagKey = `contributors:${repo.id}:${repo.defaultBranchOid || "none"}`;
-  const headers = conditionalHeaders(volatileCache, etagKey);
-  let lastStatus = 0;
+  const hasCachedValue = cached2 && cached2.defaultBranchOid === repo.defaultBranchOid && ["fresh", "cached"].includes(cached2.status);
+  const headers = hasCachedValue ? conditionalHeaders(volatileCache, etagKey) : void 0;
   for (let attempt = 0; attempt < 4; attempt++) {
-    try {
-      const response = await scheduler.rest(
-        `contributors ${repo.nameWithOwner}`,
-        () => client.restGetRaw(`/repos/${owner}/${repoName}/stats/contributors`, void 0, headers),
-        true
-      );
-      rememberEtag(volatileCache, etagKey, response.headers);
-      lastStatus = response.status;
-      if (response.status === 202) {
+    if (attempt > 0 && !scheduler.shouldStartOptional("rest")) break;
+    const response = await scheduler.rest(
+      "repository contributor stats",
+      () => client.restGetRaw(`/repos/${owner}/${repoName}/stats/contributors`, void 0, headers),
+      true
+    );
+    if (response.status === 202) {
+      if (attempt < 3) {
         await delay2(Math.min(8e3, 1e3 * Math.pow(2, attempt)));
-        continue;
       }
-      const stats = Array.isArray(response.data) ? response.data : [];
-      const userStats = stats.find(
-        (contributor) => contributor.author?.login === username
-      );
-      let additions = 0;
-      let deletions = 0;
-      let commits = 0;
-      for (const week of userStats?.weeks || []) {
-        additions += week.a || 0;
-        deletions += week.d || 0;
-        commits += week.c || 0;
-      }
-      return {
-        additions,
-        deletions,
-        commits,
-        fetchedAt: Date.now(),
-        defaultBranchOid: repo.defaultBranchOid,
-        status: "fresh"
-      };
-    } catch (error51) {
-      if (getErrorStatus2(error51) === 304 && cached2) {
-        return {
-          ...cached2,
-          status: "cached",
-          fetchedAt: Date.now()
-        };
-      }
-      throw error51;
+      continue;
     }
+    if (response.status === 304) {
+      if (!hasCachedValue) {
+        delete volatileCache.restEtags[etagKey];
+        throw new Error("Unchanged contributor response has no matching cached metrics");
+      }
+      rememberEtag(volatileCache, etagKey, response.headers);
+      return { ...cached2, status: "cached", fetchedAt: Date.now() };
+    }
+    const parsed = contributorResponseSchema.safeParse(response.data);
+    if (!parsed.success) {
+      throw new Error("Invalid GitHub contributor statistics response");
+    }
+    const userStats = parsed.data.find(
+      (contributor) => contributor.author?.login.toLowerCase() === username.toLowerCase()
+    );
+    let additions = 0;
+    let deletions = 0;
+    let commits = 0;
+    for (const week of userStats?.weeks ?? []) {
+      additions += week.a;
+      deletions += week.d;
+      commits += week.c;
+    }
+    rememberEtag(volatileCache, etagKey, response.headers);
+    return {
+      additions,
+      deletions,
+      commits,
+      fetchedAt: Date.now(),
+      defaultBranchOid: repo.defaultBranchOid,
+      status: "fresh"
+    };
   }
   return {
     additions: 0,
@@ -39719,43 +40154,52 @@ async function fetchContributorStats(client, scheduler, volatileCache, cached2, 
     commits: 0,
     fetchedAt: Date.now(),
     defaultBranchOid: repo.defaultBranchOid,
+    ...cached2,
     status: "pending",
-    error: `GitHub still computing contributor stats (${lastStatus || 202})`
+    error: "GitHub is still computing contributor stats (202)"
   };
 }
 async function fetchTraffic(client, scheduler, volatileCache, cached2, repo) {
   const [owner, repoName] = repo.nameWithOwner.split("/");
   const etagKey = `traffic:${repo.id}`;
-  const headers = conditionalHeaders(volatileCache, etagKey);
-  try {
-    const response = await scheduler.rest(
-      `traffic ${repo.nameWithOwner}`,
-      () => client.restGetRaw(`/repos/${owner}/${repoName}/traffic/views`, { per: "day" }, headers),
-      true
-    );
-    rememberEtag(volatileCache, etagKey, response.headers);
-    const data = response.data;
-    const days = mergeTrafficDays(
-      cached2?.days || [],
-      (data?.views || []).map((view) => ({
-        timestamp: view.timestamp,
-        count: view.count,
-        uniques: view.uniques
-      }))
-    );
+  const hasCachedValue = cached2 && ["fresh", "cached"].includes(cached2.status);
+  const headers = hasCachedValue ? conditionalHeaders(volatileCache, etagKey) : void 0;
+  const response = await scheduler.rest(
+    "repository traffic",
+    () => client.restGetRaw(`/repos/${owner}/${repoName}/traffic/views`, { per: "day" }, headers),
+    true
+  );
+  if (response.status === 202) {
     return {
-      count: data?.count ?? 0,
-      uniques: data?.uniques ?? 0,
-      days,
+      count: 0,
+      uniques: 0,
+      days: [],
       fetchedAt: Date.now(),
-      status: "fresh"
+      ...cached2,
+      status: "pending",
+      error: "GitHub is still computing traffic (202)"
     };
-  } catch (error51) {
-    if (getErrorStatus2(error51) === 304 && cached2) {
-      return { ...cached2, status: "cached" };
-    }
-    throw error51;
   }
+  if (response.status === 304) {
+    if (!hasCachedValue) {
+      delete volatileCache.restEtags[etagKey];
+      throw new Error("Unchanged traffic response has no matching cached metrics");
+    }
+    rememberEtag(volatileCache, etagKey, response.headers);
+    return { ...cached2, status: "cached", fetchedAt: Date.now() };
+  }
+  const parsed = trafficResponseSchema.safeParse(response.data);
+  if (!parsed.success) {
+    throw new Error("Invalid GitHub traffic response");
+  }
+  rememberEtag(volatileCache, etagKey, response.headers);
+  return {
+    count: parsed.data.count,
+    uniques: parsed.data.uniques,
+    days: mergeTrafficDays(cached2?.days ?? [], parsed.data.views),
+    fetchedAt: Date.now(),
+    status: "fresh"
+  };
 }
 function mergeRepositoryContributions(summaries) {
   const byId = /* @__PURE__ */ new Map();
@@ -39799,6 +40243,15 @@ function addSource(sources, source) {
 function unique(values) {
   return Array.from(new Set(values));
 }
+function userQueryTarget(client, variableDefinitions = []) {
+  const login = client.targetUsername;
+  const definitions = login ? ["$login: String!", ...variableDefinitions] : variableDefinitions;
+  return {
+    declaration: definitions.length > 0 ? `(${definitions.join(", ")})` : "",
+    field: login ? "viewer: user(login: $login)" : "viewer",
+    variables: login ? { login } : {}
+  };
+}
 function getRepositoryPriority(repo) {
   let priority = 50;
   if (repo.sources.includes("owned")) priority -= 30;
@@ -39837,13 +40290,8 @@ function rememberEtag(volatileCache, key, headers) {
     updatedAt: Date.now()
   };
 }
-function getErrorStatus2(error51) {
-  if (typeof error51 !== "object" || error51 === null) return null;
-  const status = error51.status;
-  return typeof status === "number" ? status : null;
-}
 function delay2(ms) {
-  return new Promise((resolve4) => setTimeout(resolve4, ms));
+  return new Promise((resolve5) => setTimeout(resolve5, ms));
 }
 
 // src/stats/output.ts
@@ -39851,7 +40299,6 @@ function buildOutput(params) {
   const includePrivateDetails = params.config.includePrivateRepositoryDetails;
   const includePrivateMetrics = includePrivateDetails || params.config.includePrivateRepositoryMetrics;
   const visibleRepositories = includePrivateDetails ? params.repositories : params.repositories.filter((repo) => !repo.isPrivate);
-  const visibleRepositoryIds = new Set(visibleRepositories.map((repo) => repo.id));
   const metricRepositories = includePrivateMetrics ? params.repositories : params.repositories.filter((repo) => !repo.isPrivate);
   const metricRepositoryIds = new Set(metricRepositories.map((repo) => repo.id));
   const metricCacheKeys = new Set(
@@ -39859,13 +40306,16 @@ function buildOutput(params) {
       (repo) => repositoryMetricCacheKey(repo, includePrivateDetails)
     )
   );
-  const visibleRepositoryContributions = includePrivateDetails ? params.contributions.repositoryContributions : params.contributions.repositoryContributions.filter(
-    (summary) => visibleRepositoryIds.has(summary.repositoryId)
-  );
-  const contributionStats = calculateContributionStats(params.contributions.collection);
+  const visibleRepositoriesById = new Map(visibleRepositories.map((repo) => [repo.id, repo]));
+  const visibleRepositoryContributions = params.contributions.repositoryContributions.flatMap((summary) => {
+    const repository = visibleRepositoriesById.get(summary.repositoryId);
+    if (!repository) return [];
+    return [{ ...summary, nameWithOwner: repository.nameWithOwner, owner: repository.owner }];
+  });
+  const contributionStats = calculateContributionStats(params.contributions.collection, params.fetchedAt);
   const { languages: topLanguages, codeByteTotal } = aggregateRepositoryLanguages(metricRepositories);
-  const visibleComputedRepos = visibleRepositories.map(toComputedRepo2);
-  const metricComputedRepos = metricRepositories.map(toComputedRepo2);
+  const visibleComputedRepos = visibleRepositories.map(toComputedRepo);
+  const metricComputedRepos = metricRepositories.map(toComputedRepo);
   const repoStats = calculateRepoStats(metricComputedRepos);
   const visibleComputedStats = calculateComputedStats(
     visibleComputedRepos,
@@ -39887,56 +40337,29 @@ function buildOutput(params) {
   const ownedMetricRepos = metricRepositories.filter(
     (repo) => repo.sources.includes("owned")
   );
-  const ownedPublicRepos = params.repositories.filter(
-    (repo) => !repo.isPrivate && repo.sources.includes("owned")
-  );
-  const ownedPrivateRepos = params.repositories.filter(
-    (repo) => repo.isPrivate && repo.sources.includes("owned")
-  );
-  const ownedOriginalRepos = ownedMetricRepos.filter((repo) => !repo.isFork);
-  const {
-    languages: profileTopLanguages,
-    codeByteTotal: profileCodeByteTotal
-  } = aggregateRepositoryLanguages(ownedOriginalRepos);
-  const currentYear = `${new Date(params.fetchedAt).getUTCFullYear()}`;
-  const profileRepoMetrics = {
-    totalRepos: ownedMetricRepos.length,
-    publicRepos: ownedPublicRepos.length,
-    privateRepos: includePrivateMetrics ? ownedPrivateRepos.length : 0,
-    originalRepos: ownedOriginalRepos.length,
-    forkedRepos: ownedMetricRepos.length - ownedOriginalRepos.length,
-    activeOriginalRepos: ownedOriginalRepos.filter(
-      (repo) => (repo.pushedAt || repo.updatedAt).startsWith(currentYear)
-    ).length,
-    archivedOriginalRepos: ownedOriginalRepos.filter((repo) => repo.isArchived).length,
-    reposWithStars: ownedOriginalRepos.filter((repo) => repo.stars > 0).length,
-    starsReceived: ownedOriginalRepos.reduce((sum, repo) => sum + repo.stars, 0),
-    forksReceived: ownedOriginalRepos.reduce((sum, repo) => sum + repo.forks, 0),
-    codeByteTotal: profileCodeByteTotal,
-    topLanguages: profileTopLanguages
-  };
+  const profileRepoMetrics = calculateProfileRepoMetrics(metricRepositories, params.fetchedAt);
   const linesAdded = metricContributorStats.reduce(
-    (sum, stats) => sum + stats.additions,
+    (sum2, stats) => sum2 + stats.additions,
     0
   );
   const linesDeleted = metricContributorStats.reduce(
-    (sum, stats) => sum + stats.deletions,
+    (sum2, stats) => sum2 + stats.deletions,
     0
   );
   const commitCount = metricContributorStats.reduce(
-    (sum, stats) => sum + stats.commits,
+    (sum2, stats) => sum2 + stats.commits,
     0
   );
   const repoViews = metricTrafficSummaries.reduce(
-    (sum, traffic) => sum + traffic.count,
+    (sum2, traffic) => sum2 + traffic.count,
     0
   );
   const repoViewUniques = metricTrafficSummaries.reduce(
-    (sum, traffic) => sum + traffic.uniques,
+    (sum2, traffic) => sum2 + traffic.uniques,
     0
   );
-  const starCount = ownedMetricRepos.reduce((sum, repo) => sum + repo.stars, 0);
-  const forkCount = ownedMetricRepos.reduce((sum, repo) => sum + repo.forks, 0);
+  const starCount = ownedMetricRepos.reduce((sum2, repo) => sum2 + repo.stars, 0);
+  const forkCount = ownedMetricRepos.reduce((sum2, repo) => sum2 + repo.forks, 0);
   const privacy = buildPrivacyReport({
     includePrivateRepositoryMetrics: includePrivateMetrics,
     includePrivateRepositoryDetails: includePrivateDetails,
@@ -39967,7 +40390,7 @@ function buildOutput(params) {
         (item) => item.type === "contributors" && metricRepositoryIds.has(item.repoId)
       ).length,
       reposFailed: Object.values(params.cache.backfill.failures).filter(
-        (failure) => failure.key.startsWith("contributors:") && hasVisibleRepositoryId(failure.key, metricRepositoryIds)
+        (failure) => failure.key.startsWith("contributors:") && hasRepositoryKey(failure.key, metricRepositoryIds)
       ).length
     },
     traffic: {
@@ -39980,7 +40403,7 @@ function buildOutput(params) {
         (item) => item.type === "traffic" && metricRepositoryIds.has(item.repoId)
       ).length,
       reposFailed: Object.values(params.cache.backfill.failures).filter(
-        (failure) => failure.key.startsWith("traffic:") && hasVisibleRepositoryId(failure.key, metricRepositoryIds)
+        (failure) => failure.key.startsWith("traffic:") && hasRepositoryKey(failure.key, metricRepositoryIds)
       ).length
     },
     repoStats,
@@ -40025,23 +40448,7 @@ function buildOutput(params) {
     collectionStatus
   };
 }
-function emptyPackageMetrics() {
-  return {
-    packageCount: 0,
-    providers: [],
-    downloads: {
-      lastDay: 0,
-      lastWeek: 0,
-      lastMonth: 0,
-      lastYear: 0,
-      allTime: 0
-    },
-    packages: [],
-    complete: true,
-    warnings: []
-  };
-}
-function toComputedRepo2(repo) {
+function toComputedRepo(repo) {
   return {
     ...repo,
     languages: {
@@ -40086,12 +40493,6 @@ function addPrivacyWarnings(collectionStatus, privacy) {
     warnings: [...collectionStatus.warnings, ...privacyWarnings]
   };
 }
-function hasVisibleRepositoryId(key, visibleRepositoryIds) {
-  for (const repoId of visibleRepositoryIds) {
-    if (key.includes(repoId)) return true;
-  }
-  return false;
-}
 
 // src/packages/npm.ts
 var DOWNLOAD_PERIODS = [
@@ -40115,6 +40516,9 @@ var NpmPackageStatsAdapter = class {
     this.sleep = sleep2;
     this.pacer = new RequestPacer(paceIntervalMs, sleep2);
   }
+  fetcher;
+  now;
+  sleep;
   provider = "npm";
   pacer;
   async collect(packageNames) {
@@ -40238,12 +40642,15 @@ var NpmRequestError = class extends Error {
     super(`npm request failed with HTTP ${status}: ${url2}`);
     this.status = status;
   }
+  status;
 };
 var RequestPacer = class {
   constructor(intervalMs, sleep2) {
     this.intervalMs = intervalMs;
     this.sleep = sleep2;
   }
+  intervalMs;
+  sleep;
   tail = Promise.resolve();
   async wait() {
     if (this.intervalMs <= 0) return;
@@ -40273,7 +40680,7 @@ async function fetchJson(fetcher, url2, sleep2, pacer) {
       lastError = error51;
     }
     if (attempt < MAX_ATTEMPTS) {
-      await sleep2(retryDelayMs(attempt, retryAfterMs));
+      await sleep2(retryDelayMs2(attempt, retryAfterMs));
     }
   }
   throw lastError;
@@ -40284,14 +40691,14 @@ function parseRetryAfter(value) {
   if (!Number.isFinite(seconds) || seconds < 0) return null;
   return Math.min(seconds * 1e3, RETRY_MAX_DELAY_MS);
 }
-function retryDelayMs(attempt, retryAfterMs) {
+function retryDelayMs2(attempt, retryAfterMs) {
   const backoff = RETRY_BASE_DELAY_MS * 2 ** (attempt - 1);
   const jitter = Math.floor(Math.random() * RETRY_BASE_DELAY_MS);
   const delay3 = Math.min(backoff + jitter, RETRY_MAX_DELAY_MS);
   return retryAfterMs !== null ? Math.max(delay3, retryAfterMs) : delay3;
 }
 function defaultSleep(ms) {
-  return new Promise((resolve4) => setTimeout(resolve4, ms));
+  return new Promise((resolve5) => setTimeout(resolve5, ms));
 }
 async function mapWithConcurrency(values, concurrency, worker) {
   const results = new Array(values.length);
@@ -40391,14 +40798,14 @@ function sumDownloads(packages) {
 async function runStatsCollection(config2, client) {
   const startedAt = Date.now();
   const scheduler = new RequestScheduler(config2, startedAt);
-  const stableCache = readStableCache(config2.cachePath);
-  const volatileCache = readVolatileCache(config2.volatileCachePath);
   const warnings = [];
   const errors = [];
   console.log("Collecting configured package registry stats");
   const packageMetricsPromise = collectPackageStats(config2.packageSources);
-  console.log("Collecting viewer profile and activity counts");
+  console.log("Collecting account profile and activity counts");
   const { profile, activity } = await collectProfile(client, scheduler);
+  const stableCache = readStableCache(config2.cachePath, profile.login);
+  const volatileCache = readVolatileCache(config2.volatileCachePath, profile.login);
   console.log("Collecting contribution years with cache reuse");
   const contributions = await collectContributionYears(
     client,
@@ -40418,17 +40825,25 @@ async function runStatsCollection(config2, client) {
       `Contribution data is incomplete for years: ${contributions.missingYears.join(", ")}`
     );
   }
+  const incompleteEnrichmentYears = contributions.incompleteEnrichmentYears ?? [];
+  if (incompleteEnrichmentYears.length > 0) {
+    warnings.push(
+      `Repository contribution enrichment is incomplete for years: ${incompleteEnrichmentYears.join(", ")}; it will be retried`
+    );
+  }
   console.log("Collecting owned, affiliated, and contributed repositories");
   const repositoryUniverse = await collectRepositoryUniverse(
     client,
     scheduler,
     stableCache,
     config2.includePrivateCacheDetails,
-    profile.login
+    profile.login,
+    contributions.repositories
   );
-  let repositories = mergeRepositories2([
-    ...repositoryUniverse.repositories,
-    ...contributions.repositories
+  const liveRepositoryIds = new Set(repositoryUniverse.repositories.map((repo) => repo.id));
+  const repositories = mergeRepositories2([
+    ...contributions.repositories.filter((repo) => liveRepositoryIds.has(repo.id)),
+    ...repositoryUniverse.repositories
   ]);
   for (const repository of repositories) {
     cacheRepository(stableCache, repository, config2.includePrivateCacheDetails);
@@ -40449,13 +40864,6 @@ async function runStatsCollection(config2, client) {
     profile.login,
     config2
   );
-  repositories = mergeRepositories2(
-    [
-      ...Object.values(stableCache.repositories).map((entry) => entry.repository),
-      ...repositories,
-      ...contributions.repositories
-    ]
-  );
   const packageMetrics = await packageMetricsPromise;
   warnings.push(...packageMetrics.warnings);
   const finishedAt = Date.now();
@@ -40465,7 +40873,7 @@ async function runStatsCollection(config2, client) {
     finishedAt,
     durationMs: finishedAt - startedAt,
     coreComplete: contributions.missingYears.length === 0,
-    complete: contributions.missingYears.length === 0 && stableCache.backfill.pending.length === 0 && backfillResult.failed === 0,
+    complete: contributions.missingYears.length === 0 && incompleteEnrichmentYears.length === 0 && stableCache.backfill.pending.length === 0 && backfillResult.failed === 0,
     cache: {
       stablePath: config2.cachePath,
       volatilePath: config2.volatileCachePath,
@@ -40506,7 +40914,11 @@ async function runStatsCollection(config2, client) {
     config2.includePrivateCacheDetails,
     config2.includePrivateRepositoryMetrics
   );
-  writeVolatileCache(config2.volatileCachePath, volatileCache);
+  writeVolatileCache(
+    config2.volatileCachePath,
+    volatileCache,
+    new Set(Object.keys(stableCache.repositories))
+  );
   console.log(
     `Collection complete in ${((finishedAt - startedAt) / 1e3).toFixed(2)}s`
   );
@@ -40518,193 +40930,578 @@ function writeJsonOutput(path, value) {
   writeFileSync2(path, JSON.stringify(value, null, 2));
 }
 
+// src/engine/paths.ts
+import { createHash as createHash2 } from "node:crypto";
+import { basename, dirname as dirname3, resolve } from "node:path";
+function accountNamespace(config2, profile) {
+  const username = encodeURIComponent(profile.username.trim().toLowerCase());
+  const endpoints = [config2.github.apiUrl, config2.github.graphqlUrl].map((endpoint) => new URL(endpoint).href.replace(/\/+$/, ""));
+  const hostKey = createHash2("sha256").update(JSON.stringify(endpoints)).digest("hex").slice(0, 12);
+  return `${username}-${hostKey}`;
+}
+function profileExtrasDirectory(config2, profile) {
+  return resolve(config2.cache.directory ?? ".diffler", "extras", accountNamespace(config2, profile));
+}
+function buildProfileStatsConfig(plan, config2, profile) {
+  const base = buildStatsActionConfig(config2);
+  const namespace = accountNamespace(config2, profile);
+  const scopedPath = (path) => resolve(dirname3(path), "profiles", namespace, basename(path));
+  const includeTraffic = base.includeTraffic && plan.needsTraffic;
+  const includeRestRepoStats = base.includeRestRepoStats && plan.needsContributorStats;
+  return {
+    ...base,
+    cachePath: scopedPath(base.cachePath),
+    volatileCachePath: scopedPath(base.volatileCachePath),
+    outputPath: scopedPath(base.outputPath),
+    includeTraffic,
+    includeRestRepoStats,
+    backfillMode: includeTraffic || includeRestRepoStats ? base.backfillMode : "off"
+  };
+}
+
 // src/engine/unified.ts
-var DIFFLER_DIR = ".diffler";
-function buildStatsConfig(config2, plan) {
-  const statsConfig = buildStatsActionConfig(config2);
-  if (statsConfig.cachePath.includes(".github-profile-stats")) {
-    statsConfig.cachePath = resolve(DIFFLER_DIR, "cache-stable.json");
+function isRecord2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function isRecordArray(value) {
+  return Array.isArray(value) && value.every(isRecord2);
+}
+function readExtrasCache(path, config2) {
+  if (!config2.enabled || config2.ttl <= 0) return void 0;
+  try {
+    const cached2 = JSON.parse(readFileSync3(path, "utf-8"));
+    if (!isRecord2(cached2) || typeof cached2.fetchedAt !== "number") return void 0;
+    const age = Date.now() - cached2.fetchedAt;
+    if (age < 0 || age >= config2.ttl * 1e3 || !isRecordArray(cached2.data)) {
+      return void 0;
+    }
+    return cached2.data;
+  } catch {
+    return void 0;
   }
-  if (statsConfig.volatileCachePath.includes(".github-profile-stats")) {
-    statsConfig.volatileCachePath = resolve(DIFFLER_DIR, "cache-volatile.json");
+}
+async function fetchExtra(client, username, resource, cachePath, cacheConfig) {
+  const cached2 = readExtrasCache(cachePath, cacheConfig);
+  if (cached2) return cached2;
+  const records = [];
+  for (let page = 1; ; page++) {
+    const data = await client.restGet(`/users/${encodeURIComponent(username)}/${resource}`, {
+      per_page: 100,
+      page
+    });
+    if (!isRecordArray(data)) {
+      throw new Error(`Invalid ${resource} response for ${username}: expected an array of objects`);
+    }
+    records.push(...data);
+    if (data.length < 100) break;
+    if (page === 10) {
+      throw new Error(`Incomplete ${resource} collection for ${username}: pagination limit exceeded`);
+    }
   }
-  if (statsConfig.outputPath === "github-user-stats.json") {
-    statsConfig.outputPath = resolve(DIFFLER_DIR, "stats.json");
+  const result = records.map(
+    (record2) => resource === "orgs" ? {
+      login: record2.login ?? "",
+      id: record2.id ?? null,
+      url: record2.url ?? "",
+      avatar_url: record2.avatar_url ?? "",
+      description: record2.description ?? null
+    } : {
+      id: record2.id ?? "",
+      description: record2.description ?? null,
+      html_url: record2.html_url ?? "",
+      public: record2.public ?? true,
+      created_at: record2.created_at ?? null,
+      updated_at: record2.updated_at ?? null,
+      files: isRecord2(record2.files) ? Object.keys(record2.files) : []
+    }
+  );
+  if (cacheConfig.enabled && cacheConfig.ttl > 0) {
+    mkdirSync3(dirname4(cachePath), { recursive: true });
+    writeFileSync3(cachePath, JSON.stringify({ fetchedAt: Date.now(), data: result }, null, 2));
   }
-  statsConfig.includeTraffic = statsConfig.includeTraffic && plan.needsTraffic;
-  statsConfig.includeRestRepoStats = statsConfig.includeRestRepoStats && plan.needsContributorStats;
-  return statsConfig;
+  return result;
 }
 var UnifiedEngine = class {
   async collect(plan, config2, profile) {
-    const statsConfig = buildStatsConfig(config2, plan);
+    const statsConfig = buildProfileStatsConfig(plan, config2, profile);
     const client = new GitHubClient({
       ...config2.github,
       username: profile.username,
       token: profile.token
     });
-    return runStatsCollection(statsConfig, client);
+    const output = await runStatsCollection(statsConfig, client);
+    if (output.profile.login.toLowerCase() !== profile.username.trim().toLowerCase()) {
+      throw new Error(
+        `Collected GitHub account ${output.profile.login} does not match requested profile ${profile.username}`
+      );
+    }
+    const extras = { profiles: [output.profile] };
+    const extrasDirectory = profileExtrasDirectory(config2, profile);
+    if (plan.needsOrganizations) {
+      extras.organizations = await fetchExtra(
+        client,
+        profile.username,
+        "orgs",
+        resolve2(extrasDirectory, "orgs.json"),
+        config2.cache
+      );
+    }
+    if (plan.needsGists) {
+      extras.gists = await fetchExtra(
+        client,
+        profile.username,
+        "gists",
+        resolve2(extrasDirectory, "gists.json"),
+        config2.cache
+      );
+    }
+    return { output, extras };
   }
 };
 
+// src/engine/profiles.ts
+import { mkdirSync as mkdirSync4, writeFileSync as writeFileSync4 } from "node:fs";
+import { dirname as dirname5 } from "node:path";
+async function collectProfiles(plan, config2) {
+  const profiles = getProfiles(config2.github);
+  if (profiles.length === 0) throw new Error("No GitHub profiles configured for collection");
+  const usernames = profiles.map((profile) => profile.username.trim().toLowerCase());
+  if (usernames.some((username) => !username)) {
+    throw new Error("GitHub profile usernames must not be empty");
+  }
+  if (new Set(usernames).size !== usernames.length) {
+    throw new Error("Duplicate GitHub profiles cannot be aggregated");
+  }
+  const engine = new UnifiedEngine();
+  const outputs = [];
+  const extrasList = [];
+  const caches = [];
+  for (const profile of profiles) {
+    try {
+      const { output: output2, extras: extras2 } = await engine.collect(plan, config2, profile);
+      outputs.push(output2);
+      extrasList.push(extras2);
+      if (profiles.length > 1) {
+        const statsConfig2 = buildProfileStatsConfig(plan, config2, profile);
+        caches.push(readStableCache(statsConfig2.cachePath, output2.profile.login));
+      }
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      throw new Error(`Failed to collect GitHub profile ${profile.username}: ${message}`, { cause });
+    }
+  }
+  const statsConfig = buildStatsActionConfig(config2);
+  const output = outputs.length === 1 ? outputs[0] : aggregateOutputs(outputs, caches, statsConfig);
+  const extras = outputs.length === 1 ? extrasList[0] : mergeExtras(outputs, extrasList);
+  mkdirSync4(dirname5(statsConfig.outputPath), { recursive: true });
+  writeFileSync4(statsConfig.outputPath, JSON.stringify(output, null, 2));
+  return { output, extras };
+}
+function aggregateOutputs(outputs, caches, config2) {
+  const repositories = mergeRepositories(outputs.flatMap((output) => output.repositories)).map((repository) => ({ ...repository, viewerPermission: null }));
+  const repositoriesById = new Map(repositories.map((repository) => [repository.id, repository]));
+  const collection = mergeProfileContributions(
+    outputs.map((output) => output.profileContributions),
+    (/* @__PURE__ */ new Date()).toISOString().slice(0, 10)
+  );
+  const repositoryContributions = collection.repositoryContributions.map((summary) => {
+    const repository = repositoriesById.get(summary.repositoryId);
+    return repository ? { ...summary, nameWithOwner: repository.nameWithOwner, owner: repository.owner } : summary;
+  }).sort((a, b) => a.nameWithOwner.localeCompare(b.nameWithOwner));
+  const missingYears = uniqueSorted(outputs.flatMap(
+    (output) => output.profileContributions.completeness.missingYears
+  ));
+  const emptyCalendars = outputs.filter((output) => !output.profileContributions.contributionCalendar.weeks.some((week) => week.contributionDays.length > 0));
+  const contributionsComplete = collection.completeness.complete && emptyCalendars.length === 0 && missingYears.length === 0 && outputs.every(
+    (output) => output.profileContributions.completeness.complete
+  );
+  const { cache, warnings: metricWarnings, repositoryCoverageComplete } = aggregateMetricCaches(outputs, caches);
+  const redactedRepositories = sum(outputs, (output) => output.privacy.redactedPrivateRepositories);
+  const contributedIds = /* @__PURE__ */ new Set([
+    ...repositoryContributions.map((summary) => summary.repositoryId),
+    ...repositories.filter(
+      (repository) => repository.sources.includes("contributed") || repository.sources.includes("profile-contribution")
+    ).map((repository) => repository.id)
+  ]);
+  const activity = {
+    totalPullRequests: sum(outputs, (output) => output.activity.totalPullRequests),
+    openIssues: sum(outputs, (output) => output.activity.openIssues),
+    closedIssues: sum(outputs, (output) => output.activity.closedIssues),
+    repositoriesContributedTo: contributedIds.size,
+    discussionsStarted: sum(outputs, (output) => output.activity.discussionsStarted),
+    discussionsAnswered: sum(outputs, (output) => output.activity.discussionsAnswered),
+    starsGiven: sum(outputs, (output) => output.activity.starsGiven)
+  };
+  const warnings = [
+    `Profiles aggregated: ${outputs.map((output) => output.profile.login).join(", ")}. Display identity and follower counts belong to ${outputs[0].profile.login}.`,
+    "Repository metadata is deduplicated by ID; repositoriesContributedTo counts known repository IDs. Contribution and other activity counts are summed per account, not distinct events or targets.",
+    "Cache/backfill work counters count per-account tasks. Cache paths and rate-limit snapshots are per-account and are not represented on the aggregate.",
+    ...emptyCalendars.map(
+      (output) => `[${output.profile.login}] No contribution calendar days available; contribution aggregation is incomplete.`
+    ),
+    ...metricWarnings
+  ];
+  if (redactedRepositories > 0) {
+    warnings.push(
+      "Private repository aggregates cannot be deduplicated after redaction. Repository statistics cover visible repositories only; privacy redaction counts describe records across accounts, not distinct repositories."
+    );
+  }
+  const coreComplete = contributionsComplete && repositoryCoverageComplete && redactedRepositories === 0 && outputs.every((output) => output.collectionStatus.coreComplete);
+  const errors = outputs.flatMap((output) => output.collectionStatus.errors.map(
+    (error51) => `[${output.profile.login}] ${error51}`
+  ));
+  const startedAt = Math.min(...outputs.map((output) => output.collectionStatus.startedAt));
+  const finishedAt = Date.now();
+  const status = {
+    startedAt,
+    finishedAt,
+    durationMs: finishedAt - startedAt,
+    coreComplete,
+    complete: coreComplete && metricWarnings.length === 0 && errors.length === 0 && cache.backfill.pending.length === 0 && Object.keys(cache.backfill.failures).length === 0 && outputs.every((output) => output.collectionStatus.complete && output.packageMetrics.complete && output.collectionStatus.backfill.pending === 0 && output.collectionStatus.backfill.failedThisRun === 0 && output.repoMetrics.contributorStats.reposPending === 0 && output.repoMetrics.contributorStats.reposFailed === 0 && output.repoMetrics.traffic.reposPending === 0 && output.repoMetrics.traffic.reposFailed === 0),
+    cache: {
+      stablePath: "",
+      volatilePath: "",
+      contributionYearsFromCache: sum(outputs, (output) => output.collectionStatus.cache.contributionYearsFromCache),
+      contributionYearsFetched: sum(outputs, (output) => output.collectionStatus.cache.contributionYearsFetched),
+      repositoriesFromCache: sum(outputs, (output) => output.collectionStatus.cache.repositoriesFromCache),
+      repositoriesFetched: sum(outputs, (output) => output.collectionStatus.cache.repositoriesFetched)
+    },
+    backfill: {
+      enabled: outputs.some((output) => output.collectionStatus.backfill.enabled),
+      completedThisRun: sum(outputs, (output) => output.collectionStatus.backfill.completedThisRun),
+      pending: Math.max(
+        cache.backfill.pending.length,
+        sum(outputs, (output) => output.collectionStatus.backfill.pending)
+      ),
+      failedThisRun: sum(outputs, (output) => output.collectionStatus.backfill.failedThisRun),
+      skippedThisRun: sum(outputs, (output) => output.collectionStatus.backfill.skippedThisRun)
+    },
+    rateLimit: { graphql: null, rest: null },
+    warnings: [
+      ...warnings,
+      ...outputs.flatMap((output) => output.collectionStatus.warnings.map(
+        (warning) => `[${output.profile.login}] ${warning}`
+      ))
+    ],
+    errors
+  };
+  const aggregate = buildOutput({
+    profile: { ...outputs[0].profile },
+    activity,
+    contributions: {
+      collection,
+      repositories,
+      repositoryContributions,
+      yearsFetched: uniqueSorted(outputs.flatMap((output) => output.profileContributions.completeness.yearsFetched)),
+      yearsFromCache: uniqueSorted(outputs.flatMap((output) => output.profileContributions.completeness.yearsFromCache)),
+      missingYears
+    },
+    repositories,
+    cache,
+    config: config2,
+    collectionStatus: status,
+    fetchedAt: finishedAt,
+    packageMetrics: mergePackageMetrics(outputs.map((output) => output.packageMetrics))
+  });
+  return {
+    ...aggregate,
+    profileContributions: {
+      ...aggregate.profileContributions,
+      completeness: { ...aggregate.profileContributions.completeness, complete: contributionsComplete }
+    },
+    privacy: {
+      ...aggregate.privacy,
+      redactedPrivateRepositories: aggregate.privacy.redactedPrivateRepositories + redactedRepositories,
+      redactedRepositoryContributions: aggregate.privacy.redactedRepositoryContributions + sum(outputs, (output) => output.privacy.redactedRepositoryContributions),
+      redactedOptionalMetrics: aggregate.privacy.redactedOptionalMetrics + sum(outputs, (output) => output.privacy.redactedOptionalMetrics)
+    }
+  };
+}
+function aggregateMetricCaches(outputs, caches) {
+  const aggregate = createEmptyStableCache();
+  const warnings = [];
+  const contributorsByRepository = /* @__PURE__ */ new Map();
+  const trafficByRepository = /* @__PURE__ */ new Map();
+  const pending = /* @__PURE__ */ new Map();
+  const missingContributors = /* @__PURE__ */ new Map();
+  const missingTraffic = /* @__PURE__ */ new Map();
+  let repositoryCoverageComplete = true;
+  for (const [index, output] of outputs.entries()) {
+    const cache = caches[index];
+    const visibleIds = new Set(output.repositories.map((repository) => repository.id));
+    const contributors = Object.entries(cache.contributorStats).filter(([id]) => visibleIds.has(id));
+    const traffic = Object.entries(cache.traffic).filter(([id]) => visibleIds.has(id));
+    const contributorTotals = output.repoMetrics.contributorStats;
+    const trafficTotals = output.repoMetrics.traffic;
+    if (contributors.some(([, stats]) => !isMetricComplete(stats.status)) || traffic.some(([, stats]) => !isMetricComplete(stats.status))) {
+      warnings.push(`[${output.profile.login}] Optional repository metric cache contains incomplete results.`);
+    }
+    const contributorsInconsistent = contributors.reduce((total, [, stats]) => total + stats.additions, 0) !== contributorTotals.linesAdded || contributors.reduce((total, [, stats]) => total + stats.deletions, 0) !== contributorTotals.linesDeleted || contributors.reduce((total, [, stats]) => total + stats.commits, 0) !== contributorTotals.totalCommits || contributors.filter(([, stats]) => isMetricComplete(stats.status)).length !== contributorTotals.reposCompleted;
+    const trafficInconsistent = traffic.reduce((total, [, stats]) => total + stats.count, 0) !== trafficTotals.repoViews || traffic.reduce((total, [, stats]) => total + stats.uniques, 0) !== trafficTotals.repoViewUniques || traffic.filter(([, stats]) => isMetricComplete(stats.status)).length !== trafficTotals.reposCompleted;
+    if (contributorsInconsistent || trafficInconsistent) {
+      warnings.push(
+        `[${output.profile.login}] Per-repository optional metric cache is unavailable or inconsistent; aggregate optional metrics include only identifiable cached values.`
+      );
+      if (visibleIds.size === 0) repositoryCoverageComplete = false;
+      for (const repository of output.repositories) {
+        if (contributorsInconsistent) missingContributors.set(repository.id, repository);
+        if (trafficInconsistent) missingTraffic.set(repository.id, repository);
+      }
+    }
+    for (const [id, stats] of contributors) {
+      const current = contributorsByRepository.get(id);
+      contributorsByRepository.set(id, current ? {
+        ...stats,
+        additions: current.additions + stats.additions,
+        deletions: current.deletions + stats.deletions,
+        commits: current.commits + stats.commits,
+        fetchedAt: Math.min(current.fetchedAt, stats.fetchedAt),
+        status: !isMetricComplete(current.status) ? current.status : stats.status
+      } : { ...stats });
+    }
+    for (const [id, stats] of traffic) {
+      const current = trafficByRepository.get(id);
+      const candidate = trafficInconsistent ? { ...stats, status: "pending" } : { ...stats };
+      if (!current || isMetricComplete(candidate.status) && !isMetricComplete(current.status) || isMetricComplete(candidate.status) === isMetricComplete(current.status) && candidate.fetchedAt >= current.fetchedAt) {
+        trafficByRepository.set(id, candidate);
+      }
+    }
+    for (const item of cache.backfill.pending) {
+      if (visibleIds.has(item.repoId)) pending.set(`${item.type}:${item.repoId}`, { ...item });
+    }
+    for (const failure of Object.values(cache.backfill.failures)) {
+      if (!hasRepositoryKey(failure.key, visibleIds)) continue;
+      const [type, id] = failure.key.split(":");
+      const key = `${type}:${id}`;
+      const current = aggregate.backfill.failures[key];
+      if (!current || failure.failedAt >= current.failedAt) {
+        aggregate.backfill.failures[key] = { ...failure, key };
+      }
+    }
+  }
+  for (const [id, repository] of missingContributors) {
+    const stats = contributorsByRepository.get(id);
+    if (stats && isMetricComplete(stats.status)) stats.status = "pending";
+    const key = `contributors:${id}`;
+    pending.set(key, { key, type: "contributors", repoId: id, nameWithOwner: repository.nameWithOwner, priority: 0, reason: "Per-account metric coverage must be recollected" });
+  }
+  for (const [id, repository] of missingTraffic) {
+    const stats = trafficByRepository.get(id);
+    if (stats && isMetricComplete(stats.status)) continue;
+    const key = `traffic:${id}`;
+    pending.set(key, { key, type: "traffic", repoId: id, nameWithOwner: repository.nameWithOwner, priority: 0, reason: "Repository traffic coverage must be recollected" });
+  }
+  aggregate.contributorStats = Object.fromEntries(contributorsByRepository);
+  aggregate.traffic = Object.fromEntries(trafficByRepository);
+  aggregate.backfill.pending = [...pending.values()].sort((a, b) => a.key.localeCompare(b.key));
+  return { cache: aggregate, warnings, repositoryCoverageComplete };
+}
+function isMetricComplete(status) {
+  return status === "fresh" || status === "cached";
+}
+function mergeExtras(outputs, extras) {
+  return {
+    profiles: outputs.flatMap((output, index) => extras[index].profiles ?? [output.profile]),
+    ...extras.some((extra) => extra.organizations !== void 0) ? { organizations: uniqueRecords(extras.flatMap((extra) => extra.organizations ?? []), "login") } : {},
+    ...extras.some((extra) => extra.gists !== void 0) ? { gists: uniqueRecords(extras.flatMap((extra) => extra.gists ?? []), "html_url") } : {},
+    ...extras.every((extra) => extra.pinnedRepositories !== void 0) ? { pinnedRepositories: mergeRepositories(extras.flatMap((extra) => extra.pinnedRepositories ?? [])) } : {}
+  };
+}
+function uniqueRecords(records, fallback) {
+  const seen = /* @__PURE__ */ new Set();
+  return records.filter((record2) => {
+    const key = record2.id === "" || record2.id === null || record2.id === void 0 ? record2[fallback] : record2.id;
+    if (typeof key !== "string" && typeof key !== "number" || key === "") return true;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function uniqueSorted(values) {
+  return [...new Set(values)].sort();
+}
+function sum(outputs, value) {
+  return outputs.reduce((total, output) => total + value(output), 0);
+}
+
 // src/engine/derive.ts
-function deriveContext(output, config2, multiProfile = false) {
+function publicConfig(config2) {
+  return {
+    version: config2.version,
+    templates: config2.templates,
+    assets: config2.assets,
+    github: {
+      username: config2.github.username,
+      usernames: config2.github.usernames,
+      profiles: config2.github.profiles.map(({ username }) => ({ username })),
+      includeOrgs: config2.github.includeOrgs,
+      largeRepoMode: config2.github.largeRepoMode
+    }
+  };
+}
+function deriveContext(output, config2, extras = {}, multiProfile = false) {
   const profile = output.profile;
   const contributions = output.profileContributions;
-  const repos = output.repositories;
   const activity = output.activity;
+  const username = profile.login || getProfiles(config2.github)[0]?.username || "unknown";
+  const organizations = extras.organizations ?? [];
   return {
-    config: config2,
+    config: publicConfig(config2),
     github: {
       user: {
-        login: profile.login || config2.github.username || "unknown",
-        name: profile.name || config2.github.username || "unknown",
-        bio: profile.bio ?? null,
-        company: profile.company ?? null,
-        location: profile.location ?? null,
-        website_url: profile.websiteUrl ?? null,
-        twitter_username: profile.twitterUsername ?? null,
-        email: profile.email ?? null,
-        created_at: profile.createdAt ?? null,
-        followers: profile.followers ?? 0,
-        following: profile.following ?? 0,
-        starred_repositories: 0,
-        // Not in v2 output directly
-        repositories: repos,
-        pinned_repositories: [],
+        login: username,
+        name: profile.name || username,
+        bio: profile.bio,
+        company: profile.company,
+        location: profile.location,
+        website_url: profile.websiteUrl,
+        twitter_username: profile.twitterUsername,
+        email: profile.email,
+        created_at: profile.createdAt || null,
+        followers: profile.followers,
+        following: profile.following,
+        starred_repositories: activity.starsGiven,
+        repositories: output.repositories,
+        pinned_repositories: extras.pinnedRepositories ?? null,
         contributions: {
-          total: contributions.totalContributions ?? 0,
-          commits: contributions.totalCommitContributions ?? 0,
-          issues: contributions.totalIssueContributions ?? 0,
-          pull_requests: contributions.totalPullRequestContributions ?? 0,
-          reviews: contributions.totalPullRequestReviewContributions ?? 0,
-          calendar: contributions.contributionCalendar.weeks ?? []
+          total: contributions.totalContributions,
+          commits: contributions.totalCommitContributions,
+          issues: contributions.totalIssueContributions,
+          pull_requests: contributions.totalPullRequestContributions,
+          reviews: contributions.totalPullRequestReviewContributions,
+          calendar: contributions.contributionCalendar.weeks
         }
       }
     },
     stats: output,
     profile,
-    profiles: [],
-    contributions,
-    repositories: repos,
-    traffic: output.repoMetrics.traffic ?? {},
-    contributor_stats: output.repoMetrics.contributorStats ? [output.repoMetrics.contributorStats] : [],
+    profiles: extras.profiles ?? [profile],
+    extras,
+    contributions: { ...contributions, ...contributions.stats },
+    calendar: contributions.contributionCalendar.weeks,
+    streak: contributions.stats,
+    repositories: output.repositories,
+    repos: output.repositories,
+    organizations,
+    orgs: organizations,
+    traffic: output.repoMetrics.traffic,
+    contributor_stats: [output.repoMetrics.contributorStats],
     activity,
     discussions: {
-      started: activity.discussionsStarted ?? 0,
-      answered: activity.discussionsAnswered ?? 0
+      started: activity.discussionsStarted,
+      answered: activity.discussionsAnswered
     },
-    stars_given: [],
-    // Not in v2 output directly; could fetch separately
-    repo_contributions: {},
-    repo_stats: output.repoMetrics.repoStats ?? {},
-    computed_stats: output.repoMetrics.computedStats ?? {},
+    stars_given: activity.starsGiven,
+    repo_contributions: contributions.repositoryContributions,
+    repo_stats: output.repoMetrics.repoStats,
+    computed_stats: output.repoMetrics.computedStats,
     collection_status: output.collectionStatus,
     multi_profile: multiProfile
   };
 }
 function buildStubContext(config2) {
-  const username = config2.github.username || "unknown";
-  return {
-    config: config2,
-    github: {
-      user: {
-        login: username,
-        name: username,
-        bio: null,
-        company: null,
-        location: null,
-        website_url: null,
-        twitter_username: null,
-        email: null,
-        created_at: null,
-        followers: 0,
-        following: 0,
-        starred_repositories: 0,
-        repositories: [],
-        pinned_repositories: [],
-        contributions: {
-          total: 0,
-          commits: 0,
-          issues: 0,
-          pull_requests: 0,
-          reviews: 0,
-          calendar: []
-        }
-      }
+  const username = getProfiles(config2.github)[0]?.username || "unknown";
+  const now = Date.now();
+  const statsConfig = buildStatsActionConfig(config2);
+  const output = buildOutput({
+    profile: {
+      login: username,
+      name: username,
+      bio: null,
+      company: null,
+      location: null,
+      websiteUrl: null,
+      twitterUsername: null,
+      email: null,
+      avatarUrl: "",
+      createdAt: (/* @__PURE__ */ new Date(0)).toISOString(),
+      followers: 0,
+      following: 0
     },
-    stats: {},
-    profile: {},
-    profiles: [],
-    contributions: {},
+    activity: {
+      totalPullRequests: 0,
+      openIssues: 0,
+      closedIssues: 0,
+      repositoriesContributedTo: 0,
+      discussionsStarted: 0,
+      discussionsAnswered: 0,
+      starsGiven: 0
+    },
+    contributions: {
+      collection: emptyContributionsCollection(),
+      repositoryContributions: [],
+      repositories: [],
+      yearsFetched: [],
+      yearsFromCache: [],
+      missingYears: []
+    },
     repositories: [],
-    traffic: {},
-    contributor_stats: [],
-    activity: {},
-    discussions: {},
-    stars_given: [],
-    repo_contributions: {},
-    repo_stats: {},
-    computed_stats: {},
-    collection_status: {},
-    multi_profile: false
+    cache: createEmptyStableCache(now),
+    config: statsConfig,
+    collectionStatus: {
+      startedAt: now,
+      finishedAt: now,
+      durationMs: 0,
+      complete: false,
+      coreComplete: false,
+      cache: {
+        stablePath: "",
+        volatilePath: "",
+        contributionYearsFromCache: 0,
+        contributionYearsFetched: 0,
+        repositoriesFromCache: 0,
+        repositoriesFetched: 0
+      },
+      backfill: {
+        enabled: false,
+        completedThisRun: 0,
+        pending: 0,
+        failedThisRun: 0,
+        skippedThisRun: 0
+      },
+      rateLimit: { graphql: null, rest: null },
+      warnings: ["GitHub data was not collected."],
+      errors: []
+    },
+    fetchedAt: now
+  });
+  const context = deriveContext({
+    ...output,
+    profileContributions: {
+      ...output.profileContributions,
+      completeness: { ...output.profileContributions.completeness, complete: false }
+    }
+  }, config2, { profiles: [] });
+  return {
+    ...context,
+    github: { user: { ...context.github.user, created_at: null } }
   };
 }
 
 // src/core/context.ts
-function mergeOutputs(outputs) {
-  return mergeStatsOutputs(outputs);
-}
 var ContextBuilder = class {
-  config;
   constructor(config2) {
     this.config = config2;
   }
+  config;
   async build(templateSource, sources) {
     const profiles = getProfiles(this.config.github);
-    if (!profiles.length) {
-      console.warn("No GitHub usernames configured; using stub data.");
-      return buildStubContext(this.config);
-    }
     if (sources) {
-      const clients = profiles.map(
-        (profile) => new GitHubClient({
-          ...this.config.github,
-          username: profile.username,
-          token: profile.token
-        })
-      );
-      await prefetchSources(
-        templateSource,
-        clients.map((client, index) => ({ username: profiles[index].username, client })),
-        profiles[0].username,
-        sources
-      );
+      await prefetchSources(templateSource, profiles.map((profile) => ({
+        username: profile.username,
+        client: new GitHubClient({ ...this.config.github, ...profile })
+      })), profiles[0]?.username ?? "unknown", sources);
     }
     const plan = analyzeTemplate(templateSource);
-    const engine = new UnifiedEngine();
-    if (profiles.length === 1) {
-      const output = await engine.collect(plan, this.config, profiles[0]);
-      return deriveContext(output, this.config, false);
+    if (!Object.values(plan).some(Boolean)) {
+      return { config: publicConfig(this.config), multi_profile: getProfiles(this.config.github).length > 1 };
     }
-    return this.buildMultiUser(plan, engine, profiles);
-  }
-  async buildMultiUser(plan, engine, profiles) {
-    const outputs = [];
-    for (const profile of profiles) {
-      console.info("Collecting data for %s", profile.username);
-      try {
-        const output2 = await engine.collect(plan, this.config, profile);
-        outputs.push(output2);
-      } catch (err) {
-        console.error("Failed to collect data for %s:", profile.username, err);
-      }
-    }
-    if (outputs.length === 0) {
+    if (!profiles.length) {
+      console.warn("No GitHub usernames configured; using uncollected placeholder data.");
       return buildStubContext(this.config);
     }
-    const output = mergeOutputs(outputs);
-    return deriveContext(output, this.config, true);
+    const { output, extras } = await collectProfiles(plan, this.config);
+    return deriveContext(output, this.config, extras, profiles.length > 1);
   }
 };
 
@@ -40740,13 +41537,13 @@ var Engine = class {
     }
     let current = "";
     if (existsSync2(README_PATH)) {
-      current = readFileSync3(README_PATH, "utf-8");
+      current = readFileSync4(README_PATH, "utf-8");
     }
     if (rendered === current) {
       console.info("No changes detected; skipping commit.");
       return;
     }
-    writeFileSync3(README_PATH, rendered, "utf-8");
+    writeFileSync5(README_PATH, rendered, "utf-8");
     console.info("README.md updated locally.");
     if (hasChanges(README_PATH)) {
       commitAndPush(options.message || "\u{1F916} Auto-update profile README", README_PATH);
@@ -40758,8 +41555,8 @@ var Engine = class {
 
 // src/core/renderer.ts
 var import_nunjucks = __toESM(require_nunjucks(), 1);
-import { readFileSync as readFileSync4, readdirSync } from "node:fs";
-import { resolve as resolve2 } from "node:path";
+import { readFileSync as readFileSync5, readdirSync } from "node:fs";
+import { resolve as resolve3 } from "node:path";
 
 // src/helpers/badges.ts
 function shield(label, message, color = "blue", style = "flat") {
@@ -40805,53 +41602,75 @@ function skillIcons(technologies, theme = "dark") {
 }
 
 // src/helpers/filters.ts
+function stringValue(value) {
+  return typeof value === "string" ? value : void 0;
+}
+function numberValue(value) {
+  return typeof value === "number" && Number.isFinite(value) ? value : void 0;
+}
+function isRecord3(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function primaryLanguage(repo) {
+  if (repo.primaryLanguage === null) return null;
+  return stringValue(repo.primaryLanguage) ?? stringValue(repo.primary_language) ?? stringValue(repo.language) ?? null;
+}
+function languageColor(repo, language) {
+  if (Array.isArray(repo.languages)) {
+    const languages = repo.languages;
+    const match = languages.find((entry) => isRecord3(entry) && entry.languageName === language);
+    if (isRecord3(match)) return stringValue(match.color) ?? null;
+  }
+  return stringValue(repo.primary_language_color) ?? stringValue(repo.language_color) ?? null;
+}
+function stars(repo) {
+  return numberValue(repo.stars) ?? numberValue(repo.stargazers_count) ?? 0;
+}
 function normalize(repo) {
+  const language = primaryLanguage(repo);
   return {
-    name: repo.name || "",
-    full_name: repo.full_name || "",
-    description: repo.description || null,
-    url: repo.url || "",
-    stars: repo.stars || 0,
-    forks: repo.forks || 0,
-    language: repo.primary_language || null,
-    language_color: repo.primary_language_color || null,
-    is_fork: repo.is_fork || false,
-    is_archived: repo.is_archived || false
+    name: stringValue(repo.name) ?? "",
+    full_name: stringValue(repo.nameWithOwner) ?? stringValue(repo.full_name) ?? "",
+    description: stringValue(repo.description) ?? null,
+    url: stringValue(repo.url) ?? stringValue(repo.html_url) ?? "",
+    stars: stars(repo),
+    forks: numberValue(repo.forks) ?? numberValue(repo.forks_count) ?? 0,
+    language,
+    language_color: languageColor(repo, language),
+    is_fork: typeof repo.isFork === "boolean" ? repo.isFork : repo.is_fork === true,
+    is_archived: typeof repo.isArchived === "boolean" ? repo.isArchived : repo.is_archived === true
   };
 }
 function filterRepos(repos, options = {}) {
-  const normalized = repos.map(normalize);
-  let result = [...normalized];
-  if (options.exclude_forks) {
-    result = result.filter((r) => !r.is_fork);
-  }
-  if (options.exclude_archived) {
-    result = result.filter((r) => !r.is_archived);
-  }
+  let result = repos.map(normalize);
+  if (options.exclude_forks) result = result.filter((repo) => !repo.is_fork);
+  if (options.exclude_archived) result = result.filter((repo) => !repo.is_archived);
   if (options.language) {
-    const lang = options.language.toLowerCase();
-    result = result.filter((r) => r.language && r.language.toLowerCase() === lang);
+    const language = options.language.toLowerCase();
+    result = result.filter((repo) => repo.language?.toLowerCase() === language);
   }
-  if (options.min_stars !== void 0) {
-    result = result.filter((r) => r.stars >= options.min_stars);
-  }
-  if (options.max_stars !== void 0) {
-    result = result.filter((r) => r.stars <= options.max_stars);
-  }
+  const minStars = options.min_stars;
+  const maxStars = options.max_stars;
+  if (minStars !== void 0) result = result.filter((repo) => repo.stars >= minStars);
+  if (maxStars !== void 0) result = result.filter((repo) => repo.stars <= maxStars);
   if (options.search) {
     const term = options.search.toLowerCase();
     result = result.filter(
-      (r) => r.name.toLowerCase().includes(term) || (r.description || "").toLowerCase().includes(term) || r.full_name.toLowerCase().includes(term)
+      (repo) => repo.name.toLowerCase().includes(term) || (repo.description ?? "").toLowerCase().includes(term) || repo.full_name.toLowerCase().includes(term)
     );
   }
-  const sortBy = options.sort_by || "stars";
   const sortDesc = options.sort_desc !== false;
-  const sortKey = (r) => {
-    if (sortBy === "stars") return r.stars;
-    if (sortBy === "forks") return r.forks;
-    if (sortBy === "name") return r.name.toLowerCase();
-    if (sortBy === "language") return (r.language || "").toLowerCase();
-    return r.stars;
+  const sortKey = (repo) => {
+    switch (options.sort_by) {
+      case "forks":
+        return repo.forks;
+      case "name":
+        return repo.name.toLowerCase();
+      case "language":
+        return (repo.language ?? "").toLowerCase();
+      default:
+        return repo.stars;
+    }
   };
   result.sort((a, b) => {
     const av = sortKey(a);
@@ -40860,35 +41679,37 @@ function filterRepos(repos, options = {}) {
     if (av > bv) return sortDesc ? -1 : 1;
     return 0;
   });
-  if (options.limit !== void 0) {
-    result = result.slice(0, options.limit);
-  }
-  return result;
+  return options.limit === void 0 ? result : result.slice(0, options.limit);
 }
 function reposByLanguage(repos) {
-  const groups = {};
+  const groups = /* @__PURE__ */ new Map();
   for (const repo of repos) {
-    const lang = repo.primary_language || "Unknown";
-    groups[lang] = groups[lang] || [];
-    groups[lang].push(repo);
+    const language = primaryLanguage(repo) || "Unknown";
+    const group = groups.get(language) ?? [];
+    group.push(repo);
+    groups.set(language, group);
   }
-  for (const lang of Object.keys(groups)) {
-    groups[lang].sort((a, b) => (b.stars || 0) - (a.stars || 0));
-  }
-  return Object.fromEntries(Object.entries(groups).sort(([a], [b]) => a.localeCompare(b)));
+  for (const group of groups.values()) group.sort((a, b) => stars(b) - stars(a));
+  return Object.fromEntries([...groups].sort(([a], [b]) => a.localeCompare(b)));
 }
 function languageBreakdown(repos) {
-  const stats = {};
+  const stats = /* @__PURE__ */ new Map();
   for (const repo of repos) {
-    const lang = repo.primary_language || "Unknown";
-    const color = repo.primary_language_color || null;
-    if (!stats[lang]) {
-      stats[lang] = { language: lang, count: 0, total_stars: 0, color };
-    }
-    stats[lang].count += 1;
-    stats[lang].total_stars += repo.stars || 0;
+    const language = primaryLanguage(repo) || "Unknown";
+    const summary = stats.get(language) ?? {
+      language,
+      count: 0,
+      total_stars: 0,
+      color: languageColor(repo, language)
+    };
+    summary.count += 1;
+    summary.total_stars += stars(repo);
+    summary.color ??= languageColor(repo, language);
+    stats.set(language, summary);
   }
-  return Object.values(stats).sort((a, b) => b.total_stars - a.total_stars);
+  return [...stats.values()].sort(
+    (a, b) => b.total_stars - a.total_stars || a.language.localeCompare(b.language)
+  );
 }
 
 // src/helpers/layout.ts
@@ -40998,91 +41819,76 @@ function sponsors(store) {
 }
 
 // src/helpers/remotion.ts
-function remotionInput(stats) {
-  const profile = stats.profile || {};
-  const contributions = stats.profileContributions || {};
-  const calendar = contributions.contributionCalendar || {};
-  const statsBlock = contributions.stats || {};
-  const repoMetrics = stats.repoMetrics || {};
-  const repoStats = repoMetrics.repoStats || {};
-  return {
-    username: profile.login || stats.username,
-    name: profile.name || stats.name,
-    avatarUrl: profile.avatarUrl || stats.avatarUrl,
-    totalContributions: contributions.totalContributions || 0,
-    currentStreak: statsBlock.currentStreak || 0,
-    longestStreak: statsBlock.longestStreak || 0,
-    publicRepos: repoStats.publicRepos || 0,
-    totalStars: repoMetrics.starCount || 0,
-    totalForks: repoMetrics.forkCount || 0,
-    topLanguages: (repoMetrics.topLanguages || []).slice(0, 10).map((lang) => ({
-      name: lang.languageName,
-      percentage: lang.percentage || 0,
-      color: lang.color
-    })),
-    calendar: calendar.weeks || []
-  };
+function parseStats(stats) {
+  const result = githubStatsInputSchema.safeParse(stats);
+  if (!result.success) {
+    throw new Error("Cannot export Remotion data: expected valid collected GitHub stats");
+  }
+  return result.data;
 }
-function remotionSceneConfig(scene, stats) {
-  const base = remotionInput(stats);
-  const configs = {
-    readme: { ...base, scene: "readme", duration: 300 },
-    stats: { ...base, scene: "stats", duration: 300, showBreakdown: true },
-    languages: {
-      ...base,
-      scene: "languages",
-      duration: 240,
-      languages: base.topLanguages.slice(0, 6)
-    },
-    "activity-overview": { ...base, scene: "activity-overview", duration: 300, calendar: base.calendar },
-    "commit-streak": {
-      ...base,
-      scene: "commit-streak",
-      duration: 240,
-      currentStreak: base.currentStreak,
-      longestStreak: base.longestStreak
-    }
+function remotionInput(stats, options = {}) {
+  const data = parseStats(stats);
+  const input = {
+    username: data.schemaVersion === 2 ? data.profile.login : data.username,
+    stats: data,
+    allowPrivateRepositoryDetails: options.allowPrivateRepositoryDetails ?? false
   };
-  return configs[scene] || { scene, ...base };
+  if (!sourcePropsSchema.safeParse(input).success) {
+    throw new Error("Invalid Remotion input options: allowPrivateRepositoryDetails must be a boolean");
+  }
+  if (hasPrivateRepositoryDetails(data) && !input.allowPrivateRepositoryDetails) {
+    throw new Error("Private repository details require allowPrivateRepositoryDetails: true");
+  }
+  return input;
+}
+function profileAsset(card = "readme", options = {}) {
+  const result = ProfileAssetsConfigSchema.safeParse(options);
+  if (!result.success) {
+    throw new Error("Invalid profile asset settings: use a public asset base URL and webp or gif format");
+  }
+  if (!isCardId(card)) {
+    throw new Error("Invalid profile card name");
+  }
+  const { baseUrl, format } = result.data;
+  return `${baseUrl.replace(/\/+$/, "")}/${card}.${format}`;
+}
+var legacySceneIds = /* @__PURE__ */ new Map([
+  ["intro", "readme"],
+  ["contributions", "activity-overview"],
+  ["repositories", "repo-impact"]
+]);
+function sceneCardId(scene) {
+  const id = legacySceneIds.get(scene) ?? scene;
+  if (!isCardId(id)) throw new Error("Unknown Remotion card; use a registered card ID");
+  return id;
+}
+var sceneMetadataSchema = presentationSchema.shape.remotion.extend({
+  scenes: presentationSchema.shape.remotion.shape.scenes.element.strict().array()
+}).strict();
+function remotionSceneConfig(scene, stats) {
+  const id = sceneCardId(scene);
+  const metadata = remotionSceneManifest(stats).scenes.find((entry) => entry.id === id);
+  if (!metadata) throw new Error("No metadata is available for the requested card");
+  return metadata;
 }
 function remotionSceneManifest(stats, sceneTemplate) {
-  if (sceneTemplate) {
+  const data = parseStats(stats);
+  const scenes = data.schemaVersion === 2 ? data.presentation?.remotion?.scenes ?? [] : [];
+  let metadata = { scenes };
+  if (sceneTemplate !== void 0) {
+    let template;
     try {
-      return JSON.parse(sceneTemplate);
+      template = JSON.parse(sceneTemplate);
     } catch {
+      throw new Error("Scene metadata must be valid JSON; template rendering is not supported");
     }
-  }
-  const repoMetrics = stats.repoMetrics || {};
-  const contributions = stats.profileContributions || {};
-  const activity = stats.activity || {};
-  const computed = repoMetrics.computedStats || {};
-  const streak = contributions.stats?.currentStreak || 0;
-  const langCount = (repoMetrics.topLanguages || []).length;
-  const scenes = [
-    { id: "readme", durationInFrames: 192, enabled: true },
-    { id: "stats", durationInFrames: 192, enabled: true }
-  ];
-  if (langCount >= 2) {
-    scenes.push({ id: "languages", durationInFrames: 240, enabled: true });
-    scenes.push({ id: "top-languages", durationInFrames: 240, enabled: true });
-  }
-  if (streak >= 3) {
-    scenes.push({ id: "commit-streak", durationInFrames: 240, enabled: true });
-  }
-  if (activity.repositoriesContributedTo > 0) {
-    scenes.push({ id: "repo-impact", durationInFrames: 192, enabled: true });
-  }
-  scenes.push({ id: "activity-overview", durationInFrames: 192, enabled: true });
-  if (computed.yearOverYearGrowth > 0) {
-    scenes.push({ id: "code-metrics", durationInFrames: 192, enabled: true });
-  }
-  return {
-    scenes,
-    theme: {
-      primaryColor: "#3b82f6",
-      backgroundGradient: ["#0f172a", "#1e293b"]
+    const result = sceneMetadataSchema.safeParse(template);
+    if (!result.success) {
+      throw new Error("Invalid scene metadata; theme, duration, and renderer config overrides are not supported");
     }
-  };
+    metadata = result.data;
+  }
+  return { scenes: metadata.scenes.map((scene) => ({ ...scene, id: sceneCardId(scene.id) })) };
 }
 
 // src/helpers/register.ts
@@ -41115,6 +41921,7 @@ function registerAllHelpers(env, sourceStore = new SourceStore()) {
   env.addGlobal("sponsors", sponsors(sourceStore));
   env.addGlobal("fetch_json", fetchJson2(sourceStore));
   env.addGlobal("remotion_input", remotionInput);
+  env.addGlobal("profile_asset", profileAsset);
   env.addGlobal("remotion_scene_config", remotionSceneConfig);
   env.addGlobal("remotion_scene_manifest", remotionSceneManifest);
 }
@@ -41123,8 +41930,8 @@ function registerAllHelpers(env, sourceStore = new SourceStore()) {
 function resolveBuiltinTemplates() {
   const here = import.meta.dirname || "";
   const candidates = [
-    resolve2(here, "../../templates/builtins"),
-    resolve2(here, "../templates/builtins")
+    resolve3(here, "../../templates/builtins"),
+    resolve3(here, "../templates/builtins")
   ];
   for (const candidate of candidates) {
     try {
@@ -41146,7 +41953,7 @@ var Renderer = class {
   }
   buildEnvironment() {
     const paths = [];
-    const userDir = resolve2(this.config.templates.directory);
+    const userDir = resolve3(this.config.templates.directory);
     try {
       readdirSync(userDir);
       paths.push(userDir);
@@ -41166,12 +41973,12 @@ var Renderer = class {
   }
   readTemplateSource() {
     const paths = [
-      resolve2(this.config.templates.directory, this.config.templates.main),
-      resolve2(BUILTIN_TEMPLATES, this.config.templates.main)
+      resolve3(this.config.templates.directory, this.config.templates.main),
+      resolve3(BUILTIN_TEMPLATES, this.config.templates.main)
     ];
     for (const path of paths) {
       try {
-        return readFileSync4(path, "utf-8");
+        return readFileSync5(path, "utf-8");
       } catch {
       }
     }
@@ -41192,193 +41999,245 @@ var Renderer = class {
 };
 
 // src/cli.ts
-var program2 = new Command();
-program2.name("diffler").description("A powerful engine for generating GitHub profile READMEs").version("0.1.0");
-program2.command("init").description("Scaffold a new Diffler project").option("-d, --dir <directory>", "Template directory", ".github/diffler").option("-c, --config <path>", "Config file path", ".github/diffler.yml").action((options) => {
-  const dir = resolve3(options.dir);
-  mkdirSync3(dir, { recursive: true });
-  const configPath = resolve3(options.config);
-  mkdirSync3(resolve3(configPath, ".."), { recursive: true });
-  if (!existsSync3(configPath)) {
-    writeFileSync4(
-      configPath,
-      'version: "1"\n\ngithub:\n  username: "your-username"\n  token: "${GITHUB_TOKEN}"\n  # For multi-profile aggregation with separate tokens:\n  # profiles:\n  #   - username: "personal"\n  #     token: "${GITHUB_TOKEN_PERSONAL}"\n  #   - username: "work"\n  #     token: "${GITHUB_TOKEN_WORK}"\n\ntemplates:\n  main: "profile.md.j2"\n  directory: ".github/diffler"\n\ncache:\n  enabled: true\n  ttl: 3600\n',
-      "utf-8"
-    );
-    console.log(`Created ${configPath}`);
-  } else {
-    console.log(`Skipped ${configPath} (already exists)`);
-  }
-  const mainTemplate = resolve3(dir, "profile.md.j2");
-  if (!existsSync3(mainTemplate)) {
-    writeFileSync4(
-      mainTemplate,
-      `<div align="center">
-
-# Hi, I'm {{ github.user.name }} \u{1F44B}
-
-{% if github.user.bio %}
-*{{ github.user.bio }}*
-{% endif %}
-
-## \u{1F4CA} GitHub Stats
-
-<div align="center">
-
-{{ github_stats_card(github.user.login) }}
-
-{{ top_langs(github.user.login) }}
-
-</div>
-
-## \u{1F6E0}\uFE0F Tech Stack
-
-{{ skill_icons(["python", "javascript", "docker", "git"]) }}
-
-## \u{1F4C2} All Projects
-
-{% set all_repos = filter_repos(github.user.repositories, exclude_forks=true, exclude_archived=true, sort_by="stars", limit=20) -%}
-{% for repo in all_repos -%}
-- [{{ repo.name }}]({{ repo.url }}){% if repo.description %} - {{ repo.description }}{% endif %}
-{% endfor %}
-
-## \u{1F4EB} Connect
-
-Feel free to reach out!
-`,
-      "utf-8"
-    );
-    console.log(`Created ${mainTemplate}`);
-  } else {
-    console.log(`Skipped ${mainTemplate} (already exists)`);
-  }
-  console.log("Diffler project initialized! Run `diffler render` to preview.");
-});
-program2.command("collect").description("Collect GitHub stats and write JSON output (stats-action mode)").option("-c, --config <path>", "Config file path").option("--output-path <path>", "Path for the generated stats JSON").option("--cache-path <path>", "Path for committed stable cache state").option("--volatile-cache-path <path>", "Path for volatile API metadata cache").option("--backfill-mode <mode>", "Backfill mode: resume, refresh, or off").option(
-  "--include-private-metrics",
-  "Include anonymous private repository metrics without repository details"
-).option(
-  "--npm-packages <packages>",
-  "Comma-separated npm package names to include in package stats"
-).option("--include-private", "Include private repository details").action(async (options) => {
-  const token = process.env.GITHUB_TOKEN;
-  if (!token) {
-    console.error("GITHUB_TOKEN is required");
-    process.exit(1);
-  }
-  const config2 = loadConfig(options.config);
-  const statsConfig = buildStatsActionConfig(config2);
-  if (options.outputPath) statsConfig.outputPath = options.outputPath;
-  if (options.cachePath) statsConfig.cachePath = options.cachePath;
-  if (options.volatileCachePath) statsConfig.volatileCachePath = options.volatileCachePath;
-  if (options.backfillMode) {
-    if (["resume", "refresh", "off"].includes(options.backfillMode)) {
-      statsConfig.backfillMode = options.backfillMode;
-    }
-  }
-  if (options.includePrivateMetrics) {
-    statsConfig.includePrivateRepositoryMetrics = true;
-  }
-  if (options.includePrivate) {
-    statsConfig.includePrivateRepositoryMetrics = true;
-    statsConfig.includePrivateRepositoryDetails = true;
-    statsConfig.includePrivateCacheDetails = true;
-  }
-  const npmPackages = options.npmPackages?.split(",").map((packageName) => packageName.trim()).filter(Boolean);
-  if (npmPackages?.length) {
-    statsConfig.packageSources = [
-      ...statsConfig.packageSources.filter((source) => source.provider !== "npm"),
-      {
-        provider: "npm",
-        packages: npmPackages
-      }
-    ];
-  }
-  const client = new GitHubClient(config2.github);
-  await runStatsCollection(statsConfig, client);
-});
-program2.command("render").description("Render the profile README").option("-c, --config <path>", "Config file path").option("-o, --output <path>", "Output file (default: stdout)").action(async (options) => {
-  const config2 = loadConfig(options.config);
-  const renderer = new Renderer(config2);
-  const engine = new Engine(config2, renderer);
-  const result = await engine.render();
-  if (options.output) {
-    writeFileSync4(options.output, result, "utf-8");
-    console.log(`Rendered to ${options.output}`);
-  } else {
-    console.log(result);
-  }
-});
-program2.command("validate").description("Validate configuration and templates").option("-c, --config <path>", "Config file path").action(async (options) => {
-  const config2 = loadConfig(options.config);
-  const renderer = new Renderer(config2);
-  const engine = new Engine(config2, renderer);
-  await engine.validate();
-  console.log("Validation passed!");
-});
-program2.command("update").description("Render and commit the updated profile README").option("-c, --config <path>", "Config file path").option("-n, --dry-run", "Render without committing", false).option("-m, --message <msg>", "Commit message", "\u{1F916} Auto-update profile README").action(async (options) => {
-  const config2 = loadConfig(options.config);
-  const renderer = new Renderer(config2);
-  const engine = new Engine(config2, renderer);
-  await engine.update({ dryRun: options.dryRun, message: options.message });
-  if (options.dryRun) {
-    console.log("Dry run complete. No changes committed.");
-  } else {
-    console.log("Profile README updated successfully!");
-  }
-});
-program2.command("cache-clear").description("Clear the local API response cache").action(() => {
-  const paths = [
-    ".diffler/cache-stable.json",
-    ".diffler/cache-volatile.json",
-    ".diffler/backfill.json",
-    ".diffler/stats.json"
+function parsePath(value) {
+  if (!value.trim() || value.includes("\0")) throw new InvalidArgumentError("Expected a non-empty path without null bytes");
+  return value;
+}
+function configOption() {
+  return new Option("-c, --config <path>", "Config file path").argParser(parsePath);
+}
+function outputOption(defaultPath) {
+  const option = new Option("-o, --output <path>", "Output path").argParser(parsePath);
+  return defaultPath ? option.default(defaultPath) : option;
+}
+function writeOutput(path, content) {
+  mkdirSync5(dirname6(resolve4(path)), { recursive: true });
+  writeFileSync6(path, content, "utf-8");
+}
+function errorMessage(error51, config2) {
+  let message = error51 instanceof Error ? error51.message : "Diffler command failed";
+  const secrets = [
+    config2?.github.token,
+    ...config2 ? getProfiles(config2.github).map((profile) => profile.token) : [],
+    ...Object.entries(process.env).filter(([name]) => /(?:TOKEN|SECRET|PASSWORD|API_KEY)/i.test(name)).map(([, value]) => value)
   ];
-  let removed = 0;
-  for (const path of paths) {
-    if (existsSync3(path)) {
-      unlinkSync(path);
-      removed++;
-      console.log(`Removed ${path}`);
+  const credentials = secrets.filter((secret) => typeof secret === "string" && secret.length > 0 && !secret.startsWith("${"));
+  for (const secret of credentials.sort((a, b) => b.length - a.length)) {
+    message = message.replaceAll(secret, "[REDACTED]");
+  }
+  return message.replace(/(https?:\/\/)[^\s/@]+@/gi, "$1[REDACTED]@");
+}
+async function usingConfig(options, action) {
+  let config2;
+  try {
+    config2 = loadConfig(options.config);
+    return await action(withStatsActionOverrides(config2, {}));
+  } catch (error51) {
+    throw new Error(errorMessage(error51, config2));
+  }
+}
+function requireCollectionCredentials(config2) {
+  const profiles = getProfiles(config2.github);
+  if (profiles.length === 0) {
+    throw new Error("Configure a GitHub username or profiles, or set DIFFLER_GITHUB_USERNAME");
+  }
+  for (const profile of profiles) {
+    if (!profile.token.trim() || /^\$\{[^}]+\}$/.test(profile.token)) {
+      throw new Error(
+        `A GitHub token is required for profile ${profile.username}. Configure github.token, a profile token, or its environment variable.`
+      );
     }
   }
-  if (removed === 0) {
-    console.log("No cache files found.");
-  } else {
-    console.log(`Cache cleared (${removed} files).`);
+}
+async function collect(config2) {
+  requireCollectionCredentials(config2);
+  return collectProfiles(analyzeTemplate("{{ stats }}"), config2);
+}
+async function exportRemotion(options) {
+  await usingConfig(options, async (config2) => {
+    const { output } = await collect(withStatsActionOverrides(config2, {
+      includePrivateRepositoryDetails: options.allowPrivate
+    }));
+    const input = remotionInput(output, {
+      allowPrivateRepositoryDetails: options.allowPrivate
+    });
+    const path = options.output ?? options.target ?? "remotion-input.json";
+    writeOutput(path, JSON.stringify(input, null, 2));
+    console.log(`Remotion input written to ${path}`);
+    if (options.scenes) {
+      writeOutput(options.scenes, JSON.stringify(remotionSceneManifest(output), null, 2));
+      console.log(`Remotion card metadata written to ${options.scenes}`);
+    }
+  });
+}
+function createProgram(output = {}) {
+  const program2 = new Command();
+  program2.name("diffler").description("Collect GitHub stats and generate profile READMEs and renderer inputs").version("0.1.0").configureOutput({
+    ...output,
+    outputError: (message, write) => write(errorMessage(new Error(message)))
+  }).exitOverride();
+  program2.command("init").description("Scaffold a new Diffler project").option("-d, --dir <directory>", "Template directory (default: configured directory or .github/diffler)", parsePath).addOption(configOption().default(".github/diffler.yml")).addOption(new Option("--username <username>", "GitHub identity (default: configuration or environment)").argParser((value) => {
+    const result = githubUsernameSchema.safeParse(value);
+    if (!result.success) throw new InvalidArgumentError("Expected a GitHub username");
+    return result.data;
+  })).addOption(new Option("--asset-base-url <url>", "Public asset URL or README-relative directory (default: ./assets)").argParser((value) => {
+    const result = ProfileAssetsConfigSchema.shape.baseUrl.safeParse(value);
+    if (!result.success) throw new InvalidArgumentError("Expected a public HTTP(S) URL or an asset directory");
+    return result.data;
+  })).action((options) => {
+    const configPath = resolve4(options.config ?? ".github/diffler.yml");
+    const existing = existsSync3(configPath) ? loadConfig(configPath) : void 0;
+    const config2 = existing ?? loadConfigFromEnv();
+    const dir = resolve4(options.dir ?? config2.templates.directory);
+    const username = options.username ?? getProfiles(config2.github)[0]?.username;
+    const templateName = existing?.templates.main ?? "profile.md.j2";
+    if (!existing) {
+      const assets = ProfileAssetsConfigSchema.parse({
+        ...config2.assets,
+        ...options.assetBaseUrl ? { baseUrl: options.assetBaseUrl } : {}
+      });
+      writeOutput(configPath, (0, import_yaml2.stringify)({
+        version: "1",
+        github: {
+          username: username ?? "${DIFFLER_GITHUB_USERNAME}",
+          token: "${GITHUB_TOKEN}"
+        },
+        templates: { main: templateName, directory: relative(process.cwd(), dir) || "." },
+        assets,
+        cache: { enabled: true, ttl: 3600 }
+      }));
+      console.log(`Created ${configPath}`);
+    } else {
+      console.log(`Skipped ${configPath} (already exists)`);
+      if (options.dir && resolve4(existing.templates.directory) !== dir) {
+        console.log("Existing config was not changed; update templates.directory to use the requested directory.");
+      }
+    }
+    const mainTemplate = resolve4(dir, templateName);
+    if (!existsSync3(mainTemplate)) {
+      const template = readFileSync6(new URL("../templates/builtins/default.md.j2", import.meta.url), "utf-8");
+      writeOutput(mainTemplate, template);
+      console.log(`Created ${mainTemplate}`);
+    } else {
+      console.log(`Skipped ${mainTemplate} (already exists)`);
+    }
+    if (!username) console.log("Set DIFFLER_GITHUB_USERNAME or github.username before collecting.");
+    console.log("Diffler project initialized. Configure credentials and assets.baseUrl.");
+    console.log(`Render with diffler render --config ${JSON.stringify(configPath)}.`);
+  });
+  program2.command("collect").description("Collect configured GitHub profiles and persist their aggregate stats JSON").addOption(configOption()).option("--output-path <path>", "Path for the generated aggregate stats JSON", parsePath).option("--cache-path <path>", "Path for committed stable cache state", parsePath).option("--volatile-cache-path <path>", "Path for volatile API metadata cache", parsePath).addOption(new Option("--backfill-mode <mode>", "Optional metric backfill mode").choices(StatsActionConfigSchema.shape.backfillMode.removeDefault().options)).option("--include-private", "Include private repository and cache details").option("--include-private-metrics", "Include anonymous private repository metrics without repository details").option("--npm-packages <packages>", "Comma-separated npm package names to include in package stats").action(async (options) => {
+    await usingConfig(options, async (config2) => {
+      const overrides = {};
+      if (options.outputPath !== void 0) overrides.outputPath = options.outputPath;
+      if (options.cachePath !== void 0) overrides.cachePath = options.cachePath;
+      if (options.volatileCachePath !== void 0) overrides.volatileCachePath = options.volatileCachePath;
+      if (options.backfillMode !== void 0) overrides.backfillMode = options.backfillMode;
+      if (options.includePrivate) {
+        overrides.includePrivateRepositoryMetrics = true;
+        overrides.includePrivateRepositoryDetails = true;
+        overrides.includePrivateCacheDetails = true;
+      }
+      if (options.includePrivateMetrics) overrides.includePrivateRepositoryMetrics = true;
+      if (options.npmPackages !== void 0) {
+        const packages = options.npmPackages.split(",").map((name) => name.trim()).filter(Boolean);
+        if (packages.length === 0) throw new Error("--npm-packages requires at least one package name");
+        overrides.packageSources = [
+          ...config2.statsAction.packageSources.filter((source) => source.provider !== "npm"),
+          { provider: "npm", packages }
+        ];
+      }
+      const configured = withStatsActionOverrides(config2, overrides);
+      await collect(configured);
+      console.log(`Aggregate stats written to ${configured.statsAction.outputPath}`);
+    });
+  });
+  program2.command("render").description("Render the profile README").addOption(configOption()).addOption(new Option("-o, --output <path>", "Output file (default: stdout)").argParser(parsePath)).action(async (options) => {
+    await usingConfig(options, async (config2) => {
+      const engine = new Engine(config2, new Renderer(config2));
+      const result = await engine.render();
+      if (options.output) {
+        writeOutput(options.output, result);
+        console.log(`Rendered to ${options.output}`);
+      } else {
+        console.log(result);
+      }
+    });
+  });
+  program2.command("validate").description("Validate configuration and templates").addOption(configOption()).action(async (options) => {
+    await usingConfig(options, async (config2) => {
+      const engine = new Engine(config2, new Renderer(config2));
+      await engine.validate();
+      console.log("Validation passed!");
+    });
+  });
+  program2.command("update").description("Render and commit the updated profile README").addOption(configOption()).option("-n, --dry-run", "Render without committing", false).option("-m, --message <msg>", "Commit message", "\u{1F916} Auto-update profile README").action(async (options) => {
+    await usingConfig(options, async (config2) => {
+      const engine = new Engine(config2, new Renderer(config2));
+      await engine.update({ dryRun: options.dryRun, message: options.message });
+      console.log(options.dryRun ? "Dry run complete. No changes committed." : "Profile README updated successfully!");
+    });
+  });
+  program2.command("cache-clear").description("Clear configured account caches without deleting published stats").addOption(configOption()).action(async (options) => {
+    await usingConfig(options, async (config2) => {
+      const base = buildStatsActionConfig(config2);
+      const paths = new Set([base.cachePath, base.volatileCachePath, ".diffler/backfill.json"].map((path) => resolve4(path)));
+      const snapshots = /* @__PURE__ */ new Set([resolve4(base.outputPath)]);
+      for (const profile of getProfiles(config2.github)) {
+        const scoped = buildProfileStatsConfig(analyzeTemplate("{{ stats }}"), config2, profile);
+        paths.add(scoped.cachePath);
+        paths.add(scoped.volatileCachePath);
+        snapshots.add(scoped.outputPath);
+        const extras = profileExtrasDirectory(config2, profile);
+        paths.add(resolve4(extras, "orgs.json"));
+        paths.add(resolve4(extras, "gists.json"));
+      }
+      if ([...paths].some((path) => snapshots.has(path))) {
+        throw new Error("Cache paths must not overlap a published stats output path");
+      }
+      let removed = 0;
+      for (const path of paths) {
+        try {
+          unlinkSync(path);
+          removed++;
+        } catch (error51) {
+          if (!(error51 instanceof Error && "code" in error51 && error51.code === "ENOENT")) throw error51;
+        }
+      }
+      console.log(removed === 0 ? "No cache files found." : `Cache cleared (${removed} files); published stats preserved.`);
+    });
+  });
+  program2.command("export-remotion").description("Export inline renderer SourceProps from collected stats").addOption(configOption()).addOption(outputOption("remotion-input.json")).option("--scenes <path>", "Also write card metadata to this path", parsePath).option("--allow-private", "Collect and export private repository details (explicit opt-in)", false).action(exportRemotion);
+  program2.command("export-remotion-scenes").description("Export card metadata (not renderer theme or composition overrides)").addOption(configOption()).addOption(outputOption("remotion-scenes.json")).action(async (options) => {
+    await usingConfig(options, async (config2) => {
+      const { output: output2 } = await collect(withStatsActionOverrides(config2, {
+        includePrivateRepositoryDetails: false
+      }));
+      writeOutput(options.output, JSON.stringify(remotionSceneManifest(output2), null, 2));
+      console.log(`Remotion card metadata written to ${options.output}`);
+    });
+  });
+  program2.command("export-remotion-input").description("Compatibility wrapper for export-remotion; accepts the legacy --target option").addOption(configOption()).addOption(outputOption()).addOption(new Option("-t, --target <path>", "Legacy output path").argParser(parsePath).default("../github-stats-remotion/input.json").conflicts("output")).option("--allow-private", "Collect and export private repository details (explicit opt-in)", false).action(exportRemotion);
+  return program2;
+}
+async function runCli(argv = process.argv) {
+  try {
+    await createProgram().parseAsync(argv);
+  } catch (error51) {
+    if (error51 instanceof CommanderError) {
+      process.exitCode = error51.exitCode;
+      return;
+    }
+    console.error(`Error: ${errorMessage(error51)}`);
+    process.exitCode = 1;
   }
-});
-program2.command("export-remotion").description(
-  "Generate a Remotion input.json with inline stats (optionally a scene manifest)"
-).option("-c, --config <path>", "Config file path").option("-o, --output <path>", "Output path", "remotion-input.json").option("--scenes <path>", "Also write a scene manifest to this path").option("--allow-private", "Include private repository details", false).action(async (options) => {
-  const config2 = loadConfig(options.config);
-  const renderer = new Renderer(config2);
-  const engine = new Engine(config2, renderer);
-  const templateSource = renderer.readTemplateSource();
-  const context = await engine.contextBuilder.build(templateSource);
-  const stats = context.stats || {};
-  const username = stats.username || config2.github.username || "unknown";
-  const profiles = getProfiles(config2.github);
-  const output = {
-    username,
-    stats,
-    allowPrivateRepositoryDetails: options.allowPrivate
-  };
-  if (profiles.length > 1) {
-    output.usernames = profiles.map((p) => p.username);
-  }
-  writeFileSync4(options.output, JSON.stringify(output, null, 2), "utf-8");
-  console.log(`Remotion input written to ${options.output}`);
-  if (options.scenes) {
-    const manifest = remotionSceneManifest(stats);
-    writeFileSync4(options.scenes, JSON.stringify(manifest, null, 2), "utf-8");
-    console.log(`Remotion scene manifest written to ${options.scenes}`);
-  }
-});
-program2.parseAsync().catch((error51) => {
-  console.error(error51 instanceof Error ? error51.message : error51);
-  process.exit(1);
-});
+}
+if (process.argv[1] && existsSync3(process.argv[1]) && pathToFileURL(realpathSync(process.argv[1])).href === import.meta.url) {
+  await runCli();
+}
+export {
+  createProgram,
+  runCli
+};
 /*! Bundled license information:
 
 normalize-path/index.js:

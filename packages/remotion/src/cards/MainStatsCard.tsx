@@ -1,87 +1,94 @@
 import {UserStats} from '../data';
-import {StatCard} from '../components/primitives';
-import {defaultTheme} from '../themes/default';
+import {
+	CollectionNote,
+	formatMetricValue,
+	getOptionalMetricCoverage,
+	MetricTile,
+	Panel,
+} from '../components/primitives';
+import {useTheme} from '../themes';
 
 export function MainStatsCard({userStats}: {userStats: UserStats}) {
+	const theme = useTheme();
+	const traffic = getOptionalMetricCoverage(userStats, 'traffic');
 	return (
-		<div
-			className="grid h-full grid-cols-3 grid-rows-2 gap-3 rounded-xl border border-white/10 p-3 text-white"
-			style={{
-				background:
-					'linear-gradient(135deg, rgba(8,11,18,0.96), rgba(13,17,23,0.98))',
-				boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
-			}}
+		<Panel
+			compact
+			title="At a glance"
+			subtitle={`@${userStats.username}`}
+			accent={theme.colors.pink}
+			footer={<CollectionNote userStats={userStats} />}
 		>
-			<StatCard
-				title="Contributions"
-				value={userStats.summary.totalContributions}
-				detail={`${userStats.summary.currentStreak} day streak`}
-				accent={defaultTheme.colors.green}
-				delay={0}
-			/>
-			<StatCard
-				title="Stars"
-				value={
-					userStats.summary.profileMetricsComplete
-						? userStats.summary.starsReceived
-						: 'Unavailable'
-				}
-				detail={
-					userStats.summary.profileMetricsComplete
-						? 'received'
-						: 'Collection incomplete'
-				}
-				accent={defaultTheme.colors.yellow}
-				delay={0.12}
-			/>
-			<StatCard
-				title="Repos"
-				value={
-					userStats.summary.profileMetricsComplete
-						? userStats.summary.totalRepos
-						: 'Unavailable'
-				}
-				detail={
-					userStats.summary.profileMetricsComplete
-						? `${userStats.summary.activeRepos} active`
-						: 'Collection incomplete'
-				}
-				accent={defaultTheme.colors.blue}
-				delay={0.24}
-			/>
-			<StatCard
-				title="Pull Requests"
-				value={userStats.community.totalPullRequests}
-				detail={`${userStats.community.totalPullRequestReviews} reviews`}
-				accent={defaultTheme.colors.purple}
-				delay={0.36}
-			/>
-			<StatCard
-				title="Languages"
-				value={
-					userStats.summary.profileMetricsComplete
-						? userStats.summary.languageCount
-						: 'Unavailable'
-				}
-				detail={
-					userStats.summary.profileMetricsComplete
-						? userStats.topLanguages[0]?.languageName
-						: 'Collection incomplete'
-				}
-				accent={defaultTheme.colors.red}
-				delay={0.48}
-			/>
-			<StatCard
-				title="Repo Views"
-				value={userStats.repositories.repoViews ?? 'Unavailable'}
-				detail={
-					userStats.repositories.repoViews === null
-						? 'Collection pending'
-						: '14 day traffic'
-				}
-				accent={defaultTheme.colors.cyan}
-				delay={0.6}
-			/>
-		</div>
+			<div
+				style={{
+					display: 'flex',
+					flexDirection: 'column',
+					justifyContent: 'space-between',
+					flex: 1,
+					minHeight: 0,
+					gap: 14,
+				}}
+			>
+				<div
+					style={{
+						display: 'grid',
+						gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+						gap: 18,
+					}}
+				>
+					<MetricTile
+						label="Contributions"
+						value={userStats.summary.totalContributions}
+						detail={`${formatMetricValue(userStats.summary.currentStreak)} day streak`}
+						accent={theme.colors.pink}
+					/>
+					<MetricTile
+						label="Stars"
+						value={userStats.summary.starsReceived}
+						detail="received"
+						accent={theme.colors.yellow}
+						delay={0.06}
+					/>
+					<MetricTile
+						label="Repositories"
+						value={userStats.summary.totalRepos}
+						detail={`${formatMetricValue(userStats.summary.activeRepos)} active`}
+						accent={theme.colors.purple}
+						delay={0.12}
+					/>
+				</div>
+				<div
+					style={{
+						display: 'grid',
+						gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+						gap: 18,
+						borderTop: `1px solid ${theme.colors.border}`,
+						paddingTop: 14,
+					}}
+				>
+					<MetricTile
+						label="Pull requests"
+						value={userStats.community.totalPullRequests}
+						detail={`${formatMetricValue(userStats.community.totalPullRequestReviews)} reviews`}
+						accent={theme.colors.purple}
+						delay={0.18}
+					/>
+					<MetricTile
+						label="Languages"
+						value={userStats.summary.languageCount}
+						detail={userStats.topLanguages[0]?.languageName ?? 'Not collected'}
+						accent={theme.colors.cyan}
+						delay={0.24}
+					/>
+					<MetricTile
+						label="Views / 14 days"
+						value={traffic.available ? userStats.repositories.repoViews : '—'}
+						detail={traffic.label}
+						accent={theme.colors.pink}
+						delay={0.3}
+					/>
+				</div>
+			</div>
+		</Panel>
 	);
 }

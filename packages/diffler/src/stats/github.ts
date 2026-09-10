@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { GitHubClient } from "../github/client.js";
 import type {
   ActivityStats,
@@ -6,6 +7,7 @@ import type {
   CachedTraffic,
   ContributionRepositoryEnrichment,
   ContributionsCollection,
+  ContributorStatsSummary,
   GraphQLContributionRepositoryGroup,
   GraphQLResponse,
   GraphQLViewerProfile,
@@ -18,12 +20,14 @@ import type {
   RepositoryRecord,
   StableCache,
   StatsActionConfig,
+  TrafficDay,
   UserProfile,
   VolatileCache,
 } from "./types.js";
 import {
   cacheContributionYear,
   cacheRepository,
+  metadataOnlyRepository,
   mergeBackfillQueue,
   recordBackfillFailure,
   repositoryMetricCacheKey,
@@ -90,6 +94,9 @@ const REPO_DISCOVERY_FIELDS = `
     login
     __typename
   }
+  isPrivate
+  visibility
+  viewerPermission
   updatedAt
   pushedAt
   defaultBranchRef {
@@ -108,6 +115,25 @@ const RATE_LIMIT_FIELDS = `
   }
 `;
 
+const contributorResponseSchema = z.array(z.object({
+  author: z.object({ login: z.string() }).nullable(),
+  weeks: z.array(z.object({
+    a: z.number().finite().nonnegative(),
+    d: z.number().finite().nonnegative(),
+    c: z.number().finite().nonnegative(),
+  })),
+}));
+
+const trafficResponseSchema = z.object({
+  count: z.number().finite().nonnegative(),
+  uniques: z.number().finite().nonnegative(),
+  views: z.array(z.object({
+    timestamp: z.string(),
+    count: z.number().finite().nonnegative(),
+    uniques: z.number().finite().nonnegative(),
+  })),
+});
+
 export type ProfileCollection = {
   profile: UserProfile;
   activity: ActivityStats;
@@ -120,6 +146,7 @@ export type ContributionCollectionResult = {
   yearsFetched: string[];
   yearsFromCache: string[];
   missingYears: string[];
+  incompleteEnrichmentYears?: string[];
 };
 
 export type RepositoryUniverseResult = {
@@ -144,12 +171,13 @@ export async function collectProfile(
   client: GitHubClient,
   scheduler: RequestScheduler
 ): Promise<ProfileCollection> {
+  const target = userQueryTarget(client);
   const response = await scheduler.graphql(
-    "viewer profile",
+    "account profile",
     () =>
       client.graphqlQuery(
-        `query viewerProfile {
-          viewer {
+        `query viewerProfile${target.declaration} {
+          ${target.field} {
             name
             login
             bio
@@ -189,12 +217,22 @@ export async function collectProfile(
             }
           }
           ${RATE_LIMIT_FIELDS}
-        }`
-      ) as Promise<GraphQLResponse<{ viewer: GraphQLViewerProfile }>>,
+        }`,
+        target.variables
+      ) as Promise<GraphQLResponse<{ viewer: GraphQLViewerProfile | null }>>,
     false
   );
 
   const viewer = response.viewer;
+  if (!viewer) {
+    throw new Error("Configured GitHub account was not found");
+  }
+  if (
+    client.targetUsername &&
+    viewer.login.toLowerCase() !== client.targetUsername.toLowerCase()
+  ) {
+    throw new Error("GitHub profile does not match the configured account");
+  }
   return {
     profile: {
       name: viewer.name || "",
@@ -227,18 +265,20 @@ export async function collectRepositoryUniverse(
   scheduler: RequestScheduler,
   cache: StableCache,
   includePrivateCacheDetails: boolean,
-  username: string
+  username: string,
+  contributionRepositories: RepositoryRecord[] = []
 ): Promise<RepositoryUniverseResult> {
   const fetchedAt = Date.now();
+  const target = userQueryTarget(client, ["$cursor: String"]);
   const discoveredRepositories: RepositoryDiscoveryWithSource[] = [];
 
   const affiliated = await paginateRepositoryDiscoveryConnection(
-    "viewer repositories",
+    "account repositories",
     scheduler,
     (cursor) =>
       client.graphqlQuery(
-        `query viewerRepositories($cursor: String) {
-          viewer {
+        `query viewerRepositories${target.declaration} {
+          ${target.field} {
             repositories(
               first: 100
               after: $cursor
@@ -256,13 +296,15 @@ export async function collectRepositoryUniverse(
           }
           ${RATE_LIMIT_FIELDS}
         }`,
-        { cursor }
+        { ...target.variables, cursor }
       ) as Promise<GraphQLResponse<{ viewer: { repositories: RepositoryDiscoveryConnection } }>>,
     (response) => response.viewer.repositories
   );
 
   for (const repository of affiliated) {
-    const source = repository.owner.login === username ? "owned" : "affiliated";
+    const source = repository.owner.login.toLowerCase() === username.toLowerCase()
+      ? "owned"
+      : "affiliated";
     discoveredRepositories.push({ repository, source });
   }
 
@@ -271,8 +313,8 @@ export async function collectRepositoryUniverse(
     scheduler,
     (cursor) =>
       client.graphqlQuery(
-        `query viewerContributedRepositories($cursor: String) {
-          viewer {
+        `query viewerContributedRepositories${target.declaration} {
+          ${target.field} {
             repositoriesContributedTo(
               first: 100
               after: $cursor
@@ -291,7 +333,7 @@ export async function collectRepositoryUniverse(
           }
           ${RATE_LIMIT_FIELDS}
         }`,
-        { cursor }
+        { ...target.variables, cursor }
       ) as Promise<GraphQLResponse<{ viewer: { repositoriesContributedTo: RepositoryDiscoveryConnection } }>>,
     (response) => response.viewer.repositoriesContributedTo
   );
@@ -305,23 +347,27 @@ export async function collectRepositoryUniverse(
     scheduler,
     cache,
     discoveredRepositories,
-    fetchedAt
+    fetchedAt,
+    [
+      ...Object.values(cache.repositories).map((entry) => ({
+        ...metadataOnlyRepository(entry.repository),
+        sources: addSource(entry.repository.sources, "cache"),
+      })),
+      ...contributionRepositories.map(metadataOnlyRepository),
+    ]
   );
 
-  const merged = mergeRepositories([
-    ...Object.values(cache.repositories).map((entry) => ({
-      ...entry.repository,
-      sources: addSource(entry.repository.sources, "cache"),
-    })),
-    ...materialized.repositories,
-  ]);
+  const liveRepositoryIds = new Set(materialized.repositories.map((repo) => repo.id));
+  for (const id of Object.keys(cache.repositories)) {
+    if (!liveRepositoryIds.has(id)) delete cache.repositories[id];
+  }
 
-  for (const repository of merged) {
+  for (const repository of materialized.repositories) {
     cacheRepository(cache, repository, includePrivateCacheDetails);
   }
 
   return {
-    repositories: merged,
+    repositories: materialized.repositories,
     repositoriesFetched: materialized.fetched,
     repositoriesFromCache: materialized.reused,
   };
@@ -358,20 +404,19 @@ export async function collectContributionYears(
         scheduler,
         createdAt,
         year,
-        currentYear
+        currentYear,
+        cached
       );
       fetched.push(contributionYear);
       cacheContributionYear(cache, contributionYear, includePrivateCacheDetails);
-    } catch (error) {
+    } catch {
       if (cached) {
         fromCache.push(cached);
       } else {
         missingYears.push(String(year));
       }
       console.warn(
-        `Failed to collect contribution year ${year}: ${
-          error instanceof Error ? error.message : String(error)
-        }`
+        `Failed to collect contribution year ${year}; ${cached ? "using cached data" : "no cached data available"}`
       );
     }
   });
@@ -383,9 +428,15 @@ export async function collectContributionYears(
   const repositoryContributions = mergeRepositoryContributions(
     orderedYears.flatMap((year) => year.repositoryContributions)
   );
+  const contributionsByRepository = new Map(
+    repositoryContributions.map((summary) => [summary.repositoryId, summary.counts])
+  );
   const repositories = mergeRepositories(
     orderedYears.flatMap((year) => year.repositories || [])
-  );
+  ).map((repository) => ({
+    ...repository,
+    contributionCounts: contributionsByRepository.get(repository.id) ?? repository.contributionCounts,
+  }));
   for (const repository of repositories) {
     cacheRepository(cache, repository, includePrivateCacheDetails);
   }
@@ -396,7 +447,10 @@ export async function collectContributionYears(
     repositories,
     yearsFetched: fetched.map((year) => year.year).sort(),
     yearsFromCache: fromCache.map((year) => year.year).sort(),
-    missingYears,
+    missingYears: missingYears.sort(),
+    incompleteEnrichmentYears: orderedYears
+      .filter((year) => year.enrichmentComplete === false)
+      .map((year) => year.year),
   };
 }
 
@@ -409,6 +463,7 @@ export function buildBackfillQueue(
 
   const next: BackfillItem[] = [];
   const forceRefresh = config.backfillMode === "refresh";
+  const pendingKeys = new Set(cache.backfill.pending.map((item) => item.key));
   for (const repo of repositories) {
     if (
       repo.isPrivate &&
@@ -419,6 +474,7 @@ export function buildBackfillQueue(
     }
 
     const basePriority = getRepositoryPriority(repo);
+    const contributorKey = `contributors:${repo.id}:${repo.defaultBranchOid}`;
     const metricCacheKey = repositoryMetricCacheKey(
       repo,
       config.includePrivateRepositoryDetails
@@ -434,10 +490,10 @@ export function buildBackfillQueue(
     if (
       config.includeRestRepoStats &&
       repo.defaultBranchOid &&
-      (forceRefresh || !contributorStatsComplete)
+      (forceRefresh || !contributorStatsComplete || pendingKeys.has(contributorKey))
     ) {
       next.push({
-        key: `contributors:${repo.id}:${repo.defaultBranchOid}`,
+        key: contributorKey,
         type: "contributors",
         repoId: repo.id,
         nameWithOwner: repo.nameWithOwner,
@@ -446,14 +502,16 @@ export function buildBackfillQueue(
       });
     }
 
+    const trafficKey = `traffic:${repo.id}`;
     const traffic = cache.traffic[metricCacheKey];
     if (
       config.includeTraffic &&
       canReadTraffic(repo) &&
-      (forceRefresh || !traffic || Date.now() - traffic.fetchedAt > 20 * 60 * 60 * 1000)
+      (forceRefresh || pendingKeys.has(trafficKey) || !traffic || !["fresh", "cached"].includes(traffic.status) ||
+        Date.now() - traffic.fetchedAt > 20 * 60 * 60 * 1000)
     ) {
       next.push({
-        key: `traffic:${repo.id}`,
+        key: trafficKey,
         type: "traffic",
         repoId: repo.id,
         nameWithOwner: repo.nameWithOwner,
@@ -463,7 +521,11 @@ export function buildBackfillQueue(
     }
   }
 
-  const merged = forceRefresh ? next : mergeBackfillQueue(cache.backfill.pending, next);
+  const eligibleKeys = new Set(next.map((item) => item.key));
+  const merged = forceRefresh ? next : mergeBackfillQueue(
+    cache.backfill.pending.filter((item) => eligibleKeys.has(item.key)),
+    next
+  );
   return merged.sort((a, b) => a.priority - b.priority || a.key.localeCompare(b.key));
 }
 
@@ -506,22 +568,24 @@ export async function processBackfillQueue(
         repo,
         config.includePrivateRepositoryDetails
       );
+      let status: ContributorStatsSummary["status"];
       if (item.type === "contributors") {
+        const previous = cache.contributorStats[metricCacheKey];
         const contributorStats = await fetchContributorStats(
           client,
           scheduler,
           volatileCache,
-          cache.contributorStats[metricCacheKey],
+          previous,
           repo,
           username
         );
         cache.contributorStats[metricCacheKey] = {
           ...contributorStats,
-          defaultBranchOid: repositoryMetricVersion(
-            repo,
-            config.includePrivateRepositoryDetails
-          ),
+          defaultBranchOid: contributorStats.status === "fresh" || contributorStats.status === "cached"
+            ? repositoryMetricVersion(repo, config.includePrivateRepositoryDetails)
+            : previous?.defaultBranchOid ?? repositoryMetricVersion(repo, config.includePrivateRepositoryDetails),
         };
+        status = contributorStats.status;
       } else {
         cache.traffic[metricCacheKey] = await fetchTraffic(
           client,
@@ -530,9 +594,14 @@ export async function processBackfillQueue(
           cache.traffic[metricCacheKey],
           repo
         );
+        status = cache.traffic[metricCacheKey].status;
+      }
+      delete cache.backfill.failures[item.key];
+      if (status !== "fresh" && status !== "cached") {
+        delete cache.backfill.completed[item.key];
+        return;
       }
       cache.backfill.completed[item.key] = Date.now();
-      delete cache.backfill.failures[item.key];
       pending.delete(item.key);
       completed++;
     } catch (error) {
@@ -541,7 +610,7 @@ export async function processBackfillQueue(
         return;
       }
       failed++;
-      pending.delete(item.key);
+      delete cache.backfill.completed[item.key];
       recordBackfillFailure(
         cache.backfill.failures,
         item,
@@ -637,7 +706,8 @@ async function fetchContributionYear(
   scheduler: RequestScheduler,
   createdAt: string,
   year: number,
-  currentYear: number
+  currentYear: number,
+  cached: CachedContributionYear | undefined
 ): Promise<CachedContributionYear> {
   const from =
     year === new Date(createdAt).getUTCFullYear()
@@ -650,8 +720,9 @@ async function fetchContributionYear(
 
   const data = await fetchContributionYearCore(client, scheduler, from, to, year);
   const fetchedAt = Date.now();
-  let summaries: RepositoryContributionSummary[] = [];
-  let repositories: RepositoryRecord[] = [];
+  let summaries = cached?.repositoryContributions ?? [];
+  let repositories = cached?.repositories ?? [];
+  let enrichmentComplete = false;
 
   try {
     const enrichment = await fetchContributionYearRepositoryEnrichment(
@@ -661,14 +732,13 @@ async function fetchContributionYear(
       to,
       year
     );
-    const extracted = extractContributionRepositories(enrichment, fetchedAt);
+    const extracted = extractContributionRepositories(enrichment, Date.now());
     summaries = extracted.summaries;
     repositories = extracted.repositories;
-  } catch (error) {
+    enrichmentComplete = true;
+  } catch {
     console.warn(
-      `Skipped repository contribution enrichment for ${year}: ${
-        error instanceof Error ? error.message : String(error)
-      }`
+      `Repository contribution enrichment is incomplete for ${year}; it will be retried`
     );
   }
 
@@ -677,7 +747,8 @@ async function fetchContributionYear(
     from,
     to,
     fetchedAt,
-    immutable: year < currentYear - 1,
+    immutable: year < currentYear - 1 && enrichmentComplete,
+    enrichmentComplete,
     data,
     repositoryContributions: summaries,
     repositories,
@@ -691,12 +762,13 @@ async function fetchContributionYearCore(
   to: string,
   year: number
 ): Promise<ContributionsCollection> {
+  const target = userQueryTarget(client, ["$from: DateTime!", "$to: DateTime!"]);
   const response = await scheduler.graphql(
     `contribution year ${year} core`,
     () =>
       client.graphqlQuery(
-        `query contributionYearCore($from: DateTime!, $to: DateTime!) {
-          viewer {
+        `query contributionYearCore${target.declaration} {
+          ${target.field} {
             contributionsCollection(from: $from, to: $to) {
               totalCommitContributions
               restrictedContributionsCount
@@ -717,7 +789,7 @@ async function fetchContributionYearCore(
           }
           ${RATE_LIMIT_FIELDS}
         }`,
-        { from, to }
+        { ...target.variables, from, to }
       ) as Promise<GraphQLResponse<{ viewer: { contributionsCollection: ContributionsCollection } }>>,
     false
   );
@@ -732,12 +804,13 @@ async function fetchContributionYearRepositoryEnrichment(
   to: string,
   year: number
 ): Promise<ContributionRepositoryEnrichment> {
+  const target = userQueryTarget(client, ["$from: DateTime!", "$to: DateTime!"]);
   const response = await scheduler.graphql(
     `contribution year ${year} repository enrichment`,
     () =>
       client.graphqlQuery(
-        `query contributionYearRepositoryEnrichment($from: DateTime!, $to: DateTime!) {
-          viewer {
+        `query contributionYearRepositoryEnrichment${target.declaration} {
+          ${target.field} {
             contributionsCollection(from: $from, to: $to) {
               commitContributionsByRepository(maxRepositories: 100) {
                 repository {
@@ -787,7 +860,7 @@ async function fetchContributionYearRepositoryEnrichment(
           }
           ${RATE_LIMIT_FIELDS}
         }`,
-        { from, to }
+        { ...target.variables, from, to }
       ) as Promise<GraphQLResponse<{ viewer: { contributionsCollection: ContributionRepositoryEnrichment } }>>,
     true,
     2
@@ -855,17 +928,19 @@ async function materializeDiscoveredRepositories(
   scheduler: RequestScheduler,
   cache: StableCache,
   discovered: RepositoryDiscoveryWithSource[],
-  fetchedAt: number
+  fetchedAt: number,
+  knownRepositories: RepositoryRecord[]
 ): Promise<{ repositories: RepositoryRecord[]; fetched: number; reused: number }> {
   const byId = new Map<
     string,
-    { repository: RepositoryDiscovery; sources: RepositoryRecord["sources"] }
+    { repository: RepositoryDiscovery | null; sources: RepositoryRecord["sources"] }
   >();
 
   for (const item of discovered) {
     const current = byId.get(item.repository.id);
     if (current) {
       current.sources = addSource(current.sources, item.source);
+      current.repository = item.repository;
     } else {
       byId.set(item.repository.id, {
         repository: item.repository,
@@ -874,15 +949,26 @@ async function materializeDiscoveredRepositories(
     }
   }
 
+  // Historical repositories must be revalidated, not assumed to still be public or accessible.
+  for (const repository of knownRepositories) {
+    const current = byId.get(repository.id);
+    if (current) {
+      current.sources = unique([...current.sources, ...repository.sources]);
+    } else {
+      byId.set(repository.id, { repository: null, sources: repository.sources });
+    }
+  }
+
   const repositories: RepositoryRecord[] = [];
   const idsToFetch: string[] = [];
   let reused = 0;
   for (const [id, item] of byId) {
     const cached = cache.repositories[id]?.repository;
-    if (cached && !repositoryDiscoveryChanged(cached, item.repository)) {
+    if (cached && item.repository && !repositoryDiscoveryChanged(cached, item.repository)) {
       repositories.push({
-        ...cached,
+        ...metadataOnlyRepository(cached),
         sources: unique([...cached.sources, ...item.sources]),
+        metadataFetchedAt: fetchedAt,
       });
       reused++;
     } else {
@@ -933,7 +1019,8 @@ async function fetchRepositoryDetails(
           }
           ${RATE_LIMIT_FIELDS}
         }`,
-        { ids }
+        { ids },
+        { allowMissingNodes: true }
       ) as Promise<GraphQLResponse<{ nodes: Array<RawGraphQLRepository | null> }>>,
     false
   );
@@ -947,6 +1034,9 @@ function repositoryDiscoveryChanged(
 ): boolean {
   return (
     cached.nameWithOwner !== discovered.nameWithOwner ||
+    cached.isPrivate !== discovered.isPrivate ||
+    cached.visibility !== (discovered.visibility || null) ||
+    cached.viewerPermission !== (discovered.viewerPermission || null) ||
     cached.updatedAt !== discovered.updatedAt ||
     cached.pushedAt !== (discovered.pushedAt || null) ||
     cached.defaultBranchOid !== (discovered.defaultBranchRef?.target?.oid || null)
@@ -976,64 +1066,67 @@ async function fetchContributorStats(
   client: GitHubClient,
   scheduler: RequestScheduler,
   volatileCache: VolatileCache,
-  cached: import("./types.js").ContributorStatsSummary | undefined,
+  cached: ContributorStatsSummary | undefined,
   repo: RepositoryRecord,
   username: string
-): Promise<import("./types.js").ContributorStatsSummary> {
+): Promise<ContributorStatsSummary> {
   const [owner, repoName] = repo.nameWithOwner.split("/");
   const etagKey = `contributors:${repo.id}:${repo.defaultBranchOid || "none"}`;
-  const headers = conditionalHeaders(volatileCache, etagKey);
-  let lastStatus = 0;
+  const hasCachedValue = cached &&
+    cached.defaultBranchOid === repo.defaultBranchOid &&
+    ["fresh", "cached"].includes(cached.status);
+  const headers = hasCachedValue ? conditionalHeaders(volatileCache, etagKey) : undefined;
 
   for (let attempt = 0; attempt < 4; attempt++) {
-    try {
-      const response = await scheduler.rest(
-        `contributors ${repo.nameWithOwner}`,
-        () =>
-          client.restGetRaw(`/repos/${owner}/${repoName}/stats/contributors`, undefined, headers),
-        true
-      );
+    if (attempt > 0 && !scheduler.shouldStartOptional("rest")) break;
+    const response = await scheduler.rest(
+      "repository contributor stats",
+      () =>
+        client.restGetRaw(`/repos/${owner}/${repoName}/stats/contributors`, undefined, headers),
+      true
+    );
 
-      rememberEtag(volatileCache, etagKey, response.headers);
-      lastStatus = response.status;
-      if (response.status === 202) {
+    if (response.status === 202) {
+      if (attempt < 3) {
         await delay(Math.min(8000, 1000 * Math.pow(2, attempt)));
-        continue;
       }
-
-      const stats = Array.isArray(response.data) ? response.data : [];
-      const userStats = stats.find(
-        (contributor: Record<string, unknown>) =>
-          (contributor.author as Record<string, unknown>)?.login === username
-      );
-      let additions = 0;
-      let deletions = 0;
-      let commits = 0;
-
-      for (const week of (userStats as Record<string, unknown>)?.weeks as Array<Record<string, number>> || []) {
-        additions += week.a || 0;
-        deletions += week.d || 0;
-        commits += week.c || 0;
-      }
-
-      return {
-        additions,
-        deletions,
-        commits,
-        fetchedAt: Date.now(),
-        defaultBranchOid: repo.defaultBranchOid,
-        status: "fresh",
-      };
-    } catch (error) {
-      if (getErrorStatus(error) === 304 && cached) {
-        return {
-          ...cached,
-          status: "cached",
-          fetchedAt: Date.now(),
-        };
-      }
-      throw error;
+      continue;
     }
+
+    if (response.status === 304) {
+      if (!hasCachedValue) {
+        delete volatileCache.restEtags[etagKey];
+        throw new Error("Unchanged contributor response has no matching cached metrics");
+      }
+      rememberEtag(volatileCache, etagKey, response.headers);
+      return { ...cached, status: "cached", fetchedAt: Date.now() };
+    }
+
+    const parsed = contributorResponseSchema.safeParse(response.data);
+    if (!parsed.success) {
+      throw new Error("Invalid GitHub contributor statistics response");
+    }
+    const userStats = parsed.data.find(
+      (contributor) => contributor.author?.login.toLowerCase() === username.toLowerCase()
+    );
+    let additions = 0;
+    let deletions = 0;
+    let commits = 0;
+    for (const week of userStats?.weeks ?? []) {
+      additions += week.a;
+      deletions += week.d;
+      commits += week.c;
+    }
+
+    rememberEtag(volatileCache, etagKey, response.headers);
+    return {
+      additions,
+      deletions,
+      commits,
+      fetchedAt: Date.now(),
+      defaultBranchOid: repo.defaultBranchOid,
+      status: "fresh",
+    };
   }
 
   return {
@@ -1042,8 +1135,9 @@ async function fetchContributorStats(
     commits: 0,
     fetchedAt: Date.now(),
     defaultBranchOid: repo.defaultBranchOid,
+    ...cached,
     status: "pending",
-    error: `GitHub still computing contributor stats (${lastStatus || 202})`,
+    error: "GitHub is still computing contributor stats (202)",
   };
 }
 
@@ -1056,41 +1150,47 @@ async function fetchTraffic(
 ): Promise<CachedTraffic> {
   const [owner, repoName] = repo.nameWithOwner.split("/");
   const etagKey = `traffic:${repo.id}`;
-  const headers = conditionalHeaders(volatileCache, etagKey);
+  const hasCachedValue = cached && ["fresh", "cached"].includes(cached.status);
+  const headers = hasCachedValue ? conditionalHeaders(volatileCache, etagKey) : undefined;
+  const response = await scheduler.rest(
+    "repository traffic",
+    () =>
+      client.restGetRaw(`/repos/${owner}/${repoName}/traffic/views`, { per: "day" }, headers),
+    true
+  );
 
-  try {
-    const response = await scheduler.rest(
-      `traffic ${repo.nameWithOwner}`,
-      () =>
-        client.restGetRaw(`/repos/${owner}/${repoName}/traffic/views`, { per: "day" }, headers),
-      true
-    );
-    rememberEtag(volatileCache, etagKey, response.headers);
-
-    const data = response.data as { count: number; uniques: number; views: Array<{ timestamp: string; count: number; uniques: number }> } | null;
-
-    const days = mergeTrafficDays(
-      cached?.days || [],
-      (data?.views || []).map((view) => ({
-        timestamp: view.timestamp,
-        count: view.count,
-        uniques: view.uniques,
-      }))
-    );
-
+  if (response.status === 202) {
     return {
-      count: data?.count ?? 0,
-      uniques: data?.uniques ?? 0,
-      days,
+      count: 0,
+      uniques: 0,
+      days: [],
       fetchedAt: Date.now(),
-      status: "fresh",
+      ...cached,
+      status: "pending",
+      error: "GitHub is still computing traffic (202)",
     };
-  } catch (error) {
-    if (getErrorStatus(error) === 304 && cached) {
-      return { ...cached, status: "cached" };
-    }
-    throw error;
   }
+  if (response.status === 304) {
+    if (!hasCachedValue) {
+      delete volatileCache.restEtags[etagKey];
+      throw new Error("Unchanged traffic response has no matching cached metrics");
+    }
+    rememberEtag(volatileCache, etagKey, response.headers);
+    return { ...cached, status: "cached", fetchedAt: Date.now() };
+  }
+
+  const parsed = trafficResponseSchema.safeParse(response.data);
+  if (!parsed.success) {
+    throw new Error("Invalid GitHub traffic response");
+  }
+  rememberEtag(volatileCache, etagKey, response.headers);
+  return {
+    count: parsed.data.count,
+    uniques: parsed.data.uniques,
+    days: mergeTrafficDays(cached?.days ?? [], parsed.data.views),
+    fetchedAt: Date.now(),
+    status: "fresh",
+  };
 }
 
 function mergeRepositoryContributions(
@@ -1151,6 +1251,18 @@ function unique<T>(values: T[]): T[] {
   return Array.from(new Set(values));
 }
 
+function userQueryTarget(client: GitHubClient, variableDefinitions: string[] = []) {
+  const login = client.targetUsername;
+  const definitions = login
+    ? ["$login: String!", ...variableDefinitions]
+    : variableDefinitions;
+  return {
+    declaration: definitions.length > 0 ? `(${definitions.join(", ")})` : "",
+    field: login ? "viewer: user(login: $login)" : "viewer",
+    variables: login ? { login } : {},
+  };
+}
+
 function getRepositoryPriority(repo: RepositoryRecord): number {
   let priority = 50;
   if (repo.sources.includes("owned")) priority -= 30;
@@ -1165,8 +1277,8 @@ function canReadTraffic(repo: RepositoryRecord): boolean {
   return ["ADMIN", "MAINTAIN", "WRITE"].includes(repo.viewerPermission || "");
 }
 
-function mergeTrafficDays(existing: import("./types.js").TrafficDay[], next: import("./types.js").TrafficDay[]): import("./types.js").TrafficDay[] {
-  const byTimestamp = new Map<string, import("./types.js").TrafficDay>();
+function mergeTrafficDays(existing: TrafficDay[], next: TrafficDay[]): TrafficDay[] {
+  const byTimestamp = new Map<string, TrafficDay>();
   for (const day of existing) byTimestamp.set(day.timestamp, day);
   for (const day of next) byTimestamp.set(day.timestamp, day);
   return Array.from(byTimestamp.values()).sort((a, b) =>
@@ -1200,12 +1312,6 @@ function rememberEtag(
     lastModified,
     updatedAt: Date.now(),
   };
-}
-
-function getErrorStatus(error: unknown): number | null {
-  if (typeof error !== "object" || error === null) return null;
-  const status = (error as { status?: unknown }).status;
-  return typeof status === "number" ? status : null;
 }
 
 function delay(ms: number): Promise<void> {

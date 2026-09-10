@@ -1,12 +1,19 @@
 version: "1"
 
+# Run from this example directory. Set DIFFLER_GITHUB_USERNAME and GITHUB_TOKEN.
 github:
-  username: "octocat"
+  username: "${DIFFLER_GITHUB_USERNAME}"
   token: "${GITHUB_TOKEN}"
 
 templates:
   main: "profile.md.j2"
   directory: "."
+
+# Render cards with --out-dir assets, or point baseUrl at their public hosting URL.
+# This controls README links, not renderer themes or output directories.
+assets:
+  baseUrl: "./assets"
+  format: "webp"
 
 cache:
   enabled: true

@@ -1,16 +1,10 @@
 /**
- * Note: When using the Node.JS APIs, the config file
- * doesn't apply. Instead, pass options directly to the APIs.
- *
- * All configuration options: https://remotion.dev/docs/config
+ * Local Studio/direct Remotion CLI defaults only. renderCards passes its options
+ * to the Node APIs explicitly and owns the staged WebP/GIF/PNG pipeline.
  */
-
 import {Config} from '@remotion/cli/config';
-import {webpackOverride} from './src/webpack-override';
 
-// Config.setConcurrency(30);
+Config.setConcurrency(1);
 Config.setScale(1);
-Config.setCodec('gif');
 Config.setVideoImageFormat('png');
-Config.setOverwriteOutput(true);
-Config.overrideWebpackConfig(webpackOverride);
+Config.setOverwriteOutput(false);

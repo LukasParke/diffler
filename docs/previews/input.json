@@ -1,0 +1,306 @@
+{
+  "userStats": {
+    "schemaVersion": 2,
+    "name": "Ada Example",
+    "username": "ada-example",
+    "avatarUrl": "",
+    "bio": null,
+    "websiteUrl": null,
+    "location": null,
+    "generatedAt": "2026-05-29T00:00:00.000Z",
+    "fetchedAt": 1780012800000,
+    "isComplete": true,
+    "summary": {
+      "totalContributions": 1931,
+      "currentStreak": 11,
+      "longestStreak": 11,
+      "starsReceived": 497,
+      "forksReceived": 72,
+      "activeRepos": 37,
+      "totalRepos": 216,
+      "languageCount": 8,
+      "profileMetricsComplete": true,
+      "refreshedAt": "2026-05-29T00:00:00.000Z"
+    },
+    "contributions": {
+      "totalContributions": 1931,
+      "totalCommits": 1700,
+      "restrictedContributionsCount": 0,
+      "currentStreak": 11,
+      "longestStreak": 11,
+      "peakDay": {
+        "date": "2025-05-20",
+        "contributions": 610
+      },
+      "mostProductiveMonth": {
+        "month": "2025-05",
+        "contributions": 610
+      },
+      "calendar": [
+        {
+          "contributionCount": 140,
+          "date": "2022-05-20"
+        },
+        {
+          "contributionCount": 310,
+          "date": "2023-05-20"
+        },
+        {
+          "contributionCount": 420,
+          "date": "2024-05-20"
+        },
+        {
+          "contributionCount": 610,
+          "date": "2025-05-20"
+        },
+        {
+          "contributionCount": 41,
+          "date": "2026-05-19"
+        },
+        {
+          "contributionCount": 41,
+          "date": "2026-05-20"
+        },
+        {
+          "contributionCount": 41,
+          "date": "2026-05-21"
+        },
+        {
+          "contributionCount": 41,
+          "date": "2026-05-22"
+        },
+        {
+          "contributionCount": 41,
+          "date": "2026-05-23"
+        },
+        {
+          "contributionCount": 41,
+          "date": "2026-05-24"
+        },
+        {
+          "contributionCount": 41,
+          "date": "2026-05-25"
+        },
+        {
+          "contributionCount": 41,
+          "date": "2026-05-26"
+        },
+        {
+          "contributionCount": 41,
+          "date": "2026-05-27"
+        },
+        {
+          "contributionCount": 41,
+          "date": "2026-05-28"
+        },
+        {
+          "contributionCount": 41,
+          "date": "2026-05-29"
+        }
+      ],
+      "timeline": [
+        {
+          "period": "2022",
+          "contributions": 140
+        },
+        {
+          "period": "2023",
+          "contributions": 310
+        },
+        {
+          "period": "2024",
+          "contributions": 420
+        },
+        {
+          "period": "2025",
+          "contributions": 610
+        },
+        {
+          "period": "2026",
+          "contributions": 451
+        }
+      ]
+    },
+    "code": {
+      "codeByteTotal": 313000000,
+      "linesAdded": 456789,
+      "linesDeleted": 123456,
+      "linesChanged": 580245,
+      "linesOfCodeChanged": 580245,
+      "contributorReposCompleted": 216,
+      "contributorReposPending": 0,
+      "contributorReposFailed": 0
+    },
+    "community": {
+      "totalPullRequests": 142,
+      "totalPullRequestReviews": 45,
+      "openIssues": 18,
+      "closedIssues": 126,
+      "repositoriesContributedTo": 42,
+      "discussionsStarted": 8,
+      "discussionsAnswered": 15,
+      "starsGiven": 123,
+      "followers": 66,
+      "following": 24
+    },
+    "repositories": {
+      "totalRepos": 216,
+      "publicRepos": 216,
+      "privateRepos": 0,
+      "activeRepos": 37,
+      "archivedRepos": 0,
+      "forkedRepos": 0,
+      "originalRepos": 216,
+      "reposWithStars": 42,
+      "repoViews": 24680,
+      "repoViewUniques": 3210,
+      "trafficReposCompleted": 216,
+      "trafficReposPending": 0,
+      "trafficReposFailed": 0,
+      "starCount": 497,
+      "forkCount": 72
+    },
+    "topLanguages": [
+      {
+        "languageName": "TypeScript",
+        "color": "#3178c6",
+        "value": 112000000,
+        "percentage": 35.78274760383386
+      },
+      {
+        "languageName": "Svelte",
+        "color": "#ff3e00",
+        "value": 67000000,
+        "percentage": 21.405750798722046
+      },
+      {
+        "languageName": "Go",
+        "color": "#00ADD8",
+        "value": 43000000,
+        "percentage": 13.738019169329075
+      },
+      {
+        "languageName": "JavaScript",
+        "color": "#f1e05a",
+        "value": 38000000,
+        "percentage": 12.140575079872203
+      },
+      {
+        "languageName": "Python",
+        "color": "#3572A5",
+        "value": 24000000,
+        "percentage": 7.667731629392971
+      },
+      {
+        "languageName": "Rust",
+        "color": "#dea584",
+        "value": 19000000,
+        "percentage": 6.070287539936102
+      },
+      {
+        "languageName": "CSS",
+        "color": "#563d7c",
+        "value": 7000000,
+        "percentage": 2.2364217252396164
+      },
+      {
+        "languageName": "Shell",
+        "color": "#89e051",
+        "value": 3000000,
+        "percentage": 0.9584664536741214
+      }
+    ],
+    "packages": {
+      "packageCount": 3,
+      "providers": [
+        "npm"
+      ],
+      "downloads": {
+        "lastDay": 600,
+        "lastWeek": 4200,
+        "lastMonth": 18000,
+        "lastYear": 219000,
+        "allTime": 900000
+      },
+      "packages": [
+        {
+          "provider": "npm",
+          "name": "ada-tools",
+          "url": "https://www.npmjs.com/package/ada-tools",
+          "latestVersion": "1.2.3",
+          "latestPublishedAt": "2026-05-29T00:00:00.000Z",
+          "downloads": {
+            "lastDay": 300,
+            "lastWeek": 2100,
+            "lastMonth": 9000,
+            "lastYear": 109500,
+            "allTime": 450000
+          }
+        },
+        {
+          "provider": "npm",
+          "name": "code-garden",
+          "url": "https://www.npmjs.com/package/code-garden",
+          "latestVersion": "1.2.3",
+          "latestPublishedAt": "2026-05-29T00:00:00.000Z",
+          "downloads": {
+            "lastDay": 200,
+            "lastWeek": 1400,
+            "lastMonth": 6000,
+            "lastYear": 73000,
+            "allTime": 300000
+          }
+        },
+        {
+          "provider": "npm",
+          "name": "graph-helpers",
+          "url": "https://www.npmjs.com/package/graph-helpers",
+          "latestVersion": "1.2.3",
+          "latestPublishedAt": "2026-05-29T00:00:00.000Z",
+          "downloads": {
+            "lastDay": 100,
+            "lastWeek": 700,
+            "lastMonth": 3000,
+            "lastYear": 36500,
+            "allTime": 150000
+          }
+        }
+      ],
+      "complete": true,
+      "warnings": []
+    },
+    "cards": [],
+    "highlights": [],
+    "privacy": {
+      "privateRepositoryMetricsIncluded": false,
+      "privateRepositoryDetailsIncluded": false,
+      "privateCacheDetailsIncluded": false,
+      "redactedPrivateRepositories": 0,
+      "redactedRepositoryContributions": 0,
+      "redactedOptionalMetrics": 0
+    },
+    "collectionStatus": {
+      "complete": true,
+      "coreComplete": true,
+      "backfillPending": 0,
+      "backfillCompletedThisRun": 216,
+      "backfillFailedThisRun": 0,
+      "warnings": [],
+      "errors": []
+    },
+    "repoViews": 24680,
+    "linesOfCodeChanged": 580245,
+    "linesAdded": 456789,
+    "linesDeleted": 123456,
+    "linesChanged": 580245,
+    "totalCommits": 1700,
+    "totalPullRequests": 142,
+    "totalPullRequestReviews": 45,
+    "openIssues": 18,
+    "closedIssues": 126,
+    "forkCount": 72,
+    "starCount": 497,
+    "totalContributions": 1931,
+    "codeByteTotal": 313000000
+  }
+}

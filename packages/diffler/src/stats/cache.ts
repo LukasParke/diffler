@@ -6,7 +6,6 @@ import {
   type BackfillItem,
   CACHE_SCHEMA_VERSION,
   type CachedContributionYear,
-  type CachedRepository,
   type RepositoryRecord,
   type StableCache,
   type VolatileCache,
@@ -36,12 +35,20 @@ export function createEmptyVolatileCache(now = Date.now()): VolatileCache {
   };
 }
 
-export function readStableCache(path: string): StableCache {
-  return readJsonFile(path, createEmptyStableCache, isStableCache);
+export function readStableCache(path: string, ownerLogin?: string): StableCache {
+  return isolateCacheOwner(
+    readJsonFile(path, createEmptyStableCache, isStableCache),
+    ownerLogin,
+    createEmptyStableCache
+  );
 }
 
-export function readVolatileCache(path: string): VolatileCache {
-  return readJsonFile(path, createEmptyVolatileCache, isVolatileCache);
+export function readVolatileCache(path: string, ownerLogin?: string): VolatileCache {
+  return isolateCacheOwner(
+    readJsonFile(path, createEmptyVolatileCache, isVolatileCache),
+    ownerLogin,
+    createEmptyVolatileCache
+  );
 }
 
 export function writeStableCache(
@@ -56,8 +63,18 @@ export function writeStableCache(
   });
 }
 
-export function writeVolatileCache(path: string, cache: VolatileCache): void {
-  writeJsonFile(path, { ...cache, updatedAt: Date.now() });
+export function writeVolatileCache(
+  path: string,
+  cache: VolatileCache,
+  repositoryIds?: ReadonlySet<string>
+): void {
+  writeJsonFile(path, {
+    ...cache,
+    restEtags: repositoryIds
+      ? filterBackfillRecord(cache.restEtags, repositoryIds)
+      : cache.restEtags,
+    updatedAt: Date.now(),
+  });
 }
 
 export function cacheContributionYear(
@@ -76,7 +93,13 @@ export function cacheRepository(
   repository: RepositoryRecord,
   includePrivateDetails = false
 ): void {
-  if (repository.isPrivate && !includePrivateDetails) return;
+  const current = cache.repositories[repository.id];
+  if (current && current.repository.metadataFetchedAt > repository.metadataFetchedAt) return;
+
+  if (repository.isPrivate && !includePrivateDetails) {
+    delete cache.repositories[repository.id];
+    return;
+  }
 
   cache.repositories[repository.id] = {
     fetchedAt: Date.now(),
@@ -95,7 +118,7 @@ export function sanitizeStableCache(
     Object.entries(cache.repositories).filter(
       ([, entry]) => !entry.repository.isPrivate
     )
-  ) as Record<string, CachedRepository>;
+  );
   const publicRepositoryIds = new Set(Object.keys(repositories));
   const metricCacheIds = includePrivateMetrics
     ? new Set([
@@ -166,7 +189,7 @@ export function shouldReuseContributionYear(
 ): cached is CachedContributionYear {
   if (!cached) return false;
   if (year >= currentYear - 1) return false;
-  return cached.immutable;
+  return cached.immutable && cached.enrichmentComplete !== false;
 }
 
 export function mergeBackfillQueue(
@@ -177,7 +200,10 @@ export function mergeBackfillQueue(
   for (const item of existing) byKey.set(item.key, item);
   for (const item of next) {
     const current = byKey.get(item.key);
-    if (!current || item.priority < current.priority) byKey.set(item.key, item);
+    byKey.set(item.key, {
+      ...item,
+      priority: Math.min(current?.priority ?? item.priority, item.priority),
+    });
   }
   return Array.from(byKey.values()).sort(
     (a, b) => a.priority - b.priority || a.key.localeCompare(b.key)
@@ -215,6 +241,19 @@ function readJsonFile<T>(
   return createEmpty();
 }
 
+function isolateCacheOwner<T extends { ownerLogin?: string }>(
+  cache: T,
+  ownerLogin: string | undefined,
+  createEmpty: () => T
+): T {
+  if (ownerLogin === undefined) return cache;
+  const owner = ownerLogin.toLowerCase();
+  return {
+    ...(cache.ownerLogin?.toLowerCase() === owner ? cache : createEmpty()),
+    ownerLogin: owner,
+  };
+}
+
 function writeJsonFile(path: string, value: unknown): void {
   const dir = dirname(path);
   if (dir && dir !== ".") mkdirSync(dir, { recursive: true });
@@ -225,6 +264,7 @@ function isStableCache(value: unknown): value is StableCache {
   if (!isRecord(value)) return false;
   return (
     value["schemaVersion"] === CACHE_SCHEMA_VERSION &&
+    (value["ownerLogin"] === undefined || typeof value["ownerLogin"] === "string") &&
     isRecord(value["contributionYears"]) &&
     isRecord(value["repositories"]) &&
     isRecord(value["contributorStats"]) &&
@@ -235,7 +275,11 @@ function isStableCache(value: unknown): value is StableCache {
 
 function isVolatileCache(value: unknown): value is VolatileCache {
   if (!isRecord(value)) return false;
-  return value["schemaVersion"] === CACHE_SCHEMA_VERSION && isRecord(value["restEtags"]);
+  return (
+    value["schemaVersion"] === CACHE_SCHEMA_VERSION &&
+    (value["ownerLogin"] === undefined || typeof value["ownerLogin"] === "string") &&
+    isRecord(value["restEtags"])
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -251,18 +295,20 @@ function sanitizeContributionYear(
 ): CachedContributionYear {
   if (includePrivateDetails) return year;
 
+  const repositories = year.repositories
+    .filter((repository) => !repository.isPrivate && publicRepositoryIds.has(repository.id))
+    .map(metadataOnlyRepository);
+  const visibleRepositoryIds = new Set(repositories.map((repository) => repository.id));
   return {
     ...year,
-    repositories: year.repositories
-      .filter((repository) => publicRepositoryIds.has(repository.id))
-      .map(metadataOnlyRepository),
+    repositories,
     repositoryContributions: year.repositoryContributions.filter((summary) =>
-      publicRepositoryIds.has(summary.repositoryId)
+      visibleRepositoryIds.has(summary.repositoryId)
     ),
   };
 }
 
-function metadataOnlyRepository(repository: RepositoryRecord): RepositoryRecord {
+export function metadataOnlyRepository(repository: RepositoryRecord): RepositoryRecord {
   return {
     ...repository,
     contributionCounts: {
@@ -286,11 +332,16 @@ function filterRecordByPublicRepoId<T>(
 
 function filterBackfillRecord<T>(
   record: Record<string, T>,
-  publicRepositoryIds: Set<string>
+  publicRepositoryIds: ReadonlySet<string>
 ): Record<string, T> {
   return Object.fromEntries(
     Object.entries(record).filter(([key]) =>
-      Array.from(publicRepositoryIds).some((repoId) => key.includes(repoId))
+      hasRepositoryKey(key, publicRepositoryIds)
     )
   );
+}
+
+export function hasRepositoryKey(key: string, repositoryIds: ReadonlySet<string>): boolean {
+  const [type, repositoryId] = key.split(":");
+  return (type === "contributors" || type === "traffic") && repositoryIds.has(repositoryId);
 }

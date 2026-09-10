@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true
+  },
+  "include": ["./**/*.ts", "./**/*.tsx", "./**/*.mjs", "../scripts/profile-graphics.mjs"],
+  "exclude": [".artifacts"]
+}

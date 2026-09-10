@@ -10,36 +10,40 @@ permissions:
 
 jobs:
   update-example:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.34.5
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build diffler
-        run: pnpm --filter @lukasparke/diffler build
+        run: pnpm --filter '@lukasparke/diffler...' build
 
       - name: Render README example
+        working-directory: packages/diffler
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node packages/diffler/scripts/update-readme-example.js
+          DIFFLER_GITHUB_USERNAME: ${{ github.repository_owner }}
+          DIFFLER_TEMPLATE_DIRECTORY: examples
+          DIFFLER_TEMPLATE_MAIN: readme-example.md.j2
+        run: node scripts/update-readme-example.js
 
       - name: Commit changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add README.md
+          git add packages/diffler/README.md
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else

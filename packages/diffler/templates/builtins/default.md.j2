@@ -1,60 +1,33 @@
-<div align="center">
+# {{ github.user.name or github.user.login }}
 
-# Hi, I'm {{ github.user.name }} 👋
+{% if github.user.bio %}{{ github.user.bio }}
 
-{% if github.user.bio %}
-*{{ github.user.bio }}*
+{% endif %}![Generated GitHub profile summary for {{ github.user.login }}]({{ profile_asset("readme", config.assets) }})
+
+## GitHub activity
+
+{% if stats.collectionStatus.coreComplete %}| Collected metric | Value |
+| --- | ---: |
+| Contributions | {{ stats.profileContributions.totalContributions }} |
+| Current streak | {{ stats.profileContributions.stats.currentStreak }} days |
+| Stars received | {{ stats.repoMetrics.starCount }} |
+| Public repositories | {{ stats.repoMetrics.repoStats.publicRepos }} |
+
+Snapshot: {{ stats.generatedAt }}.
+{% if not stats.collectionStatus.complete %}
+_This snapshot is incomplete; unavailable data is not a measured zero._
+{% endif %}{% else %}A complete activity snapshot is not available yet. Visit the GitHub profile below for current activity; generated cards will appear after assets are rendered and published.
 {% endif %}
+{% if stats.repoMetrics.topLanguages %}### Repository languages
 
-{{ typing_svg("Welcome to my GitHub profile") }}
+Languages detected in the collected repositories, not a list of skills:
 
-<br>
+{% for language in stats.repoMetrics.topLanguages.slice(0, 5) %}- {{ language.languageName }}: {{ language.percentage }}% of measured code bytes
+{% endfor %}{% endif %}
+{% set public_repos = repositories | rejectattr("isPrivate") | rejectattr("isFork") | rejectattr("isArchived") | sort(true, false, "stars") %}
+## Selected repositories
 
-{{ github_stats_card(github.user.login) }}
-
-{{ top_langs(github.user.login) }}
-
-</div>
-
-## 🛠️ Tech Stack
-
-{{ skill_icons(["python", "rust", "typescript", "go", "docker", "aws", "linux"]) }}
-
-## 📌 Pinned Repositories
-
-{% if github.user.pinned_repositories %}
-{{ pinned_repos_grid(github.user.pinned_repositories) }}
-{% else %}
-_No pinned repositories yet._
-{% endif %}
-
-## 📂 All Projects
-
-{% set all_repos = filter_repos(github.user.repositories, exclude_forks=true, exclude_archived=true, sort_by="stars", limit=20) %}
-{% if all_repos %}
-{{ repo_list(all_repos) }}
-{% else %}
-_No public repositories yet._
-{% endif %}
-
-## 📊 Stats
-
-{{ streak_stats(github.user.login) }}
-
-{% if github.user.contributions.total > 0 %}
-{{ contribution_badge(github.user.contributions.total) }}
-{% endif %}
-
-## 📫 Connect
-
-{% if github.user.location %}
-📍 {{ github.user.location }}
-{% endif %}
-{% if github.user.company %}
-🏢 {{ github.user.company }}
-{% endif %}
-{% if github.user.website_url %}
-🌐 [Website]({{ github.user.website_url }})
-{% endif %}
-
-Feel free to reach out!
+{% for repo in public_repos.slice(0, 6) %}- [{{ repo.name }}]({{ repo.url }}){% if repo.description %} — {{ repo.description }}{% endif %}
+{% else %}No public, active original repositories are available in this snapshot.
+{% endfor %}
+[View {{ github.user.login }} on GitHub](https://github.com/{{ github.user.login }})

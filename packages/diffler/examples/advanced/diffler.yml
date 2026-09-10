@@ -1,18 +1,28 @@
 version: "1"
 
+# Run from this example directory. Each account can use a different credential.
+# The first account supplies the display identity; collection aggregates both.
 github:
-  username: "octocat"
-  token: "${GITHUB_TOKEN}"
+  profiles:
+    - username: "${DIFFLER_GITHUB_USERNAME}"
+      token: "${GITHUB_TOKEN}"
+    - username: "${DIFFLER_SECOND_GITHUB_USERNAME}"
+      token: "${DIFFLER_SECOND_GITHUB_TOKEN}"
 
 templates:
   main: "profile.md.j2"
   directory: "."
 
-helpers:
-  badges:
-    style: "for-the-badge"
-  stats:
-    theme: "dark"
+# Set this to the public directory containing readme.webp and activity-overview.webp.
+# Asset settings change links only, not renderer themes or composition settings.
+assets:
+  baseUrl: "${DIFFLER_ASSET_BASE_URL}"
+  format: "webp"
+
+statsAction:
+  outputPath: ".diffler/stats.json"
+  includePrivateRepositoryDetails: false
+  includePrivateCacheDetails: false
 
 cache:
   enabled: true

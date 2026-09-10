@@ -1,186 +1,217 @@
-import {existsSync} from 'node:fs';
-import {mkdir, rm, writeFile} from 'node:fs/promises';
+import {copyFile, mkdir, mkdtemp, rm, writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
-import {randomBytes} from 'node:crypto';
-import {spawn} from 'node:child_process';
-import {RenderConfig} from './config';
+import {bundle} from '@remotion/bundler';
+import {cardDefinitions} from '@lukasparke/diffler-schemas';
+import {
+	openBrowser,
+	renderFrames,
+	renderStill,
+	selectComposition,
+} from '@remotion/renderer';
+import type {RenderConfig} from './config';
+import {encodeAnimation, type FrameSequence} from './encode';
+import {resolveRenderProps} from './input';
+import {buildIndexHtml} from './preview';
+import {publishFiles} from './publish';
+import {validateRenderConfig, type ValidatedRenderConfig} from './validation';
 
-export async function renderCards(config: RenderConfig): Promise<void> {
-  const {
-    compositionIds,
-    entryPoint,
-    formats,
-    outputDir,
-    props,
-    concurrency = 1,
-    remotionConcurrency
-  } = config;
+type Browser = Awaited<ReturnType<typeof openBrowser>>;
+type RenderJob = {
+	config: ValidatedRenderConfig;
+	serveUrl: string;
+	inputProps: Record<string, unknown>;
+	workDir: string;
+	generatedDir: string;
+};
 
-  const needsAnimation = formats.includes('gif') || formats.includes('webp');
-  const tempDir = join(outputDir, '.tmp');
+export async function renderCards(value: RenderConfig): Promise<void> {
+	const config = await validateRenderConfig(value);
+	const inputProps = await resolveRenderProps(config.props);
+	const workDir = await mkdtemp(join(tmpdir(), 'diffler-render-'));
 
-  const propsFile = join(
-    tmpdir(),
-    `remotion-props-${randomBytes(8).toString('hex')}.json`
-  );
+	try {
+		const generatedDir = join(workDir, 'outputs');
+		await mkdir(generatedDir);
+		const serveUrl = await bundle({
+			entryPoint: config.entryPoint,
+			outDir: join(workDir, 'bundle'),
+			enableCaching: false,
+			webpackOverride: config.webpackOverride,
+		});
+		await renderWithBrowsers({
+			config,
+			serveUrl,
+			inputProps,
+			workDir,
+			generatedDir,
+		});
 
-  try {
-    await writeFile(propsFile, JSON.stringify(props), 'utf8');
-    await rm(outputDir, {recursive: true, force: true});
-    await mkdir(outputDir, {recursive: true});
-    if (needsAnimation) {
-      await mkdir(tempDir, {recursive: true});
-    }
-
-    console.log(
-      `Rendering ${compositionIds.length} cards to ${outputDir} with concurrency ${concurrency}`
-    );
-
-    await runPool(
-      compositionIds,
-      Math.min(concurrency, compositionIds.length),
-      async (id) => {
-        const masterPath = join(tempDir, `${id}.webm`);
-
-        if (needsAnimation) {
-          const remotionArgs = [
-            'remotion',
-            'render',
-            entryPoint,
-            id,
-            masterPath,
-            '--props',
-            propsFile,
-            '--codec',
-            'vp9',
-            '--crf',
-            '10',
-            '--pixel-format',
-            'yuv444p'
-          ];
-          if (remotionConcurrency) {
-            remotionArgs.push('--concurrency', String(remotionConcurrency));
-          }
-          await run('npx', ['--no-install', ...remotionArgs]);
-        }
-
-        if (formats.includes('webp')) {
-          await run('ffmpeg', [
-            '-y',
-            '-i',
-            masterPath,
-            '-vf',
-            'fps=12',
-            '-loop',
-            '0',
-            '-c:v',
-            'libwebp',
-            '-quality',
-            '84',
-            '-compression_level',
-            '6',
-            '-preset',
-            'picture',
-            '-an',
-            join(outputDir, `${id}.webp`)
-          ]);
-        }
-
-        if (formats.includes('gif')) {
-          await run('ffmpeg', [
-            '-y',
-            '-i',
-            masterPath,
-            '-filter_complex',
-            '[0:v]fps=8,split[frames][palette_source];[palette_source]palettegen=max_colors=256:stats_mode=diff[palette];[frames][palette]paletteuse=dither=sierra2_4a:diff_mode=rectangle',
-            '-loop',
-            '0',
-            join(outputDir, `${id}.gif`)
-          ]);
-        }
-
-        await rm(masterPath, {force: true});
-      }
-    );
-
-    await writeFile(
-      join(outputDir, 'index.html'),
-      buildIndexHtml(compositionIds, formats),
-      'utf8'
-    );
-  } finally {
-    if (existsSync(tempDir)) {
-      await rm(tempDir, {recursive: true, force: true});
-    }
-    await rm(propsFile, {force: true}).catch(() => {});
-  }
+		const files = config.compositionIds.flatMap((id) =>
+			config.formats.map((format) => ({
+				name: `${id}.${format}`,
+				path: join(generatedDir, `${id}.${format}`),
+			})),
+		);
+		const indexPath = join(generatedDir, 'index.html');
+		await writeFile(
+			indexPath,
+			buildIndexHtml(config.compositionIds, config.formats),
+			'utf8',
+		);
+		files.push({name: 'index.html', path: indexPath});
+		await publishFiles(config.outputDir, files);
+	} finally {
+		// Only this invocation's mkdtemp directory is ever removed recursively.
+		// Props travel in memory; there is no temporary props file to leak.
+		await rm(workDir, {recursive: true, force: true});
+	}
 }
 
-async function runPool<T>(
-  items: T[],
-  concurrency: number,
-  worker: (item: T) => Promise<void>
+async function renderWithBrowsers(job: RenderJob): Promise<void> {
+	let next = 0;
+	let stopped = false;
+	const errors: unknown[] = [];
+	const workers = Math.min(
+		job.config.concurrency,
+		job.config.compositionIds.length,
+	);
+
+	await Promise.all(
+		Array.from({length: workers}, async () => {
+			let browser: Browser | undefined;
+			try {
+				browser = await openBrowser('chrome', {
+					browserExecutable: job.config.browserExecutable,
+					logLevel: 'error',
+				});
+				// A browser is reused serially within a worker, never shared by competing
+				// renderFrames calls that could interfere with one another's tabs.
+				while (next < job.config.compositionIds.length) {
+					if (stopped) break;
+					const id = job.config.compositionIds[next++];
+					await renderCard(job, id, browser);
+				}
+			} catch (error) {
+				stopped = true;
+				errors.push(error);
+			} finally {
+				if (browser) {
+					await browser.close({silent: true}).catch((error) => {
+						stopped = true;
+						errors.push(error);
+					});
+				}
+			}
+		}),
+	);
+	// Wait for every in-flight worker and encoder before removing its files.
+	if (errors.length === 1) throw errors[0];
+	if (errors.length > 1)
+		throw new AggregateError(errors, 'Card rendering failed');
+}
+
+async function renderCard(
+	job: RenderJob,
+	id: string,
+	browser: Browser,
 ): Promise<void> {
-  let index = 0;
-  const workers = Array.from({length: concurrency}, async () => {
-    while (index < items.length) {
-      const currentIndex = index;
-      index += 1;
-      await worker(items[currentIndex]);
-    }
-  });
-  await Promise.all(workers);
-}
+	const {config, inputProps, serveUrl, generatedDir} = job;
+	const playback = config.playback ?? cardDefinitions.find((card) => card.id === id)?.playback ?? 'once';
+	const shared = {
+		serveUrl,
+		inputProps,
+		puppeteerInstance: browser,
+		browserExecutable: config.browserExecutable,
+		logLevel: 'error' as const,
+	};
+	const composition = await selectComposition({...shared, id});
+	if (
+		composition.id !== id ||
+		!Number.isSafeInteger(composition.durationInFrames) ||
+		composition.durationInFrames < 1 ||
+		!Number.isFinite(composition.fps) ||
+		composition.fps <= 0
+	) {
+		throw new Error(`Invalid composition metadata for ${id}`);
+	}
+	const [start, end] = config.frameRange ?? [
+		0,
+		composition.durationInFrames - 1,
+	];
+	const stillFrame = config.stillFrame ?? composition.durationInFrames - 1;
+	if (
+		end >= composition.durationInFrames ||
+		stillFrame >= composition.durationInFrames
+	) {
+		throw new Error(
+			`Requested frame is outside ${id}'s ${composition.durationInFrames} frames`,
+		);
+	}
 
-function run(command: string, commandArgs: string[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, commandArgs, {stdio: 'inherit'});
-    child.on('error', reject);
-    child.on('exit', (code) => {
-      if (code === 0) {
-        resolve();
-        return;
-      }
-      reject(new Error(`${command} ${commandArgs.join(' ')} failed`));
-    });
-  });
-}
+	let frames: FrameSequence | undefined;
+	const framesDir = join(job.workDir, `frames-${id}`);
+	const animations = config.formats.filter((format) => format !== 'png');
+	if (animations.length > 0) {
+		await mkdir(framesDir);
+		const result = await renderFrames({
+			...shared,
+			composition,
+			outputDir: framesDir,
+			frameRange: [start, end],
+			concurrency: config.remotionConcurrency,
+			imageFormat: 'png',
+			scale: config.scale,
+			everyNthFrame: 1,
+			muted: true,
+			onStart: () => undefined,
+			onFrameUpdate: () => undefined,
+		});
+		if (result.frameCount !== end - start + 1) {
+			throw new Error(
+				`Incomplete frame render for ${id}: expected ${end - start + 1}, got ${result.frameCount}`,
+			);
+		}
+		frames = {
+			pattern: result.assetsInfo.imageSequenceName,
+			firstFrame: result.assetsInfo.firstFrameIndex,
+			frameCount: result.frameCount,
+			fps: composition.fps,
+		};
+		for (const format of animations) {
+			await encodeAnimation(
+				config.ffmpegExecutable,
+				format,
+				frames,
+				join(generatedDir, `${id}.${format}`),
+				playback,
+			);
+		}
+	}
 
-function buildIndexHtml(compositionIds: string[], formats: string[]): string {
-  const images = compositionIds
-    .map((id) => {
-      const webp = formats.includes('webp')
-        ? `<img src="./${id}.webp" alt="${id}" />`
-        : '';
-      const gif = formats.includes('gif')
-        ? `<img src="./${id}.gif" alt="${id} gif fallback" />`
-        : '';
-      return `<section><h2>${id}</h2>${webp}${gif}</section>`;
-    })
-    .join('\n');
-
-  return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GitHub Stats Remotion Assets</title>
-  <style>
-    body { margin: 0; padding: 24px; background: #0d1117; color: #f0f3f6; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-    main { display: grid; gap: 24px; max-width: 900px; margin: 0 auto; }
-    section { display: grid; gap: 8px; }
-    h1, h2 { margin: 0; }
-    h2 { color: #8b949e; font-size: 14px; }
-    img { max-width: 100%; height: auto; }
-  </style>
-</head>
-<body>
-  <main>
-    <h1>GitHub Stats Remotion Assets</h1>
-    ${images}
-  </main>
-</body>
-</html>
-`;
+	if (config.formats.includes('png')) {
+		const output = join(generatedDir, `${id}.png`);
+		if (frames && stillFrame >= start && stillFrame <= end) {
+			const index = frames.firstFrame + stillFrame - start;
+			const source = frames.pattern.replace(/%0?(\d*)d/, (_, padding: string) =>
+				String(index).padStart(Number(padding), '0'),
+			);
+			await copyFile(source, output);
+		} else {
+			await renderStill({
+				...shared,
+				composition,
+				output,
+				frame: stillFrame,
+				imageFormat: 'png',
+				scale: config.scale,
+				overwrite: false,
+			});
+		}
+	}
+	if (frames) {
+		// Finished card frames need not accumulate while later cards render. On
+		// failure the job-level cleanup waits for browsers/workers before removal.
+		await rm(framesDir, {recursive: true, force: true});
+	}
 }

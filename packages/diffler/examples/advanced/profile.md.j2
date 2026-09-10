@@ -1,67 +1,40 @@
-<div align="center">
-   <img src="https://raw.githubusercontent.com/LukasParke/github-stats-remotion/main/out/readme.gif">
-</div>
+# {{ github.user.name or github.user.login }}
 
-<div align="center">
+{% if github.user.bio %}{{ github.user.bio }}
 
-<br/>
+{% endif %}![Generated GitHub profile summary for {{ github.user.login }}]({{ profile_asset("readme", config.assets) }})
 
-I'm a Software Engineer based in Austin, Texas.
+{% if multi_profile %}This snapshot combines contributions from {% for account in profiles %}{% if not loop.first %}, {% endif %}[{{ account.login }}](https://github.com/{{ account.login }}){% endfor %}. Display identity belongs to {{ github.user.login }}.
+{% endif %}
+## Activity snapshot
 
-I love Open Source, Developer Tooling, API Design, and all things Svelte.
+{% if stats.collectionStatus.coreComplete %}| Collected metric | Value |
+| --- | ---: |
+| Contributions | {{ stats.profileContributions.totalContributions }} |
+| Current streak | {{ stats.profileContributions.stats.currentStreak }} days |
+| Longest streak | {{ stats.profileContributions.stats.longestStreak }} days |
+| Pull requests | {{ activity.totalPullRequests }} |
+| Closed issues | {{ activity.closedIssues }} |
 
-[LinkedIn](https://www.linkedin.com/in/LukeParke/) | [Dev.to](https://dev.to/LukeParke) | [The OpenAPI Guy Blog](https://openapiguy.dev)
+![Generated contribution activity overview]({{ profile_asset("activity-overview", config.assets) }})
 
-<hr/>
+Snapshot: {{ stats.generatedAt }}.{% if not stats.collectionStatus.complete %} Some data is incomplete; unavailable metrics are not measured zeros.{% endif %}
+{% else %}A complete activity snapshot is not available yet. Visit the linked GitHub profiles for current activity.
+{% endif %}
+{% if stats.repoMetrics.topLanguages %}## Repository languages
 
-</div>
+Measured code bytes describe the collected repositories, not proficiency or a technology stack.
 
-## Some things I've built:
+{% for language in stats.repoMetrics.topLanguages.slice(0, 5) %}- {{ language.languageName }} — {{ language.percentage }}%
+{% endfor %}{% endif %}
+{% set public_repos = repositories | rejectattr("isPrivate") | rejectattr("isFork") | rejectattr("isArchived") | sort(true, false, "stars") %}
+## Selected repositories
 
-### Svelte
-{% set svelte_repos = filter_repos(github.user.repositories, search="svelte", exclude_forks=true, exclude_archived=true, sort_by="stars", limit=5) -%}
-{% for repo in svelte_repos -%}
-- [{{ repo.name }}]({{ repo.url }}){% if repo.description %} - {{ repo.description }}{% endif %}
+{% for repo in public_repos.slice(0, 8) %}- [{{ repo.nameWithOwner }}]({{ repo.url }}){% if repo.description %} — {{ repo.description }}{% endif %}
+{% else %}No public, active original repositories are available in this snapshot.
 {% endfor %}
+{% if stats.presentation.highlights %}## Highlights
 
-### GitHub
-{% set gh_repos = filter_repos(github.user.repositories, search="stats", exclude_forks=true, exclude_archived=true, sort_by="stars", limit=5) -%}
-{% for repo in gh_repos -%}
-- [{{ repo.name }}]({{ repo.url }}){% if repo.description %} - {{ repo.description }}{% endif %}
-{% endfor %}
-
-### OpenAPI
-{% set openapi_repos = filter_repos(github.user.repositories, search="openapi", exclude_forks=true, exclude_archived=true, sort_by="stars", limit=10) -%}
-{% for repo in openapi_repos -%}
-- [{{ repo.name }}]({{ repo.url }}){% if repo.description %} - {{ repo.description }}{% endif %}
-{% endfor %}
-
-### Plex
-{% set plex_repos = filter_repos(github.user.repositories, search="plex", exclude_forks=true, exclude_archived=true, sort_by="stars", limit=15) -%}
-{% for repo in plex_repos -%}
-- [{{ repo.name }}]({{ repo.url }}){% if repo.description %} - {{ repo.description }}{% endif %}
-{% endfor %}
-
-### 🔭 Recent Releases
-{% set recent_rels = releases(github.user.login, config.github.token, limit=5) -%}
-{% for rel in recent_rels -%}
-- [{{ rel.repo }} {{ rel.tag }}]({{ rel.url }}) — {{ rel.name }} ({{ humanize(rel.published_at) }})
-{% endfor %}
-
-### ⭐ Recent Stars
-{% set starred = recent_stars(github.user.login, config.github.token, limit=5) -%}
-{% for star in starred -%}
-- [{{ star.full_name }}]({{ star.url }}){% if star.description %} — {{ star.description }}{% endif %}
-{% endfor %}
-
-### 📜 My Recent Dev.to Posts
-{% set posts = devto_posts("lukeparke", limit=5) -%}
-{% for post in posts -%}
-- [{{ post.title }}]({{ post.url }}) ({{ humanize(post.published_at) }})
-{% endfor %}
-
-#### 👯 My Recent followers
-{% set followers = recent_followers(github.user.login, config.github.token, limit=20) -%}
-{% for follower in followers -%}
-- [{{ follower.login }}]({{ follower.url }})
-{% endfor -%}
+{% for highlight in stats.presentation.highlights.slice(0, 3) %}- {{ highlight.label }}: {{ highlight.value }}{% if highlight.detail %} ({{ highlight.detail }}){% endif %}
+{% endfor %}{% endif %}
+[View {{ github.user.login }} on GitHub](https://github.com/{{ github.user.login }})

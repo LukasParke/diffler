@@ -2,24 +2,29 @@
   "name": "remotion-usage-example",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
-    "start": "remotion studio --props ./input.json",
-    "render": "github-readme-cards render --entry-point ./src/index.tsx --cards readme,stats --formats webp --out-dir pages --props input.json",
-    "typecheck": "tsc --noEmit"
+    "build": "remotion bundle ./src/index.tsx --out-dir build",
+    "start": "remotion studio ./src/index.tsx --props ./input.json",
+    "render": "github-readme-cards --entry-point ./src/index.tsx --cards readme,stats --formats webp,gif --out-dir pages --props input.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@lukasparke/diffler-remotion": "workspace:*",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "remotion": "^4.0.214",
-    "zod": "^3.24.3"
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.509",
+    "zod": "4.4.3"
   },
   "devDependencies": {
-    "@remotion/bundler": "^4.0.214",
-    "@remotion/cli": "^4.0.214",
-    "@remotion/tailwind": "^4.0.214",
+    "@remotion/cli": "4.0.509",
+    "@types/node": "^22.15.0",
     "@types/react": "^18.3.10",
-    "tailwindcss": "^3.4.0",
+    "@types/react-dom": "^18.3.1",
     "typescript": "^5.8.3"
   }
 }

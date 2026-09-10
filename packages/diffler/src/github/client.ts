@@ -1,4 +1,10 @@
+import { z } from "zod";
 import type { GitHubConfig } from "../config.js";
+
+const graphqlEnvelopeSchema = z.object({
+  data: z.unknown().optional(),
+  errors: z.array(z.unknown()).optional(),
+});
 
 function authHeaders(token: string): Record<string, string> {
   const headers: Record<string, string> = {};
@@ -23,7 +29,7 @@ async function retryFetch(
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const response = await fetch(url, options);
-      if (response.status < 500) {
+      if (response.status < 500 || attempt === maxRetries) {
         return response;
       }
       // Server error — retry if we have attempts left
@@ -33,8 +39,6 @@ async function retryFetch(
           `HTTP ${response.status} (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${sleepTime.toFixed(1)}s...`
         );
         await sleep(sleepTime * 1000);
-      } else {
-        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
       }
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
@@ -51,17 +55,39 @@ async function retryFetch(
   throw lastError ?? new Error("Retry exhausted");
 }
 
+export type GitHubResponseHeaders = Record<string, string | number | undefined>;
+
+export class GitHubHttpError extends Error {
+  readonly status: number;
+  readonly headers: GitHubResponseHeaders;
+
+  constructor(api: "REST" | "GraphQL", response: Response) {
+    super(`GitHub ${api} error: HTTP ${response.status} ${response.statusText}`.trim());
+    this.name = "GitHubHttpError";
+    this.status = response.status;
+    this.headers = responseHeaders(response);
+  }
+}
+
+function responseHeaders(response: Response): GitHubResponseHeaders {
+  return Object.fromEntries(response.headers.entries());
+}
+
 export type RestResponse<T = unknown> = {
   data: T;
-  headers: Record<string, string | number | undefined>;
+  headers: GitHubResponseHeaders;
   status: number;
 };
 
 export class GitHubClient {
-  private config: GitHubConfig;
+  private readonly config: GitHubConfig;
 
   constructor(config: GitHubConfig) {
-    this.config = config;
+    this.config = { ...config };
+  }
+
+  get targetUsername(): string | null {
+    return this.config.username;
   }
 
   async restGet(path: string, params?: Record<string, string | number>): Promise<unknown> {
@@ -93,27 +119,26 @@ export class GitHubClient {
       headers,
     });
 
-    const responseHeaders: Record<string, string | number | undefined> = {};
-    response.headers.forEach((value, key) => {
-      responseHeaders[key] = value;
-    });
-
     let data: unknown;
     if (response.status === 304) {
       data = null;
     } else if (response.status === 202) {
       data = null;
     } else if (!response.ok) {
-      throw new Error(`GitHub REST error: ${response.status} ${response.statusText}`);
+      throw new GitHubHttpError("REST", response);
     } else {
       data = await response.json();
     }
 
-    return { data, headers: responseHeaders, status: response.status };
+    return { data, headers: responseHeaders(response), status: response.status };
   }
 
-  async graphqlQuery(query: string, variables?: Record<string, unknown>): Promise<unknown> {
-    const url = new URL("/graphql", this.config.apiUrl);
+  async graphqlQuery(
+    query: string,
+    variables?: Record<string, unknown>,
+    options: { allowMissingNodes?: boolean } = {}
+  ): Promise<unknown> {
+    const url = new URL(this.config.graphqlUrl);
 
     const headers: Record<string, string> = {
       ...authHeaders(this.config.token),
@@ -129,13 +154,31 @@ export class GitHubClient {
     });
 
     if (!response.ok) {
-      throw new Error(`GitHub GraphQL error: ${response.status} ${response.statusText}`);
+      throw new GitHubHttpError("GraphQL", response);
     }
 
-    const data = (await response.json()) as { data?: unknown; errors?: unknown[] };
-    if (data.errors) {
+    const parsed = graphqlEnvelopeSchema.safeParse(await response.json());
+    if (!parsed.success) throw new Error("Invalid GitHub GraphQL response");
+    const data = parsed.data;
+    if (data.errors?.length && !(options.allowMissingNodes && onlyMissingNodes(data.data, data.errors))) {
       throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
     }
     return data.data;
   }
+}
+
+function onlyMissingNodes(data: unknown, errors: unknown[]): boolean {
+  if (typeof data !== "object" || data === null || !("nodes" in data) || !Array.isArray(data.nodes)) {
+    return false;
+  }
+  const nodes: unknown[] = data.nodes;
+  return errors.every((error) => {
+    if (typeof error !== "object" || error === null || !("type" in error) || error.type !== "NOT_FOUND") {
+      return false;
+    }
+    if (!("path" in error) || !Array.isArray(error.path) || error.path.length !== 2) return false;
+    const [field, index] = error.path;
+    return field === "nodes" && typeof index === "number" && Number.isInteger(index) &&
+      index >= 0 && nodes[index] === null;
+  });
 }

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Diffler · Profile card previews</title>
+  <style>
+    :root { color-scheme: dark; --matte: #0d1117; --ink: #f0f3f6; --muted: #a5adba; --line: #30363d; }
+    body.light { color-scheme: light; --matte: #ffffff; --ink: #1f2328; --muted: #57606a; --line: #d0d7de; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 36px 24px; background: var(--matte); color: var(--ink); font: 15px/1.6 system-ui, sans-serif; }
+    main { max-width: 1200px; margin: auto; }
+    h1 { margin: 0; font-size: 30px; font-weight: 600; letter-spacing: -.04em; }
+    h2 { font-size: 18px; font-weight: 600; }
+    p { color: var(--muted); max-width: 80ch; }
+    a { color: inherit; text-underline-offset: 3px; }
+    .eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: 11px; }
+    .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin: 28px 0; padding: 16px 0; border-block: 1px solid var(--line); }
+    label { display: flex; align-items: center; gap: 8px; }
+    select, button { border: 1px solid var(--line); border-radius: 6px; background: var(--matte); color: var(--ink); padding: 7px 10px; font: inherit; }
+    button { cursor: pointer; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 30px 22px; align-items: start; }
+    figure { margin: 0; min-width: 0; }
+    .image { min-height: 284px; display: flex; align-items: start; overflow: auto; }
+    .cards img { display: block; width: 360px; max-width: 100%; height: auto; }
+    .cards.native { grid-template-columns: 1fr; }
+    .cards.native img { width: var(--width); }
+    .cards.native .image { min-height: 0; }
+    figcaption { margin-top: 12px; font-size: 13px; }
+    figcaption strong { display: block; color: var(--ink); }
+    figcaption span { color: var(--muted); }
+    .registry { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line); }
+    .registry img { display: block; width: 100%; height: auto; }
+    footer { margin-top: 36px; color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">Diffler / rendered previews</p>
+    <h1>A profile, with a little motion.</h1>
+    <p>Classic's nine-row ledger, a compact Signature, and a contribution-led Spotlight. All previews use synthetic metrics, local initials, and bundled Fira Code. Preview exports are native-size; the library defaults to 2×.</p>
+    <p><a href="README.md">Verification and file sizes</a> · <a href="../design/original-profile.md">Historical evidence and design decisions</a></p>
+    <div class="controls">
+      <label>Format <select id="format"><option value="png">PNG poster</option><option value="webp">Animated WebP</option><option value="gif">Animated GIF</option></select></label>
+      <label>Size <select id="size"><option value="readme">360px README preview</option><option value="native">Native dimensions</option></select></label>
+      <label>Matte <select id="matte"><option value="dark">GitHub dark</option><option value="light">White</option></select></label>
+      <button type="button" id="replay">Replay</button>
+    </div>
+    <section class="cards" aria-label="Profile card variants">
+      <figure>
+        <div class="image"><img data-card="readme-classic" src="readme-classic.png" style="--width: 500px" alt="Classic: Ada Example's synthetic GitHub stats in a nine-row ledger, with pastel filaments behind the text." /></div>
+        <figcaption><strong>Classic · 2024 family</strong><span>500×350 · 10 seconds · single-play intro</span></figcaption>
+      </figure>
+      <figure>
+        <div class="image"><img data-card="readme" src="readme.png" style="--width: 560px" alt="Signature: Ada Example's synthetic core GitHub metrics, languages, and collection coverage." /></div>
+        <figcaption><strong>Signature</strong><span>560×390 · 10 seconds · ambient loop</span></figcaption>
+      </figure>
+      <figure>
+        <div class="image"><img data-card="readme-spotlight" src="readme-spotlight.png" style="--width: 560px" alt="Spotlight: 1,931 illustrative contributions, with stars, forks, commits and pull requests." /></div>
+        <figcaption><strong>Spotlight</strong><span>560×440 · 12 seconds · ambient loop</span></figcaption>
+      </figure>
+    </section>
+    <section class="registry" aria-label="Full card registry">
+      <h2>The full card family</h2>
+      <p>Thirteen cards, including repository impact, language mix, contribution history, and package downloads. These are settled frames from the rendered-layout harness.</p>
+      <img id="registry" src="registry-dark.png" alt="Contact sheet of all thirteen Diffler cards using the same synthetic profile." />
+    </section>
+    <footer>Posters are the initial view for reduced-motion reading. Select an animated format to inspect the full playback; Replay restarts Classic's single-play intro. No network data or external assets are requested by this gallery.</footer>
+  </main>
+  <script>
+    const format = document.querySelector('#format');
+    let replay = 0;
+    function updateImages() {
+      for (const image of document.querySelectorAll('[data-card]')) {
+        image.src = `${image.dataset.card}.${format.value}?replay=${replay}`;
+      }
+    }
+    format.addEventListener('change', updateImages);
+    document.querySelector('#replay').addEventListener('click', () => { replay++; updateImages(); });
+    document.querySelector('#size').addEventListener('change', (event) => {
+      document.querySelector('.cards').classList.toggle('native', event.target.value === 'native');
+    });
+    document.querySelector('#matte').addEventListener('change', (event) => {
+      document.body.classList.toggle('light', event.target.value === 'light');
+      document.querySelector('#registry').src = `registry-${event.target.value}.png`;
+    });
+  </script>
+</body>
+</html>

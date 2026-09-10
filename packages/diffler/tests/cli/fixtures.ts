@@ -1,0 +1,105 @@
+import type { GitHubStatsOutput } from "@lukasparke/diffler-schemas";
+import { StatsActionConfigSchema } from "../../src/config.js";
+import { createEmptyStableCache } from "../../src/stats/cache.js";
+import { buildOutput } from "../../src/stats/output.js";
+
+export const FIXED_NOW = new Date("2025-01-15T12:00:00.000Z");
+
+export function collectedStats(): GitHubStatsOutput {
+  return buildOutput({
+    profile: {
+      login: "fixture-user",
+      name: "Fixture User",
+      bio: "Building useful tools.",
+      company: null,
+      location: null,
+      email: null,
+      twitterUsername: null,
+      websiteUrl: null,
+      avatarUrl: "https://example.com/avatar.png",
+      createdAt: "2024-01-01T00:00:00.000Z",
+      followers: 3,
+      following: 1,
+    },
+    activity: {
+      totalPullRequests: 2,
+      openIssues: 1,
+      closedIssues: 4,
+      repositoriesContributedTo: 1,
+      discussionsStarted: 0,
+      discussionsAnswered: 0,
+      starsGiven: 2,
+    },
+    contributions: {
+      collection: {
+        totalCommitContributions: 5,
+        restrictedContributionsCount: 0,
+        totalIssueContributions: 0,
+        totalRepositoryContributions: 0,
+        totalPullRequestContributions: 2,
+        totalPullRequestReviewContributions: 0,
+        contributionCalendar: {
+          totalContributions: 7,
+          weeks: [{ contributionDays: [
+            { date: "2025-01-14", contributionCount: 3 },
+            { date: "2025-01-15", contributionCount: 4 },
+          ] }],
+        },
+      },
+      repositories: [],
+      repositoryContributions: [],
+      yearsFetched: ["2025"],
+      yearsFromCache: [],
+      missingYears: [],
+    },
+    repositories: [{
+      id: "public-repository",
+      name: "profile-tools",
+      nameWithOwner: "fixture-user/profile-tools",
+      owner: "fixture-user",
+      ownerType: "User",
+      description: "Tools for a GitHub profile",
+      url: "https://github.com/fixture-user/profile-tools",
+      isArchived: false,
+      isFork: false,
+      isPrivate: false,
+      visibility: "PUBLIC",
+      viewerPermission: "ADMIN",
+      createdAt: "2024-01-01T00:00:00.000Z",
+      updatedAt: "2025-01-15T00:00:00.000Z",
+      pushedAt: "2025-01-15T00:00:00.000Z",
+      defaultBranchOid: "fixture-commit",
+      stars: 6,
+      forks: 2,
+      primaryLanguage: "TypeScript",
+      topics: [],
+      languages: [{ languageName: "TypeScript", color: "#3178c6", value: 100, percentage: 100 }],
+      codeByteTotal: 100,
+      sources: ["owned"],
+      contributionCounts: { commits: 5, issues: 0, pullRequests: 2, pullRequestReviews: 0, repositoryCreations: 0 },
+      metadataFetchedAt: FIXED_NOW.getTime(),
+    }],
+    cache: createEmptyStableCache(),
+    config: StatsActionConfigSchema.parse({}),
+    collectionStatus: {
+      startedAt: FIXED_NOW.getTime(),
+      finishedAt: FIXED_NOW.getTime(),
+      durationMs: 0,
+      complete: true,
+      coreComplete: true,
+      cache: {
+        stablePath: ".diffler/cache-stable.json",
+        volatilePath: ".diffler/cache-volatile.json",
+        contributionYearsFromCache: 0,
+        contributionYearsFetched: 1,
+        repositoriesFromCache: 0,
+        repositoriesFetched: 1,
+      },
+      backfill: { enabled: false, completedThisRun: 0, pending: 0, failedThisRun: 0, skippedThisRun: 0 },
+      rateLimit: { graphql: null, rest: null },
+      warnings: [],
+      errors: [],
+    },
+    fetchedAt: FIXED_NOW.getTime(),
+  });
+}

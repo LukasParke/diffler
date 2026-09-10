@@ -1,705 +1,457 @@
 import {
 	ArrowDownFromLine,
 	ArrowUpFromLine,
-	Code2,
+	BookOpen,
 	Diff,
 	GitCommitHorizontal,
 	GitFork,
 	GitPullRequest,
 	HandHeart,
-	MapPin,
+	LucideIcon,
 	Sparkles,
 	Telescope,
 } from 'lucide-react';
-import {Easing, Img, interpolate, useCurrentFrame} from 'remotion';
-import {UserStats} from '../data';
-import {formatBytes, formatCompactNumber} from '../utils/format';
-import {AnimatedCounter} from '../components/effects/AnimatedCounter';
+import {CSSProperties} from 'react';
+import {Img, useCurrentFrame, useVideoConfig} from 'remotion';
 import {GeminiBeams} from '../components/effects/GeminiBeams';
-import {ProgressBar} from '../components/primitives';
-import {defaultTheme} from '../themes/default';
+import {MetricRow, Panel} from '../components/primitives';
+import {
+	CollectionNote,
+	getOptionalMetricCoverage,
+} from '../components/primitives/MetricCoverage';
+import {MetricValue} from '../components/primitives/MetricValue';
+import {formatMetricValue} from '../components/primitives/formatMetric';
+import {getLanguageShare} from '../components/primitives/languagePresentation';
+import {UserStats} from '../data';
+import {useTheme} from '../themes';
+import {interpolateFactory} from '../utils/animation';
+import {formatInteger} from '../utils/format';
 
-type ReadmeVariantProps = {
-	userStats: UserStats;
-};
-
-type ReadmeMetric = {
-	icon: JSX.Element;
+type ReadmeVariantProps = {userStats: UserStats};
+type ProfileMetric = {
+	id: string;
 	label: string;
 	value: number | string;
-	detail?: string;
-	accent: string;
+	icon: LucideIcon;
 };
 
 export function ReadmeCard({userStats}: ReadmeVariantProps) {
-	const frame = useCurrentFrame();
-	const topLanguage = userStats.topLanguages[0];
-	const profileSlide = interpolate(frame, [0, 38], [18, 0], {
-		easing: Easing.bezier(0.22, 1, 0.36, 1),
-		extrapolateRight: 'clamp',
+	const theme = useTheme();
+	const metrics = profileMetrics(userStats).filter((metric) =>
+		[
+			'stars',
+			'forks',
+			'commits',
+			'pull-requests',
+			'closed-issues',
+			'contributions',
+		].includes(metric.id),
+	);
+	metrics.splice(metrics.length - 1, 0, {
+		id: 'repositories',
+		label: 'Public repositories',
+		value: userStats.repositories.publicRepos,
+		icon: BookOpen,
 	});
 
 	return (
-		<ReadmeShell className="bg-[#0c0f17]">
+		<Panel className="diffler-profile" style={{padding: 24}}>
 			<GeminiBeams
-				className="left-[30%] top-[2%] h-[118%] w-[92%] opacity-80"
-				rotate={-6}
-				scale={1.18}
+				rotate={-78}
+				scale={1.55}
+				opacity={0.86}
+				style={{top: 40, bottom: -20, left: '14%', right: '-14%'}}
 			/>
-			<div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(8,11,18,0.98)_0%,rgba(8,11,18,0.88)_44%,rgba(8,11,18,0.36)_100%)]" />
-			<div className="relative z-10 grid h-full grid-cols-[1.05fr_0.95fr] gap-5 p-6">
-				<div
-					className="flex min-w-0 flex-col justify-between"
-					style={{transform: `translateY(${profileSlide}px)`}}
-				>
-					<div>
-						<div className="mb-5 flex items-center gap-4">
-							<ProfileImage userStats={userStats} size="large" />
-							<div className="min-w-0">
-								<p className="text-sm font-semibold uppercase tracking-normal text-[#9ba7b4]">
-									GitHub profile telemetry
-								</p>
-								<h1 className="truncate text-5xl font-black leading-none text-[#f8fafc]">
-									{userStats.name || userStats.username}
-								</h1>
-								<div className="mt-2 flex items-center gap-2 text-sm text-[#b7c0cc]">
-									<span>@{userStats.username}</span>
-									{userStats.location ? (
-										<>
-											<span className="text-[#6e7681]">/</span>
-											<span className="flex min-w-0 items-center gap-1">
-												<MapPin size={13} />
-												<span className="truncate">{userStats.location}</span>
-											</span>
-										</>
-									) : null}
-								</div>
-							</div>
-						</div>
-						<p
-							className="max-w-[470px] overflow-hidden text-base leading-relaxed text-[#dbe3ec]"
-							style={{
-								display: '-webkit-box',
-								WebkitLineClamp: 2,
-								WebkitBoxOrient: 'vertical',
-							}}
-						>
-							{userStats.bio ||
-								'Building software, systems, and public projects across GitHub.'}
-						</p>
-					</div>
-
-					<div className="grid grid-cols-3 gap-3">
-						<HeroMetric
-							label="Contributions"
-							value={userStats.summary.totalContributions}
-							detail={`${formatCompactNumber(userStats.summary.currentStreak)} day streak`}
-							accent={defaultTheme.colors.green}
+			<div
+				style={{
+					position: 'relative',
+					zIndex: 1,
+					display: 'flex',
+					flexDirection: 'column',
+					height: '100%',
+					minHeight: 0,
+				}}
+			>
+				<ProfileIdentity userStats={userStats} />
+				<div style={{display: 'grid', gridAutoRows: '28px', marginTop: 22}}>
+					{metrics.map((metric) => (
+						<MetricRow
+							key={metric.id}
+							icon={<metric.icon size={17} strokeWidth={1.5} />}
+							label={metric.label}
+							value={formatMetricValue(metric.value)}
+							accent={theme.colors.muted}
+							labelStyle={{fontSize: 14}}
+							style={{padding: 0}}
 						/>
-						<HeroMetric
-							label="Stars"
-							value={
-								userStats.summary.profileMetricsComplete
-									? userStats.summary.starsReceived
-									: 'Unavailable'
-							}
-							detail={
-								userStats.summary.profileMetricsComplete
-									? `${formatCompactNumber(userStats.summary.forksReceived)} forks`
-									: 'Collection incomplete'
-							}
-							accent={defaultTheme.colors.yellow}
-							delay={0.12}
-						/>
-						<HeroMetric
-							label="Repos"
-							value={
-								userStats.summary.profileMetricsComplete
-									? userStats.summary.totalRepos
-									: 'Unavailable'
-							}
-							detail={
-								userStats.summary.profileMetricsComplete
-									? `${formatCompactNumber(userStats.summary.activeRepos)} active`
-									: 'Collection incomplete'
-							}
-							accent={defaultTheme.colors.blue}
-							delay={0.24}
-						/>
-					</div>
+					))}
 				</div>
-
-				<div className="grid min-w-0 grid-rows-[1fr_142px] gap-3">
-					<div className="grid grid-cols-2 gap-3">
-						<ReadmeMetricCard
-							icon={<GitCommitHorizontal size={18} />}
-							label="Commits"
-							value={userStats.contributions.totalCommits}
-							detail={`${formatCompactNumber(userStats.summary.totalContributions)} contributions`}
-							accent={defaultTheme.colors.green}
-						/>
-						<ReadmeMetricCard
-							icon={<GitPullRequest size={18} />}
-							label="Pull requests"
-							value={userStats.community.totalPullRequests}
-							detail={`${formatCompactNumber(userStats.community.totalPullRequestReviews)} reviews`}
-							accent={defaultTheme.colors.purple}
-							delay={0.08}
-						/>
-						<ReadmeMetricCard
-							icon={<Telescope size={18} />}
-							label="Repo views"
-							value={userStats.repositories.repoViews ?? 'Unavailable'}
-							detail={
-								userStats.repositories.repoViews === null
-									? 'Collection pending'
-									: '14 day traffic'
-							}
-							accent={defaultTheme.colors.cyan}
-							delay={0.16}
-						/>
-						<ReadmeMetricCard
-							icon={<Code2 size={18} />}
-							label={topLanguage?.languageName || 'Languages'}
-							value={
-								userStats.summary.profileMetricsComplete
-									? userStats.summary.languageCount
-									: 'Unavailable'
-							}
-							detail={
-								!userStats.summary.profileMetricsComplete
-									? 'Collection incomplete'
-									: topLanguage?.percentage
-									? `${topLanguage.percentage.toFixed(1)}% top language`
-									: 'languages detected'
-							}
-							accent={topLanguage?.color || defaultTheme.colors.red}
-							delay={0.24}
-						/>
-					</div>
-
-					<div className="rounded-xl border border-white/10 bg-white/[0.045] p-4">
-						<div className="mb-3 flex items-start justify-between gap-4">
-							<div className="min-w-0">
-								<p className="truncate text-xs font-semibold uppercase tracking-normal text-[#9ba7b4]">
-									Code footprint
-								</p>
-								<p className="mt-1 truncate text-sm text-[#f0f3f6]">
-									{formatBytes(userStats.code.codeByteTotal)} across{' '}
-									{userStats.summary.languageCount} languages
-								</p>
-							</div>
-							<div className="shrink-0 text-right">
-								<p className="text-xs font-semibold uppercase tracking-normal text-[#9ba7b4]">
-									Active repos
-								</p>
-								<p className="mt-1 text-xl font-black leading-none text-[#58a6ff]">
-									{formatCompactNumber(userStats.summary.activeRepos)}
-								</p>
-							</div>
-						</div>
-						<ProgressBar
-							value={topLanguage?.percentage || 0}
-							max={100}
-							color={topLanguage?.color || defaultTheme.colors.cyan}
-							height={10}
-						/>
-						<p className="mt-3 truncate text-xs text-[#8b949e]">
-							{topLanguage?.languageName || 'Top language'} leads with{' '}
-							{(topLanguage?.percentage || 0).toFixed(1)}% of indexed code
-						</p>
+				<div style={{marginTop: 'auto', paddingTop: 16}}>
+					<LanguageSignature userStats={userStats} />
+					<div style={{marginTop: 9}}>
+						<CollectionNote userStats={userStats} />
 					</div>
 				</div>
 			</div>
-		</ReadmeShell>
+		</Panel>
 	);
 }
 
 export function ReadmeClassicCard({userStats}: ReadmeVariantProps) {
 	const frame = useCurrentFrame();
-	const metrics = getClassicMetrics(userStats);
+	const {fps} = useVideoConfig();
+	const theme = useTheme();
 
 	return (
-		<ReadmeShell className="bg-[#282a36]">
-			<div className="absolute inset-0 opacity-70">
-				<GeminiBeams
-					className="left-[-28%] top-[28%] h-[92%] w-[168%]"
-					rotate={-105}
-					scale={1.38}
-				/>
-			</div>
-			<div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(40,42,54,0.98),rgba(40,42,54,0.82)_58%,rgba(40,42,54,0.95))]" />
-			<div className="relative z-10 flex h-full flex-col p-5 text-[#f8f8f2]">
-				<div className="mb-4 flex items-center gap-3">
-					<ProfileImage userStats={userStats} />
-					<div className="min-w-0">
-						<p className="truncate text-lg font-bold">
-							Hi, I'm {userStats.name || userStats.username}
-						</p>
-						<p className="truncate text-xs text-[#bd93f9]">
-							@{userStats.username}
-						</p>
-					</div>
-				</div>
-
-				<div className="grid flex-1 content-start gap-2">
-					{metrics.map((metric, index) => (
-						<div
-							key={metric.label}
-							className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-[#1d1f29]/75 px-3 py-2"
-							style={{
-								opacity: interpolate(
-									frame,
-									[index * 5, index * 5 + 18],
-									[0.35, 1],
-									{
-										extrapolateLeft: 'clamp',
-										extrapolateRight: 'clamp',
-									},
-								),
-								transform: `translateX(${interpolate(
-									frame,
-									[index * 5, index * 5 + 18],
-									[-6, 0],
-									{
-										easing: Easing.bezier(0.22, 1, 0.36, 1),
-										extrapolateLeft: 'clamp',
-										extrapolateRight: 'clamp',
-									},
-								)}px)`,
+		<Panel className="diffler-profile" style={{padding: 12, border: 'none'}}>
+			<GeminiBeams mode="draw" rotate={-105} scale={1.5} style={{top: 144}} />
+			<div style={{position: 'relative', zIndex: 1, minWidth: 0}}>
+				<ProfileIdentity classic userStats={userStats} />
+				<div
+					style={{
+						display: 'grid',
+						gridAutoRows: '20px',
+						rowGap: 8,
+						marginTop: 16,
+					}}
+				>
+					{profileMetrics(userStats).map((metric, index) => (
+						<MetricRow
+							key={metric.id}
+							icon={<metric.icon size={20} strokeWidth={1.75} />}
+							label={`${metric.label}:`}
+							value={
+								typeof metric.value === 'number'
+									? formatInteger(metric.value)
+									: metric.value
+							}
+							accent={theme.colors.text}
+							labelStyle={{fontSize: 14, lineHeight: '20px'}}
+							valueStyle={{
+								fontSize: 14,
+								fontWeight: 400,
+								letterSpacing: 0,
+								lineHeight: '20px',
 							}}
-						>
-							<div className="flex min-w-0 items-center gap-2">
-								<span className="shrink-0" style={{color: metric.accent}}>
-									{metric.icon}
-								</span>
-								<p className="truncate text-sm">{metric.label}</p>
-							</div>
-							<p className="shrink-0 text-sm font-bold tabular-nums">
-								{typeof metric.value === 'number' ? (
-								<AnimatedCounter
-									value={metric.value}
-									duration={2.2}
-									delay={index * 0.05}
-								/>
-								) : (
-									metric.value
-								)}
-							</p>
-						</div>
+							style={{
+								padding: 0,
+								opacity: interpolateFactory(frame, index / 5, 1, 1, fps),
+							}}
+						/>
 					))}
 				</div>
+				{!userStats.collectionStatus.coreComplete && (
+					<div style={{marginTop: 5}}>
+						<CollectionNote userStats={userStats} />
+					</div>
+				)}
 			</div>
-		</ReadmeShell>
+		</Panel>
 	);
 }
 
 export function ReadmeSpotlightCard({userStats}: ReadmeVariantProps) {
-	const topLanguages = userStats.topLanguages.slice(0, 5);
-	const timeline = userStats.contributions.timeline.slice(-6);
-	const maxTimeline = Math.max(
-		1,
-		...timeline.map((item) => item.contributions),
+	const theme = useTheme();
+	const metrics = profileMetrics(userStats).filter((metric) =>
+		['stars', 'forks', 'commits', 'pull-requests'].includes(metric.id),
 	);
 
 	return (
-		<ReadmeShell className="bg-[#070a10]">
+		<Panel className="diffler-profile" style={{padding: 28}}>
 			<GeminiBeams
-				className="left-[8%] top-[-22%] h-[122%] w-[110%] opacity-35"
-				rotate={2}
-				scale={1.08}
-				speed={0.72}
+				rotate={-82}
+				scale={1.7}
+				style={{left: '23%', right: '-23%', top: -35, bottom: -10}}
 			/>
-			<div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,10,16,0.42),rgba(7,10,16,0.96)_72%)]" />
-			<div className="relative z-10 grid h-full grid-cols-[310px_1fr] gap-5 p-6">
-				<div className="flex min-w-0 flex-col justify-between rounded-xl border border-white/10 bg-black/30 p-5">
-					<div>
-						<ProfileImage userStats={userStats} />
-						<h1
-							className="mt-3 min-w-0 overflow-hidden break-words text-4xl font-black leading-none"
-							style={{
-								display: '-webkit-box',
-								WebkitLineClamp: 2,
-								WebkitBoxOrient: 'vertical',
-							}}
-						>
-							{userStats.name || userStats.username}
-						</h1>
-						<p className="mt-2 text-sm text-[#9ba7b4]">@{userStats.username}</p>
-						{userStats.location ? (
-							<p className="mt-3 flex items-center gap-1.5 text-xs text-[#b7c0cc]">
-								<MapPin size={13} />
-								<span className="truncate">{userStats.location}</span>
-							</p>
-						) : null}
-						<p
-							className="mt-3 overflow-hidden text-xs leading-relaxed text-[#c8d1dc]"
-							style={{
-								display: '-webkit-box',
-								WebkitLineClamp: 2,
-								WebkitBoxOrient: 'vertical',
-							}}
-						>
-							{userStats.bio ||
-								'Building software, systems, and public projects across GitHub.'}
-						</p>
-					</div>
-					<div className="grid grid-cols-2 gap-2">
-						<MiniStat label="Followers" value={userStats.community.followers} />
-						<MiniStat
-							label="Stars"
-							value={
-								userStats.summary.profileMetricsComplete
-									? userStats.summary.starsReceived
-									: '—'
-							}
-						/>
-						<MiniStat
-							label="Repos"
-							value={
-								userStats.summary.profileMetricsComplete
-									? userStats.summary.totalRepos
-									: '—'
-							}
-						/>
-						<MiniStat
-							label="Languages"
-							value={
-								userStats.summary.profileMetricsComplete
-									? userStats.summary.languageCount
-									: '—'
-							}
-						/>
-					</div>
-				</div>
-
-				<div className="grid min-w-0 grid-rows-[1fr_116px] gap-4">
-					<div className="grid grid-cols-[1fr_230px] gap-4">
-						<div className="rounded-xl border border-white/10 bg-white/[0.045] p-5">
-							<p className="text-xs font-semibold uppercase tracking-normal text-[#9ba7b4]">
-								Contribution signal
-							</p>
-							<div className="mt-4 grid grid-cols-[1.25fr_0.75fr_0.75fr] gap-4">
-								<HeroMetric
-									label="Total"
-									value={userStats.summary.totalContributions}
-									detail="contribs"
-									accent={defaultTheme.colors.green}
-								/>
-								<HeroMetric
-									label="Current"
-									value={userStats.summary.currentStreak}
-									detail="current"
-									accent={defaultTheme.colors.yellow}
-									delay={0.12}
-								/>
-								<HeroMetric
-									label="Longest"
-									value={userStats.summary.longestStreak}
-									detail="longest"
-									accent={defaultTheme.colors.cyan}
-									delay={0.24}
-								/>
-							</div>
-							<div className="mt-5">
-								<ContributionHeatmap userStats={userStats} />
-							</div>
-						</div>
-
-						<div className="rounded-xl border border-white/10 bg-white/[0.045] p-4">
-							<p className="mb-3 text-xs font-semibold uppercase tracking-normal text-[#9ba7b4]">
-								Language leaders
-							</p>
-							<div className="space-y-2">
-								{!userStats.summary.profileMetricsComplete ||
-								topLanguages.length === 0 ? (
-									<p className="pt-8 text-center text-sm text-[#9ba7b4]">
-										No public language data available
-									</p>
-								) : (
-									topLanguages.map((language, index) => (
-									<div key={language.languageName}>
-										<div className="mb-1 flex justify-between gap-2 text-xs">
-												<span className="truncate">
-													{language.languageName}
-												</span>
-											<span className="shrink-0 text-[#8b949e]">
-												{(language.percentage || 0).toFixed(1)}%
-											</span>
-										</div>
-										<ProgressBar
-											value={language.percentage || 0}
-											max={100}
-											color={language.color || defaultTheme.colors.blue}
-											delay={index * 5}
-											height={7}
-										/>
-									</div>
-									))
-								)}
-							</div>
-						</div>
-					</div>
-
-					<div className="grid grid-cols-6 gap-2 rounded-xl border border-white/10 bg-black/25 p-3">
-						{timeline.length === 0 ? (
-							<p className="col-span-6 self-center text-center text-sm text-[#9ba7b4]">
-								No contribution timeline available
-							</p>
-						) : (
-							timeline.map((item) => (
-							<div
-								key={item.period}
-								className="flex min-w-0 flex-col justify-between"
-							>
-									<p className="truncate text-xs text-[#8b949e]">
-									{item.period}
-								</p>
-								<div className="mt-2 flex h-12 items-end">
-									<div
-										className="w-full rounded-t"
-										style={{
-											height: `${Math.max(8, (item.contributions / maxTimeline) * 48)}px`,
-											background: `linear-gradient(180deg, ${defaultTheme.colors.green}, ${defaultTheme.colors.cyan})`,
-										}}
-									/>
-								</div>
-								<p className="mt-1 truncate text-xs font-semibold">
-									{formatCompactNumber(item.contributions)}
-								</p>
-							</div>
-							))
+			<div
+				style={{
+					position: 'relative',
+					zIndex: 1,
+					display: 'flex',
+					flexDirection: 'column',
+					height: '100%',
+					minHeight: 0,
+				}}
+			>
+				<ProfileIdentity userStats={userStats} />
+				<div style={{marginTop: 42, maxWidth: '76%'}}>
+					<MetricValue
+						value={formatMetricValue(
+							userStats.summary.totalContributions,
+							'integer',
 						)}
+						size={58}
+						style={{letterSpacing: '-0.065em', lineHeight: 1.05}}
+					/>
+					<p
+						style={{
+							margin: '10px 0 0',
+							fontSize: 14,
+							color: theme.colors.muted,
+						}}
+					>
+						contributions across GitHub
+					</p>
+				</div>
+				<div
+					style={{
+						display: 'grid',
+						gridTemplateColumns: '1fr 1fr',
+						columnGap: 38,
+						gridAutoRows: '36px',
+						marginTop: 38,
+					}}
+				>
+					{metrics.map((metric) => (
+						<MetricRow
+							key={metric.id}
+							icon={<metric.icon size={16} strokeWidth={1.5} />}
+							label={metric.label}
+							value={formatMetricValue(metric.value)}
+							accent={theme.colors.muted}
+							labelStyle={{fontSize: 13}}
+						/>
+					))}
+				</div>
+				<div style={{marginTop: 'auto', paddingTop: 20}}>
+					<LanguageSignature userStats={userStats} />
+					<div style={{marginTop: 12}}>
+						<CollectionNote userStats={userStats} />
 					</div>
 				</div>
 			</div>
-		</ReadmeShell>
+		</Panel>
 	);
 }
 
-function ReadmeShell({
-	children,
-	className = '',
-}: {
-	children: React.ReactNode;
-	className?: string;
-}) {
+function ProfileIdentity({
+	userStats,
+	classic = false,
+}: ReadmeVariantProps & {classic?: boolean}) {
+	const theme = useTheme();
+	const name = userStats.name || userStats.username;
+
 	return (
-		<div
-			className={`relative h-full w-full overflow-hidden rounded-2xl border border-white/10 text-[#f0f3f6] shadow-2xl ${className}`}
+		<header
 			style={{
-				boxShadow:
-					'0 24px 80px rgba(0,0,0,0.48), inset 0 1px 0 rgba(255,255,255,0.08)',
+				display: 'flex',
+				alignItems: 'center',
+				gap: classic ? 16 : 13,
+				minWidth: 0,
+				flexShrink: 0,
 			}}
 		>
-			<div
-				className="pointer-events-none absolute inset-0 opacity-[0.18]"
-				style={{
-					backgroundImage:
-						'linear-gradient(rgba(255,255,255,0.09) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.09) 1px, transparent 1px)',
-					backgroundSize: '36px 36px',
-				}}
-			/>
-			<div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/60 to-transparent" />
-			{children}
+			<ProfileImage userStats={userStats} size={classic ? 40 : 44} />
+			<div style={{minWidth: 0}}>
+				<h1
+					title={`Hi, I'm ${name}`}
+					style={{
+						margin: 0,
+						fontSize: classic ? 16 : 18,
+						fontWeight: classic ? 400 : 500,
+						letterSpacing: classic ? 0 : '-0.025em',
+						lineHeight: 1.4,
+						overflow: 'hidden',
+						textOverflow: 'ellipsis',
+						whiteSpace: 'nowrap',
+					}}
+				>
+					Hi, I&apos;m {name}
+				</h1>
+				{!classic && (
+					<p
+						title={`@${userStats.username}`}
+						style={{
+							margin: '3px 0 0',
+							fontSize: 12,
+							lineHeight: 1.4,
+							color: theme.colors.muted,
+							overflow: 'hidden',
+							textOverflow: 'ellipsis',
+							whiteSpace: 'nowrap',
+						}}
+					>
+						@{userStats.username}
+					</p>
+				)}
+			</div>
+		</header>
+	);
+}
+
+function ProfileImage({userStats, size}: ReadmeVariantProps & {size: number}) {
+	const theme = useTheme();
+	const name = userStats.name || userStats.username;
+	const style: CSSProperties = {
+		width: size,
+		height: size,
+		flexShrink: 0,
+		borderRadius: '50%',
+		objectFit: 'cover',
+	};
+
+	return userStats.avatarUrl ? (
+		<Img src={userStats.avatarUrl} alt={`${name}'s avatar`} style={style} />
+	) : (
+		<div
+			aria-label={`${name}'s initials`}
+			style={{
+				...style,
+				display: 'grid',
+				placeItems: 'center',
+				background: theme.colors.panelLight,
+				color: theme.colors.text,
+				fontSize: size / 3,
+			}}
+		>
+			{name
+				.trim()
+				.split(/\s+/)
+				.slice(0, 2)
+				.map((part) => part.charAt(0))
+				.join('')}
 		</div>
 	);
 }
 
-function ProfileImage({
-	userStats,
-	size = 'normal',
-}: {
-	userStats: UserStats;
-	size?: 'normal' | 'large';
-}) {
-	return (
-		<Img
-			className={`${size === 'large' ? 'size-20' : 'size-12'} shrink-0 rounded-full border border-white/15 object-cover shadow-2xl`}
-			src={
-				userStats.avatarUrl || `https://github.com/${userStats.username}.png`
-			}
-		/>
-	);
-}
+function LanguageSignature({userStats}: ReadmeVariantProps) {
+	const theme = useTheme();
+	const languages = userStats.topLanguages.slice(0, 3);
 
-function HeroMetric({
-	label,
-	value,
-	detail,
-	accent,
-	delay = 0,
-}: {
-	label: string;
-	value: number | string;
-	detail: string;
-	accent: string;
-	delay?: number;
-}) {
+	if (languages.length === 0) return null;
+
 	return (
 		<div>
-			<p className="text-xs font-semibold uppercase tracking-normal text-[#9ba7b4]">
-				{label}
-			</p>
-			<p className="mt-1 text-3xl font-black leading-none tabular-nums">
-				<span style={{color: accent}}>
-					{typeof value === 'string' ? (
-						value
-					) : value >= 1000 ? (
-						formatCompactNumber(value)
-					) : (
-						<AnimatedCounter value={value} duration={1.8} delay={delay} />
-					)}
-				</span>
-			</p>
-			<p className="mt-1 truncate text-xs text-[#8b949e]">{detail}</p>
-		</div>
-	);
-}
-
-function ReadmeMetricCard({
-	icon,
-	label,
-	value,
-	detail,
-	accent,
-	delay = 0,
-}: ReadmeMetric & {delay?: number}) {
-	return (
-		<div className="relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.05] p-4">
 			<div
-				className="absolute inset-x-0 top-0 h-px"
-				style={{background: `linear-gradient(90deg, ${accent}, transparent)`}}
-			/>
-			<div className="flex items-center gap-2 text-[#9ba7b4]">
-				<span style={{color: accent}}>{icon}</span>
-				<p className="truncate text-xs font-semibold uppercase tracking-normal">
-					{label}
-				</p>
+				aria-hidden="true"
+				style={{
+					display: 'flex',
+					height: 2,
+					gap: 3,
+					background: theme.colors.panelLight,
+					borderRadius: 2,
+					overflow: 'hidden',
+				}}
+			>
+				{languages.map((language) => (
+					<span
+						key={language.languageName}
+						style={{
+							width: `${getLanguageShare(language, userStats.code.codeByteTotal)}%`,
+							background: language.color || theme.colors.purple,
+							flexShrink: 0,
+						}}
+					/>
+				))}
 			</div>
-			<p className="mt-3 text-3xl font-black leading-none tabular-nums">
-				{typeof value === 'number' ? (
-				<AnimatedCounter value={value} duration={1.8} delay={delay} />
-				) : (
-					value
-				)}
-			</p>
-			<p className="mt-2 truncate text-xs text-[#8b949e]">{detail}</p>
+			<div style={{display: 'flex', gap: 18, marginTop: 9, minWidth: 0}}>
+				{languages.map((language) => (
+					<span
+						key={language.languageName}
+						title={language.languageName}
+						style={{
+							display: 'flex',
+							alignItems: 'center',
+							gap: 6,
+							fontSize: 11,
+							lineHeight: 1.4,
+							minWidth: 0,
+							color: theme.colors.muted,
+						}}
+					>
+						<span
+							aria-hidden="true"
+							style={{
+								height: 4,
+								width: 4,
+								borderRadius: '50%',
+								flexShrink: 0,
+								background: language.color || theme.colors.purple,
+							}}
+						/>
+						<span
+							style={{
+								overflow: 'hidden',
+								textOverflow: 'ellipsis',
+								whiteSpace: 'nowrap',
+							}}
+						>
+							{language.languageName}
+						</span>
+					</span>
+				))}
+			</div>
 		</div>
 	);
 }
 
-function MiniStat({label, value}: {label: string; value: number | string}) {
-	return (
-		<div className="rounded-lg border border-white/10 bg-white/[0.05] p-3">
-			<p className="text-xs font-semibold uppercase tracking-normal text-[#9ba7b4]">
-				{label}
-			</p>
-			<p className="mt-1 text-xl font-bold tabular-nums">
-				{typeof value === 'number' ? formatCompactNumber(value) : value}
-			</p>
-		</div>
-	);
-}
+function profileMetrics(userStats: UserStats): ProfileMetric[] {
+	const traffic = getOptionalMetricCoverage(userStats, 'traffic');
+	const lines = getOptionalMetricCoverage(userStats, 'lines');
 
-function ContributionHeatmap({userStats}: {userStats: UserStats}) {
-	const days = userStats.contributions.calendar.slice(-91);
-	const max = Math.max(1, ...days.map((day) => day.contributionCount));
-
-	return (
-		<div
-			className="grid grid-flow-col gap-1"
-			style={{gridTemplateRows: 'repeat(7, 8px)'}}
-		>
-			{days.map((day) => (
-				<div
-					key={day.date}
-					className="size-2 rounded-[2px]"
-					style={{
-						backgroundColor: contributionColor(day.contributionCount, max),
-					}}
-				/>
-			))}
-		</div>
-	);
-}
-
-function contributionColor(count: number, max: number) {
-	if (count === 0) {
-		return 'rgba(255,255,255,0.08)';
-	}
-	const ratio = count / max;
-	if (ratio > 0.72) {
-		return '#3fb950';
-	}
-	if (ratio > 0.45) {
-		return '#2ea043';
-	}
-	if (ratio > 0.22) {
-		return '#238636';
-	}
-	return '#0e4429';
-}
-
-function getClassicMetrics(userStats: UserStats): ReadmeMetric[] {
 	return [
 		{
-			icon: <Sparkles size={18} />,
+			id: 'stars',
+			icon: Sparkles,
 			label: 'Stars',
-			value: userStats.summary.profileMetricsComplete
-				? userStats.summary.starsReceived
-				: 'Unavailable',
-			accent: defaultTheme.colors.yellow,
+			value: userStats.summary.starsReceived,
 		},
 		{
-			icon: <GitFork size={18} />,
+			id: 'forks',
+			icon: GitFork,
 			label: 'Forks',
-			value: userStats.summary.profileMetricsComplete
-				? userStats.summary.forksReceived
-				: 'Unavailable',
-			accent: defaultTheme.colors.green,
+			value: userStats.summary.forksReceived,
 		},
 		{
-			icon: <GitCommitHorizontal size={18} />,
+			id: 'commits',
+			icon: GitCommitHorizontal,
 			label: 'Commits',
 			value: userStats.contributions.totalCommits,
-			accent: defaultTheme.colors.green,
 		},
 		{
-			icon: <GitPullRequest size={18} />,
-			label: 'Pull Requests',
+			id: 'pull-requests',
+			icon: GitPullRequest,
+			label: 'Pull requests',
 			value: userStats.community.totalPullRequests,
-			accent: defaultTheme.colors.purple,
 		},
 		{
-			icon: <ArrowUpFromLine size={18} />,
-			label: 'Opened Issues',
+			id: 'open-issues',
+			icon: ArrowUpFromLine,
+			label: 'Open issues',
 			value: userStats.community.openIssues,
-			accent: defaultTheme.colors.red,
 		},
 		{
-			icon: <ArrowDownFromLine size={18} />,
-			label: 'Closed Issues',
+			id: 'closed-issues',
+			icon: ArrowDownFromLine,
+			label: 'Closed issues',
 			value: userStats.community.closedIssues,
-			accent: defaultTheme.colors.green,
 		},
 		{
-			icon: <Telescope size={18} />,
-			label: 'Repo Views (2 wks)',
-			value: userStats.repositories.repoViews ?? 'Unavailable',
-			accent: defaultTheme.colors.cyan,
+			id: 'views',
+			icon: Telescope,
+			label: 'Repo views (2 wks)',
+			value: optionalValue(userStats.repositories.repoViews, traffic),
 		},
 		{
-			icon: <Diff size={18} />,
+			id: 'lines',
+			icon: Diff,
 			label: 'Lines of code changed',
-			value: userStats.code.linesOfCodeChanged,
-			accent: defaultTheme.colors.yellow,
+			value: optionalValue(userStats.code.linesOfCodeChanged, lines),
 		},
 		{
-			icon: <HandHeart size={18} />,
+			id: 'contributions',
+			icon: HandHeart,
 			label: 'Total contributions',
 			value: userStats.summary.totalContributions,
-			accent: defaultTheme.colors.green,
 		},
 	];
+}
+
+function optionalValue(
+	value: number,
+	coverage: ReturnType<typeof getOptionalMetricCoverage>,
+): number | string {
+	if (!coverage.available) return coverage.label;
+	if (coverage.state === 'complete') return value;
+	return `${formatInteger(value)} (${coverage.state === 'unknown' ? 'unverified' : 'partial'})`;
 }

@@ -6,6 +6,7 @@ import type {
   MonthlyContribution,
   RepositoryRecord,
   RepoStats,
+  RepoMetrics,
   TopicCount,
   YearlyContribution,
 } from "./v2.js";
@@ -67,8 +68,10 @@ export function mergeContributionsCollections(
 }
 
 export function calculateContributionStats(
-  contributionsCollection: ContributionsCollection
+  contributionsCollection: ContributionsCollection,
+  now = Date.now()
 ): ContributionStats {
+  const today = new Date(now).toISOString().slice(0, 10);
   const allDays: { date: string; count: number }[] = [];
   const monthlyMap = new Map<string, number>();
   const yearlyMap = new Map<string, number>();
@@ -77,6 +80,7 @@ export function calculateContributionStats(
 
   for (const week of contributionsCollection.contributionCalendar.weeks) {
     for (const day of week.contributionDays) {
+      if (day.date > today) continue;
       allDays.push({ date: day.date, count: day.contributionCount });
 
       const month = day.date.substring(0, 7);
@@ -104,7 +108,11 @@ export function calculateContributionStats(
 
   let longestStreak = 0;
   let tempStreak = 0;
+  let previousDate = 0;
   for (const day of allDays) {
+    const date = Date.parse(`${day.date}T00:00:00.000Z`);
+    if (date - previousDate !== 86_400_000) tempStreak = 0;
+    previousDate = date;
     if (day.count > 0) {
       tempStreak++;
       longestStreak = Math.max(longestStreak, tempStreak);
@@ -113,12 +121,16 @@ export function calculateContributionStats(
     }
   }
 
-  const today = new Date().toISOString().split("T")[0];
   let currentStreak = 0;
+  let expectedDate = Date.parse(`${today}T00:00:00.000Z`);
+  if (allDays.at(-1)?.date !== today || allDays.at(-1)?.count === 0) expectedDate -= 86_400_000;
   for (let i = allDays.length - 1; i >= 0; i--) {
     const day = allDays[i];
+    if (day.date === today && day.count === 0) continue;
+    if (Date.parse(`${day.date}T00:00:00.000Z`) !== expectedDate) break;
     if (day.count > 0) {
       currentStreak++;
+      expectedDate -= 86_400_000;
       continue;
     }
     if (day.date !== today) break;
@@ -192,6 +204,31 @@ export function aggregateLanguages(
     .sort((a, b) => b.value - a.value || a.languageName.localeCompare(b.languageName));
 
   return { languages, codeByteTotal };
+}
+
+/** Profile-facing scope: owned repositories; stars/languages/activity exclude forks. */
+export function calculateProfileRepoMetrics(
+  repositories: RepositoryRecord[],
+  fetchedAt = Date.now()
+): NonNullable<RepoMetrics["profile"]> {
+  const owned = repositories.filter((repo) => repo.sources.includes("owned"));
+  const originals = owned.filter((repo) => !repo.isFork);
+  const { languages, codeByteTotal } = aggregateRepositoryLanguages(originals);
+  const year = String(new Date(fetchedAt).getUTCFullYear());
+  return {
+    totalRepos: owned.length,
+    publicRepos: owned.filter((repo) => !repo.isPrivate).length,
+    privateRepos: owned.filter((repo) => repo.isPrivate).length,
+    originalRepos: originals.length,
+    forkedRepos: owned.length - originals.length,
+    activeOriginalRepos: originals.filter((repo) => (repo.pushedAt || repo.updatedAt).startsWith(year)).length,
+    archivedOriginalRepos: originals.filter((repo) => repo.isArchived).length,
+    reposWithStars: originals.filter((repo) => repo.stars > 0).length,
+    starsReceived: originals.reduce((sum, repo) => sum + repo.stars, 0),
+    forksReceived: originals.reduce((sum, repo) => sum + repo.forks, 0),
+    codeByteTotal,
+    topLanguages: languages,
+  };
 }
 
 export function aggregateRepositoryLanguages(

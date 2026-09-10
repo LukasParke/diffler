@@ -18,6 +18,7 @@ import {
   calculateComputedStats,
   calculateContributionStats,
   calculateRepoStats,
+  calculateProfileRepoMetrics,
 } from "./aggregate.js";
 import { buildPresentationData } from "./presentation.js";
 
@@ -32,21 +33,55 @@ export function mergeStatsOutputs(outputs: GitHubStatsOutput[]): GitHubStatsOutp
   if (outputs.length === 1) {
     return outputs[0];
   }
+  if (new Set(outputs.map((output) => output.profile.login.toLowerCase())).size !== outputs.length) {
+    throw new Error("Cannot merge multiple snapshots of the same GitHub profile");
+  }
 
-  const repositories = mergeRepositories(outputs.flatMap((output) => output.repositories));
+  const fetchedAt = Math.max(...outputs.map((output) => Date.parse(output.generatedAt)));
+  const generatedAt = new Date(fetchedAt).toISOString();
+  const repositories = mergeRepositories(outputs.flatMap((output) => output.repositories))
+    .map((repository) => ({ ...repository, viewerPermission: null }));
   const profileContributions = mergeProfileContributions(
-    outputs.map((output) => output.profileContributions)
+    outputs.map((output) => output.profileContributions), generatedAt.slice(0, 10)
   );
+  const repositoriesById = new Map(repositories.map((repository) => [repository.id, repository]));
+  profileContributions.repositoryContributions = profileContributions.repositoryContributions.map((summary) => {
+    const repository = repositoriesById.get(summary.repositoryId);
+    return repository ? { ...summary, nameWithOwner: repository.nameWithOwner, owner: repository.owner } : summary;
+  });
   const activity = mergeActivity(outputs.map((output) => output.activity));
-  const repoMetrics = mergeRepoMetrics(outputs, repositories);
+  activity.repositoriesContributedTo = new Set([
+    ...profileContributions.repositoryContributions.map((summary) => summary.repositoryId),
+    ...repositories.filter((repo) => repo.sources.includes("contributed") || repo.sources.includes("profile-contribution"))
+      .map((repo) => repo.id),
+  ]).size;
+  const repoMetrics = mergeRepoMetrics(outputs, repositories, fetchedAt);
   const privacy = mergePrivacy(outputs);
   const collectionStatus = mergeCollectionStatus(outputs);
   const packageMetrics = mergePackageMetrics(outputs.map((output) => output.packageMetrics));
 
-  const generatedAt = outputs
-    .map((output) => output.generatedAt)
-    .reduce((latest, at) => (at > latest ? at : latest));
-  const fetchedAt = Date.parse(generatedAt);
+  const seenRepositories = new Set<string>();
+  const sharedRepositories = new Set<string>();
+  for (const output of outputs) {
+    for (const repository of output.repositories) {
+      if (seenRepositories.has(repository.id)) sharedRepositories.add(repository.id);
+      seenRepositories.add(repository.id);
+    }
+  }
+  if (sharedRepositories.size > 0 && outputs.some((output) =>
+    output.repoMetrics.traffic.reposCompleted > 0 || output.repoMetrics.traffic.repoViews > 0)) {
+    repoMetrics.traffic.reposPending += sharedRepositories.size;
+    collectionStatus.warnings.push("Traffic totals are additive across account snapshots and may overlap; per-repository caches are required for deduplication.");
+  }
+  collectionStatus.coreComplete &&= profileContributions.completeness.complete && privacy.redactedPrivateRepositories === 0;
+  if (privacy.redactedPrivateRepositories > 0) {
+    collectionStatus.warnings.push("Private repository aggregates cannot be deduplicated after redaction; merged repository metrics cover visible records only.");
+  }
+  collectionStatus.complete &&= collectionStatus.coreComplete && packageMetrics.complete &&
+    collectionStatus.errors.length === 0 && collectionStatus.backfill.pending === 0 &&
+    collectionStatus.backfill.failedThisRun === 0 && repoMetrics.traffic.reposPending === 0 &&
+    repoMetrics.traffic.reposFailed === 0 && repoMetrics.contributorStats.reposPending === 0 &&
+    repoMetrics.contributorStats.reposFailed === 0;
 
   const profile = pickPrimaryProfile(outputs);
 
@@ -54,7 +89,7 @@ export function mergeStatsOutputs(outputs: GitHubStatsOutput[]): GitHubStatsOutp
     profile,
     profileContributions,
     repoMetrics,
-    complete: outputs.every((output) => output.collectionStatus.complete),
+    complete: collectionStatus.complete,
     fetchedAt,
   });
 
@@ -78,10 +113,20 @@ function pickPrimaryProfile(outputs: GitHubStatsOutput[]): UserProfile {
 }
 
 export function mergeProfileContributions(
-  contributions: ProfileContributions[]
+  contributions: ProfileContributions[],
+  throughDate?: string
 ): ProfileContributions {
-  const calendar = mergeContributionCalendars(
-    contributions.map((c) => c.contributionCalendar)
+  const observedCalendar = mergeContributionCalendars(
+    contributions.map((c) => c.contributionCalendar), throughDate
+  );
+  // GitHub's reported total remains useful when some daily observations are absent.
+  const calendar = {
+    ...observedCalendar,
+    totalContributions: contributions.reduce((sum, c) => sum + c.contributionCalendar.totalContributions, 0),
+  };
+  const calendarsComplete = contributions.every((c) =>
+    [...observedCalendarDays(c.contributionCalendar, throughDate).values()].reduce((sum, count) => sum + count, 0) ===
+      c.contributionCalendar.totalContributions
   );
   const collection: ContributionsCollection = {
     totalCommitContributions: contributions.reduce(
@@ -120,16 +165,17 @@ export function mergeProfileContributions(
     totalPullRequestContributions: collection.totalPullRequestContributions,
     totalPullRequestReviewContributions: collection.totalPullRequestReviewContributions,
     contributionCalendar: calendar,
-    stats: calculateContributionStats(collection),
+    stats: calculateContributionStats(collection, throughDate ? Date.parse(throughDate) : Date.now()),
     repositoryContributions: mergeRepositoryContributionSummaries(
       contributions.flatMap((c) => c.repositoryContributions)
     ),
     completeness: {
-      complete: contributions.every((c) => c.completeness.complete),
+      complete: calendarsComplete && contributions.every((c) => c.completeness.complete && c.completeness.missingYears.length === 0 &&
+        c.contributionCalendar.weeks.some((week) => week.contributionDays.length > 0)),
       yearsFetched: unionSorted(contributions.map((c) => c.completeness.yearsFetched)),
       yearsFromCache: unionSorted(contributions.map((c) => c.completeness.yearsFromCache)),
-      // A year is only missing when every output is missing it.
-      missingYears: intersectSorted(contributions.map((c) => c.completeness.missingYears)),
+      // Coverage is per account: one account cannot fill another account's missing year.
+      missingYears: unionSorted(contributions.map((c) => c.completeness.missingYears)),
     },
   };
 }
@@ -137,19 +183,26 @@ export function mergeProfileContributions(
 // GitHub calendars are contiguous daily weeks anchored on Sunday. Merging by
 // date and re-chunking from the first day keeps that layout for any profile
 // span, including accounts created in different years.
-export function mergeContributionCalendars(calendars: ContributionsCollection["contributionCalendar"][]) {
+export function mergeContributionCalendars(
+  calendars: ContributionsCollection["contributionCalendar"][],
+  throughDate?: string
+) {
   const byDate = new Map<string, number>();
   for (const calendar of calendars) {
-    for (const week of calendar.weeks) {
-      for (const day of week.contributionDays) {
-        byDate.set(day.date, (byDate.get(day.date) || 0) + day.contributionCount);
-      }
-    }
+    for (const [date, count] of observedCalendarDays(calendar, throughDate)) byDate.set(date, (byDate.get(date) ?? 0) + count);
   }
 
-  const days: ContributionData[] = Array.from(byDate.entries())
-    .map(([date, contributionCount]) => ({ date, contributionCount }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const dates = [...byDate.keys()].sort();
+  const days: ContributionData[] = [];
+  if (dates.length > 0) {
+    const end = throughDate ?? dates[dates.length - 1];
+    const date = new Date(`${dates[0]}T00:00:00.000Z`);
+    while (date.toISOString().slice(0, 10) <= end) {
+      const isoDate = date.toISOString().slice(0, 10);
+      days.push({ date: isoDate, contributionCount: byDate.get(isoDate) ?? 0 });
+      date.setUTCDate(date.getUTCDate() + 1);
+    }
+  }
 
   const weeks: ContributionWeek[] = [];
   let currentWeek: ContributionData[] = [];
@@ -171,6 +224,18 @@ export function mergeContributionCalendars(calendars: ContributionsCollection["c
   };
 }
 
+function observedCalendarDays(calendar: ContributionsCollection["contributionCalendar"], throughDate?: string) {
+  const days = new Map<string, number>();
+  for (const week of calendar.weeks) {
+    for (const day of week.contributionDays) {
+      if (!throughDate || day.date <= throughDate) {
+        days.set(day.date, Math.max(days.get(day.date) ?? 0, day.contributionCount));
+      }
+    }
+  }
+  return days;
+}
+
 function mergeActivity(activities: ActivityStats[]): ActivityStats {
   const sum = (pick: (activity: ActivityStats) => number) =>
     activities.reduce((total, activity) => total + pick(activity), 0);
@@ -186,7 +251,7 @@ function mergeActivity(activities: ActivityStats[]): ActivityStats {
   };
 }
 
-function mergeRepositories(repositories: RepositoryRecord[]): RepositoryRecord[] {
+export function mergeRepositories(repositories: RepositoryRecord[]): RepositoryRecord[] {
   const byId = new Map<string, RepositoryRecord>();
   for (const repository of repositories) {
     const current = byId.get(repository.id);
@@ -244,14 +309,12 @@ export function mergeRepositoryContributionSummaries(
 
 function mergeRepoMetrics(
   outputs: GitHubStatsOutput[],
-  repositories: RepositoryRecord[]
+  repositories: RepositoryRecord[],
+  fetchedAt: number
 ): RepoMetrics {
-  const ownedOriginal = repositories.filter(
-    (repo) => repo.sources.includes("owned") && !repo.isFork
-  );
+  const owned = repositories.filter((repo) => repo.sources.includes("owned"));
   const { languages: topLanguages, codeByteTotal } =
     aggregateRepositoryLanguages(repositories);
-  const profileLanguages = aggregateRepositoryLanguages(ownedOriginal);
   const computedRepos = repositories.map(toComputedRepo);
   const mergedCalendar = mergeContributionCalendars(
     outputs.map((output) => output.profileContributions.contributionCalendar)
@@ -267,48 +330,30 @@ function mergeRepoMetrics(
   });
   const computedStats = calculateComputedStats(computedRepos, topLanguages, contributionStats);
 
-  const sumOver = <K extends keyof RepoMetrics & string>(key: K, field: string): number =>
-    outputs.reduce(
-      (total, output) =>
-        total + ((output.repoMetrics[key] as unknown as Record<string, number>)[field] ?? 0),
-      0
-    );
+  const sum = (pick: (metrics: RepoMetrics) => number) => outputs.reduce((total, output) => total + pick(output.repoMetrics), 0);
 
   return {
-    starCount: ownedOriginal.reduce((sum, repo) => sum + repo.stars, 0),
-    forkCount: ownedOriginal.reduce((sum, repo) => sum + repo.forks, 0),
+    starCount: owned.reduce((sum, repo) => sum + repo.stars, 0),
+    forkCount: owned.reduce((sum, repo) => sum + repo.forks, 0),
     codeByteTotal,
     topLanguages,
     topTopics: computedStats.topTopics,
-    profile: {
-      totalRepos: sumOver("profile", "totalRepos") || undefined,
-      publicRepos: sumOver("profile", "publicRepos"),
-      privateRepos: sumOver("profile", "privateRepos"),
-      originalRepos: sumOver("profile", "originalRepos"),
-      forkedRepos: sumOver("profile", "forkedRepos"),
-      activeOriginalRepos: sumOver("profile", "activeOriginalRepos"),
-      archivedOriginalRepos: sumOver("profile", "archivedOriginalRepos"),
-      reposWithStars: sumOver("profile", "reposWithStars"),
-      starsReceived: sumOver("profile", "starsReceived"),
-      forksReceived: sumOver("profile", "forksReceived"),
-      codeByteTotal: profileLanguages.codeByteTotal,
-      topLanguages: profileLanguages.languages,
-    },
+    profile: calculateProfileRepoMetrics(repositories, fetchedAt),
     contributorStats: {
-      totalCommits: sumOver("contributorStats", "totalCommits"),
-      linesAdded: sumOver("contributorStats", "linesAdded"),
-      linesDeleted: sumOver("contributorStats", "linesDeleted"),
-      linesOfCodeChanged: sumOver("contributorStats", "linesOfCodeChanged"),
-      reposCompleted: sumOver("contributorStats", "reposCompleted"),
-      reposPending: sumOver("contributorStats", "reposPending"),
-      reposFailed: sumOver("contributorStats", "reposFailed"),
+      totalCommits: sum((m) => m.contributorStats.totalCommits),
+      linesAdded: sum((m) => m.contributorStats.linesAdded),
+      linesDeleted: sum((m) => m.contributorStats.linesDeleted),
+      linesOfCodeChanged: sum((m) => m.contributorStats.linesOfCodeChanged),
+      reposCompleted: sum((m) => m.contributorStats.reposCompleted),
+      reposPending: sum((m) => m.contributorStats.reposPending),
+      reposFailed: sum((m) => m.contributorStats.reposFailed),
     },
     traffic: {
-      repoViews: sumOver("traffic", "repoViews"),
-      repoViewUniques: sumOver("traffic", "repoViewUniques"),
-      reposCompleted: sumOver("traffic", "reposCompleted"),
-      reposPending: sumOver("traffic", "reposPending"),
-      reposFailed: sumOver("traffic", "reposFailed"),
+      repoViews: sum((m) => m.traffic.repoViews),
+      repoViewUniques: sum((m) => m.traffic.repoViewUniques),
+      reposCompleted: sum((m) => m.traffic.reposCompleted),
+      reposPending: sum((m) => m.traffic.reposPending),
+      reposFailed: sum((m) => m.traffic.reposFailed),
     },
     repoStats: calculateRepoStats(computedRepos),
     computedStats,
@@ -351,7 +396,6 @@ function mergePrivacy(outputs: GitHubStatsOutput[]): PrivacyReport {
 }
 
 function mergeCollectionStatus(outputs: GitHubStatsOutput[]): CollectionStatus {
-  const [first] = outputs;
   const startedAt = Math.min(...outputs.map((output) => output.collectionStatus.startedAt));
   const finishedAt = Math.max(...outputs.map((output) => output.collectionStatus.finishedAt));
 
@@ -362,8 +406,8 @@ function mergeCollectionStatus(outputs: GitHubStatsOutput[]): CollectionStatus {
     complete: outputs.every((output) => output.collectionStatus.complete),
     coreComplete: outputs.every((output) => output.collectionStatus.coreComplete),
     cache: {
-      stablePath: first.collectionStatus.cache.stablePath,
-      volatilePath: first.collectionStatus.cache.volatilePath,
+      stablePath: "",
+      volatilePath: "",
       contributionYearsFromCache: outputs.reduce(
         (sum, output) => sum + output.collectionStatus.cache.contributionYearsFromCache,
         0
@@ -400,13 +444,13 @@ function mergeCollectionStatus(outputs: GitHubStatsOutput[]): CollectionStatus {
         0
       ),
     },
-    rateLimit: first.collectionStatus.rateLimit,
+    rateLimit: { graphql: null, rest: null },
     warnings: unionSorted(outputs.map((output) => output.collectionStatus.warnings)),
     errors: unionSorted(outputs.map((output) => output.collectionStatus.errors)),
   };
 }
 
-function mergePackageMetrics(metrics: PackageMetrics[]): PackageMetrics {
+export function mergePackageMetrics(metrics: PackageMetrics[]): PackageMetrics {
   const packages = new Map(
     metrics
       .flatMap((metric) => metric.packages)
@@ -434,12 +478,4 @@ function mergePackageMetrics(metrics: PackageMetrics[]): PackageMetrics {
 
 function unionSorted(lists: string[][]): string[] {
   return [...new Set(lists.flat())].sort((a, b) => a.localeCompare(b));
-}
-
-function intersectSorted(lists: string[][]): string[] {
-  if (lists.length === 0) return [];
-  const [first, ...rest] = lists;
-  return first
-    .filter((value) => rest.every((list) => list.includes(value)))
-    .sort((a, b) => a.localeCompare(b));
 }

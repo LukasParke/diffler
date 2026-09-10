@@ -1,3 +1,4 @@
+import { GitHubHttpError, type GitHubResponseHeaders } from "../github/client.js";
 import type { RateLimitInfo, StatsActionConfig } from "./types.js";
 
 export class BudgetStoppedError extends Error {
@@ -13,11 +14,14 @@ export type SchedulerState = {
   warnings: string[];
 };
 
+type RequestKind = "graphql" | "rest";
+
 export class RequestScheduler {
   private readonly startedAt: number;
   private graphqlRateLimit: RateLimitInfo | null = null;
   private restRateLimit: RateLimitInfo | null = null;
   private warnings: string[] = [];
+  private retryAt: Record<RequestKind, number> = { graphql: 0, rest: 0 };
 
   constructor(private readonly config: StatsActionConfig, startedAt = Date.now()) {
     this.startedAt = startedAt;
@@ -31,14 +35,11 @@ export class RequestScheduler {
     };
   }
 
-  shouldStartOptional(kind: "graphql" | "rest"): boolean {
-    if (this.isRuntimeExhausted()) return false;
+  shouldStartOptional(kind: RequestKind): boolean {
+    if (this.isRuntimeExhausted() || Date.now() < this.retryAt[kind]) return false;
     const rate = kind === "graphql" ? this.graphqlRateLimit : this.restRateLimit;
-    const minimum =
-      kind === "graphql"
-        ? this.config.minGraphqlRemaining
-        : this.config.minRestRemaining;
-    return !rate || rate.remaining > minimum;
+    return !rate || Date.parse(rate.resetAt) <= Date.now() ||
+      rate.remaining > this.minimumRemaining(kind);
   }
 
   async graphql<T extends { rateLimit?: RateLimitInfo }>(
@@ -47,99 +48,110 @@ export class RequestScheduler {
     optional = false,
     retries = 3
   ): Promise<T> {
-    if (optional && !this.shouldStartOptional("graphql")) {
-      throw new BudgetStoppedError(`GraphQL budget exhausted before ${label}`);
-    }
-
     let attempt = 0;
     while (true) {
+      this.checkOptionalBudget("graphql", label, optional);
       try {
         const response = await request();
-        if (response.rateLimit) {
-          this.graphqlRateLimit = response.rateLimit;
-          if (response.rateLimit.remaining <= this.config.minGraphqlRemaining) {
-            this.warnings.push(
-              `GraphQL budget near threshold after ${label}: ${response.rateLimit.remaining} remaining`
-            );
-          }
-        }
+        if (response.rateLimit) this.recordRateLimit("graphql", response.rateLimit);
         return response;
       } catch (error) {
-        const status = getErrorStatus(error);
-        const retryAfterMs = getRetryAfterMs(error);
-        if (attempt >= retries || !isRetryableGraphQLError(status, error)) {
-          throw error;
-        }
-
-        attempt++;
-        const backoffMs =
-          retryAfterMs ?? Math.min(30000, 1000 * Math.pow(2, attempt - 1));
-        this.warnings.push(
-          `${label} GraphQL request returned ${status ?? "transient error"}; retrying in ${Math.round(backoffMs)}ms`
-        );
-        await delay(backoffMs + Math.floor(Math.random() * 250));
+        await this.retryAfterError("graphql", label, error, attempt++, retries, optional);
       }
     }
   }
 
-  async rest<T extends { headers?: Record<string, string | number | undefined>; status?: number }>(
+  async rest<T extends { headers?: GitHubResponseHeaders; status?: number }>(
     label: string,
     request: () => Promise<T>,
     optional = true,
     retries = 3
   ): Promise<T> {
-    if (optional && !this.shouldStartOptional("rest")) {
-      throw new BudgetStoppedError(`REST budget exhausted before ${label}`);
-    }
-
     let attempt = 0;
     while (true) {
+      this.checkOptionalBudget("rest", label, optional);
       try {
         const response = await request();
-        this.updateRestRateLimit(response.headers);
+        this.updateRateLimitFromHeaders("rest", response.headers);
         return response;
       } catch (error) {
-        const status = getErrorStatus(error);
-        const retryAfterMs = getRetryAfterMs(error);
-        if (attempt >= retries || !isRetryableStatus(status)) throw error;
-
-        attempt++;
-        const backoffMs =
-          retryAfterMs ?? Math.min(30000, 1000 * Math.pow(2, attempt - 1));
-        this.warnings.push(
-          `${label} returned ${status}; retrying in ${Math.round(backoffMs)}ms`
-        );
-        await delay(backoffMs + Math.floor(Math.random() * 250));
+        await this.retryAfterError("rest", label, error, attempt++, retries, optional);
       }
     }
+  }
+
+  private checkOptionalBudget(kind: RequestKind, label: string, optional: boolean): void {
+    if (optional && !this.shouldStartOptional(kind)) {
+      throw new BudgetStoppedError(`${kind} budget exhausted before ${label}`);
+    }
+  }
+
+  private async retryAfterError(
+    kind: RequestKind,
+    label: string,
+    error: unknown,
+    attempt: number,
+    retries: number,
+    optional: boolean
+  ): Promise<void> {
+    const status = getErrorStatus(error);
+    const headers = error instanceof GitHubHttpError ? error.headers : undefined;
+    this.updateRateLimitFromHeaders(kind, headers);
+    const backoffMs = retryDelayMs(headers, attempt);
+    const retryableStatus = isRetryableStatus(status, headers);
+    if (status === 429 || (status === 403 && retryableStatus)) {
+      this.retryAt[kind] = Math.max(this.retryAt[kind], Date.now() + backoffMs);
+    }
+
+    const retryable = retryableStatus ||
+      (kind === "graphql" && isTransientGraphQLError(error));
+    if (attempt >= retries || !retryable) throw error;
+
+    const waitMs = backoffMs + Math.floor(Math.random() * 250);
+    if (optional && Date.now() + waitMs >= this.startedAt + this.config.maxRuntimeSeconds * 1000) {
+      this.warnings.push(`${label} deferred because the retry would exceed the runtime budget`);
+      throw new BudgetStoppedError(`${kind} retry exceeds the runtime budget before ${label}`);
+    }
+    this.warnings.push(
+      `${label} returned ${status ?? "transient error"}; retrying in ${Math.round(waitMs)}ms`
+    );
+    await delay(waitMs);
   }
 
   private isRuntimeExhausted(): boolean {
     return Date.now() - this.startedAt >= this.config.maxRuntimeSeconds * 1000;
   }
 
-  private updateRestRateLimit(
-    headers: Record<string, string | number | undefined> | undefined
-  ): void {
-    if (!headers) return;
+  private minimumRemaining(kind: RequestKind): number {
+    return kind === "graphql" ? this.config.minGraphqlRemaining : this.config.minRestRemaining;
+  }
 
+  private recordRateLimit(kind: RequestKind, rateLimit: RateLimitInfo): void {
+    if (kind === "graphql") this.graphqlRateLimit = rateLimit;
+    else this.restRateLimit = rateLimit;
+    if (rateLimit.remaining <= this.minimumRemaining(kind)) {
+      this.warnings.push(
+        `${kind === "graphql" ? "GraphQL" : "REST"} budget near threshold: ${rateLimit.remaining} remaining`
+      );
+    }
+  }
+
+  private updateRateLimitFromHeaders(
+    kind: RequestKind,
+    headers: GitHubResponseHeaders | undefined
+  ): void {
     const limit = readHeaderNumber(headers, "x-ratelimit-limit");
     const remaining = readHeaderNumber(headers, "x-ratelimit-remaining");
     const used = readHeaderNumber(headers, "x-ratelimit-used");
     const reset = readHeaderNumber(headers, "x-ratelimit-reset");
-
     if (limit === null || remaining === null || reset === null) return;
 
-    this.restRateLimit = {
+    this.recordRateLimit(kind, {
       limit,
       remaining,
       used: used ?? Math.max(0, limit - remaining),
       resetAt: new Date(reset * 1000).toISOString(),
-    };
-
-    if (remaining <= this.config.minRestRemaining) {
-      this.warnings.push(`REST budget near threshold: ${remaining} remaining`);
-    }
+    });
   }
 }
 
@@ -182,37 +194,46 @@ function delay(ms: number): Promise<void> {
 }
 
 function readHeaderNumber(
-  headers: Record<string, string | number | undefined>,
+  headers: GitHubResponseHeaders | undefined,
   name: string
 ): number | null {
-  const value = headers[name] ?? headers[name.toLowerCase()];
-  if (typeof value === "number") return value;
-  if (typeof value !== "string") return null;
+  const value = headers?.[name];
+  if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) return null;
   const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
 function getErrorStatus(error: unknown): number | null {
-  if (typeof error !== "object" || error === null) return null;
-  const status = (error as { status?: unknown }).status;
-  return typeof status === "number" ? status : null;
+  if (typeof error !== "object" || error === null || !("status" in error)) return null;
+  return typeof error.status === "number" ? error.status : null;
 }
 
-function getRetryAfterMs(error: unknown): number | null {
-  if (typeof error !== "object" || error === null) return null;
-  const response = (error as { response?: { headers?: Record<string, string> } }).response;
-  const retryAfter = response?.headers?.["retry-after"];
-  if (!retryAfter) return null;
+function getRetryAfterMs(headers: GitHubResponseHeaders | undefined): number | null {
+  const retryAfter = headers?.["retry-after"];
+  if (retryAfter === undefined || retryAfter === "") return null;
   const seconds = Number(retryAfter);
-  return Number.isFinite(seconds) ? seconds * 1000 : null;
+  if (Number.isFinite(seconds)) return seconds >= 0 ? seconds * 1000 : null;
+  const date = Date.parse(String(retryAfter));
+  return Number.isFinite(date) ? Math.max(0, date - Date.now()) : null;
 }
 
-function isRetryableStatus(status: number | null): boolean {
-  return status === 403 || status === 429 || status === 500 || status === 502 || status === 503;
+function retryDelayMs(headers: GitHubResponseHeaders | undefined, attempt: number): number {
+  const retryAfter = getRetryAfterMs(headers);
+  const reset = readHeaderNumber(headers, "x-ratelimit-reset");
+  const exhausted = readHeaderNumber(headers, "x-ratelimit-remaining") === 0;
+  const resetDelay = exhausted && reset !== null ? Math.max(0, reset * 1000 - Date.now()) : null;
+  if (retryAfter !== null || resetDelay !== null) return Math.max(retryAfter ?? 0, resetDelay ?? 0);
+  return Math.min(30000, 1000 * Math.pow(2, attempt));
 }
 
-function isRetryableGraphQLError(status: number | null, error: unknown): boolean {
-  if (isRetryableStatus(status) || status === 504) return true;
+function isRetryableStatus(status: number | null, headers: GitHubResponseHeaders | undefined): boolean {
+  if (status === 403) {
+    return getRetryAfterMs(headers) !== null || readHeaderNumber(headers, "x-ratelimit-remaining") === 0;
+  }
+  return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+
+function isTransientGraphQLError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /502 Bad Gateway|503 Service Unavailable|504 Gateway Timeout|nginx/i.test(message);
 }

@@ -1,75 +1,81 @@
 import {UserStats} from '../data';
-import {MetricTile, Panel, ProgressBar} from '../components/primitives';
-import {defaultTheme} from '../themes/default';
-import {GitPullRequest, MessageSquareText, UsersRound} from 'lucide-react';
+import {
+	BigMetric,
+	formatMetricValue,
+	MetricRow,
+	Panel,
+	ProgressBar,
+} from '../components/primitives';
+import {useTheme} from '../themes';
 
 export function IssueTrackingCard({userStats}: {userStats: UserStats}) {
-	const opened = userStats.community.openIssues;
-	const closed = userStats.community.closedIssues;
-	const total = opened + closed;
-	const discussions =
-		userStats.community.discussionsStarted +
-		userStats.community.discussionsAnswered;
+	const theme = useTheme();
+	const community = userStats.community;
+	const totalIssues = community.openIssues + community.closedIssues;
 
 	return (
 		<Panel
-			title="Community Work"
-			subtitle={`${userStats.community.repositoriesContributedTo} repositories contributed to`}
-			accent={defaultTheme.colors.purple}
+			compact
+			title="Community work"
+			subtitle={`${formatMetricValue(community.repositoriesContributedTo)} repositories contributed to${userStats.collectionStatus.coreComplete ? '' : ' · partial collection'}`}
+			accent={theme.colors.purple}
 		>
-			<div className="grid h-[198px] grid-cols-[1fr_1fr] gap-3">
-				<div className="grid grid-cols-2 gap-2">
-					<MetricTile
-						icon={<GitPullRequest size={14} />}
-						label="PRs"
-						value={userStats.community.totalPullRequests}
-						detail={`${userStats.community.totalPullRequestReviews} reviews`}
-						accent={defaultTheme.colors.purple}
+			<div
+				style={{
+					display: 'grid',
+					gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+					gap: 28,
+					alignItems: 'center',
+				}}
+			>
+				<BigMetric
+					label="Pull requests"
+					value={community.totalPullRequests}
+					detail={`${formatMetricValue(community.totalPullRequestReviews)} reviews`}
+				/>
+				<div style={{minWidth: 0}}>
+					<MetricRow label="Open issues" value={community.openIssues} />
+					<MetricRow
+						label="Closed issues"
+						value={community.closedIssues}
+						delay={0.06}
 					/>
-					<MetricTile
-						icon={<MessageSquareText size={14} />}
-						label="Talks"
-						value={discussions}
-						detail={`${userStats.community.discussionsAnswered} answered`}
-						delay={0.08}
-						accent={defaultTheme.colors.cyan}
-					/>
-					<MetricTile
-						icon={<UsersRound size={14} />}
-						label="Followers"
-						value={userStats.community.followers}
-						detail={`${userStats.community.following} following`}
-						delay={0.16}
-						accent={defaultTheme.colors.green}
-					/>
-					<MetricTile
-						label="Reviews"
-						value={userStats.community.totalPullRequestReviews}
-						delay={0.24}
-						accent={defaultTheme.colors.yellow}
+					<ProgressBar
+						value={community.closedIssues}
+						max={totalIssues}
+						color={theme.colors.purple}
+						height={3}
+						label="Share of issues closed"
+						style={{marginTop: 6}}
 					/>
 				</div>
-				<div className="rounded-lg border border-white/10 bg-white/[0.04] p-3">
-					<div className="flex h-full flex-col justify-between">
-						<div className="flex items-center justify-between">
-							<p className="text-xs font-semibold uppercase tracking-normal text-[#9ba7b4]">
-								Issues closed
-							</p>
-							<p className="text-lg font-bold tabular-nums">{closed}</p>
-						</div>
-						<div>
-							<ProgressBar
-								value={closed}
-								max={Math.max(1, total)}
-								color={defaultTheme.colors.green}
-								height={10}
-							/>
-						</div>
-						<p className="text-xs text-[#8b949e]">
-							{opened} open, {closed} closed
-						</p>
-					</div>
-				</div>
+			</div>
+			<div
+				style={{
+					display: 'flex',
+					flexDirection: 'column',
+					justifyContent: 'space-between',
+					flex: 1,
+					minHeight: 0,
+					marginTop: 10,
+					paddingTop: 4,
+					borderTop: `1px solid ${theme.colors.border}`,
+				}}
+			>
+				<MetricRow
+					label="Discussions started"
+					value={community.discussionsStarted}
+					detail={`${formatMetricValue(community.discussionsAnswered)} discussions answered`}
+					delay={0.12}
+					style={{padding: '2px 0'}}
+				/>
+				<MetricRow
+					label="Followers"
+					value={community.followers}
+					detail={`${formatMetricValue(community.following)} following`}
+					delay={0.18}
+					style={{padding: '2px 0'}}
+				/>
 			</div>
 		</Panel>
 	);

@@ -49,15 +49,15 @@ export async function runStatsCollection(
   const startedAt = Date.now();
   const scheduler = new RequestScheduler(config, startedAt);
 
-  const stableCache = readStableCache(config.cachePath);
-  const volatileCache = readVolatileCache(config.volatileCachePath);
   const warnings: string[] = [];
   const errors: string[] = [];
   console.log("Collecting configured package registry stats");
   const packageMetricsPromise = collectPackageStats(config.packageSources);
 
-  console.log("Collecting viewer profile and activity counts");
+  console.log("Collecting account profile and activity counts");
   const { profile, activity } = await collectProfile(client, scheduler);
+  const stableCache = readStableCache(config.cachePath, profile.login);
+  const volatileCache = readVolatileCache(config.volatileCachePath, profile.login);
 
   console.log("Collecting contribution years with cache reuse");
   const contributions = await collectContributionYears(
@@ -81,6 +81,12 @@ export async function runStatsCollection(
       `Contribution data is incomplete for years: ${contributions.missingYears.join(", ")}`
     );
   }
+  const incompleteEnrichmentYears = contributions.incompleteEnrichmentYears ?? [];
+  if (incompleteEnrichmentYears.length > 0) {
+    warnings.push(
+      `Repository contribution enrichment is incomplete for years: ${incompleteEnrichmentYears.join(", ")}; it will be retried`
+    );
+  }
 
   console.log("Collecting owned, affiliated, and contributed repositories");
   const repositoryUniverse = await collectRepositoryUniverse(
@@ -88,11 +94,13 @@ export async function runStatsCollection(
     scheduler,
     stableCache,
     config.includePrivateCacheDetails,
-    profile.login
+    profile.login,
+    contributions.repositories
   );
-  let repositories = mergeRepositories([
+  const liveRepositoryIds = new Set(repositoryUniverse.repositories.map((repo) => repo.id));
+  const repositories = mergeRepositories([
+    ...contributions.repositories.filter((repo) => liveRepositoryIds.has(repo.id)),
     ...repositoryUniverse.repositories,
-    ...contributions.repositories,
   ]);
 
   for (const repository of repositories) {
@@ -116,13 +124,6 @@ export async function runStatsCollection(
     config
   );
 
-  repositories = mergeRepositories(
-    [
-      ...Object.values(stableCache.repositories).map((entry) => entry.repository),
-      ...repositories,
-      ...contributions.repositories,
-    ]
-  );
   const packageMetrics = await packageMetricsPromise;
   warnings.push(...packageMetrics.warnings);
 
@@ -135,6 +136,7 @@ export async function runStatsCollection(
     coreComplete: contributions.missingYears.length === 0,
     complete:
       contributions.missingYears.length === 0 &&
+      incompleteEnrichmentYears.length === 0 &&
       stableCache.backfill.pending.length === 0 &&
       backfillResult.failed === 0,
     cache: {
@@ -179,7 +181,11 @@ export async function runStatsCollection(
     config.includePrivateCacheDetails,
     config.includePrivateRepositoryMetrics
   );
-  writeVolatileCache(config.volatileCachePath, volatileCache);
+  writeVolatileCache(
+    config.volatileCachePath,
+    volatileCache,
+    new Set(Object.keys(stableCache.repositories))
+  );
 
   console.log(
     `Collection complete in ${((finishedAt - startedAt) / 1000).toFixed(2)}s`

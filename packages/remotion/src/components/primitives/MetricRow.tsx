@@ -1,52 +1,106 @@
-import {ReactNode} from 'react';
-import {AnimatedCounter} from '../effects/AnimatedCounter';
+import {CSSProperties, ReactNode} from 'react';
 import {useTheme} from '../../themes';
+import {MetricValue} from './MetricValue';
+import {formatMetricValue} from './formatMetric';
 
 type MetricRowProps = {
-  label: string;
-  value: number | string;
-  detail?: string;
-  delay?: number;
-  accent?: string;
-  icon?: ReactNode;
+	label: string;
+	value: number | string;
+	detail?: string;
+	delay?: number;
+	accent?: string;
+	icon?: ReactNode;
+	separator?: boolean;
+	style?: CSSProperties;
+	labelStyle?: CSSProperties;
+	valueStyle?: CSSProperties;
 };
 
 export function MetricRow({
-  label,
-  value,
-  detail,
-  delay = 0,
-  accent,
-  icon,
+	label,
+	value,
+	detail,
+	delay = 0,
+	accent,
+	icon,
+	separator = false,
+	style,
+	labelStyle,
+	valueStyle,
 }: MetricRowProps) {
-  const theme = useTheme();
-  const resolvedAccent = accent || theme.colors.blue;
+	const theme = useTheme();
 
-  const displayValue =
-    typeof value === 'number' ? (
-      <AnimatedCounter value={value} duration={2} delay={delay} />
-    ) : (
-      value
-    );
-
-  return (
-    <div className="flex min-h-[30px] items-center justify-between gap-3 border-b border-white/5 py-1.5 last:border-b-0">
-      <div className="flex min-w-0 items-center gap-2">
-        {icon ? (
-          <span className="shrink-0" style={{color: resolvedAccent}}>
-            {icon}
-          </span>
-        ) : null}
-        <div className="min-w-0">
-          <p className="truncate text-xs text-[#b7c0cc]">{label}</p>
-          {detail ? (
-            <p className="truncate text-xs text-[#7d8590]">{detail}</p>
-          ) : null}
-        </div>
-      </div>
-      <p className="shrink-0 text-sm font-semibold tabular-nums">
-        {displayValue}
-      </p>
-    </div>
-  );
+	return (
+		<div
+			role="group"
+			aria-label={`${label.replace(/:$/, '')}: ${formatMetricValue(value, 'integer')}`}
+			style={{
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'space-between',
+				gap: 12,
+				minWidth: 0,
+				padding: '5px 0',
+				fontFamily: theme.typography.fontFamily,
+				color: theme.colors.text,
+				borderBottom: separator
+					? `1px solid ${theme.colors.border}`
+					: undefined,
+				...style,
+			}}
+		>
+			<div style={{display: 'flex', alignItems: 'center', gap: 9, minWidth: 0}}>
+				{icon ? (
+					<span
+						aria-hidden="true"
+						style={{
+							display: 'flex',
+							flexShrink: 0,
+							color: accent ?? theme.colors.purple,
+						}}
+					>
+						{icon}
+					</span>
+				) : null}
+				<div style={{minWidth: 0}}>
+					<p
+						title={label}
+						style={{
+							margin: 0,
+							fontSize: 12,
+							lineHeight: 1.45,
+							overflow: 'hidden',
+							textOverflow: 'ellipsis',
+							whiteSpace: 'nowrap',
+							...labelStyle,
+						}}
+					>
+						{label}
+					</p>
+					{detail ? (
+						<p
+							title={detail}
+							style={{
+								margin: '2px 0 0',
+								fontSize: 10,
+								lineHeight: 1.35,
+								color: theme.colors.muted,
+								overflow: 'hidden',
+								textOverflow: 'ellipsis',
+								whiteSpace: 'nowrap',
+							}}
+						>
+							{detail}
+						</p>
+					) : null}
+				</div>
+			</div>
+			<MetricValue
+				value={value}
+				delay={delay}
+				size={15}
+				style={{flexShrink: 0, maxWidth: '45%', ...valueStyle}}
+			/>
+		</div>
+	);
 }

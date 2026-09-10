@@ -5,12 +5,17 @@ node_modules/
 # Build outputs
 dist/
 build/
-.render-smoke/
 *.tsbuildinfo
+coverage/
+artifacts/
+pages/
+docs/design/reference/
 
 # Environment
 .env
 .env.local
+.env.*
+!.env.example
 
 # OS
 .DS_Store
@@ -26,3 +31,4 @@ build/
 
 # Package manager
 yarn-error.log
+# pnpm-lock.yaml is intentionally tracked. CI installs with --frozen-lockfile.

@@ -1,5 +1,5 @@
 name: Diffler
-description: Render GitHub profile README with live data, optional remotion config, and stats collection
+description: Generate a profile README and optional inline Remotion input using the bundled Diffler CLI
 author: LukasParke
 
 branding:
@@ -8,145 +8,134 @@ branding:
 
 inputs:
   github-token:
-    description: GitHub token with repo and user read scopes
+    description: GitHub token used only for collection; never written to renderer input
     required: true
   username:
-    description: GitHub username to fetch data for
-    required: false
+    description: Fallback GitHub username (or reference DIFFLER_GITHUB_USERNAME in your config)
     default: ${{ github.repository_owner }}
   template-dir:
-    description: Directory containing Jinja2/Nunjucks templates
-    required: false
+    description: Fallback template directory when using environment configuration
     default: .github/diffler
   config:
-    description: Path to diffler.yml config file
-    required: false
-    default: .github/diffler.yml
+    description: Config path relative to working-directory; leave empty for default config discovery
+    default: ""
+  working-directory:
+    description: Consumer project directory relative to github.workspace
+    default: .
   output:
-    description: Output path for rendered README
-    required: false
+    description: README output path relative to working-directory
     default: README.md
   commit-message:
-    description: Commit message for README updates
-    required: false
+    description: Commit message for generated files
     default: "🤖 Auto-update profile README"
   remotion-output:
-    description: Path to write remotion input.json (disabled if empty)
-    required: false
+    description: Optional output path for typed inline SourceProps (stats, not a filesystem path)
     default: ""
   dry-run:
-    description: Render without committing changes
-    required: false
+    description: Generate files without committing or pushing
     default: "false"
-  # Stats-action inputs
   stats-output-path:
-    description: Path for the generated stats JSON
-    required: false
-    default: ".diffler/stats.json"
+    description: Local stats JSON path (not committed by this action)
+    default: .diffler/stats.json
   stats-cache-path:
-    description: Path for committed stable cache state
-    required: false
-    default: ".diffler/cache-stable.json"
+    description: Local stable cache path (not committed by this action)
+    default: .diffler/cache-stable.json
   stats-volatile-cache-path:
-    description: Path for Actions-cache-backed volatile API metadata
-    required: false
-    default: ".diffler/cache-volatile.json"
+    description: Local volatile cache path (not committed by this action)
+    default: .diffler/cache-volatile.json
   stats-backfill-mode:
-    description: Backfill mode for optional REST metrics
-    required: false
-    default: "resume"
+    description: Backfill mode for optional REST metrics (resume, refresh, off)
+    default: resume
   stats-include-private:
-    description: Include private repository details in output
-    required: false
+    description: Include private details in local stats only; never enables private Remotion exports
     default: "false"
   collect-stats:
-    description: Also run stats collection before rendering
-    required: false
+    description: Also write stats JSON before rendering
     default: "false"
+
 outputs:
   changed:
-    description: Whether the README was changed
+    description: Whether generated README/Remotion files were committed
     value: ${{ steps.render.outputs.changed }}
 
-# Composite action that runs the committed single-file CLI bundle
-# (dist-action/index.js). CI verifies the bundle is fresh on every change, so
-# no install/build steps are needed here — the action is hermetic and fast.
-# Consumer workflows need `permissions: contents: write` to allow the push.
 runs:
   using: composite
   steps:
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: "20"
+        node-version: "24"
 
     - name: Collect stats (optional)
-      id: collect
       if: inputs.collect-stats == 'true'
       shell: bash
+      working-directory: ${{ github.workspace }}/${{ inputs.working-directory }}
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
+        DIFFLER_CLI: ${{ github.action_path }}/dist-action/index.js
+        DIFFLER_GITHUB_USERNAME: ${{ inputs.username }}
+        DIFFLER_TEMPLATE_DIRECTORY: ${{ inputs.template-dir }}
+        DIFFLER_CONFIG: ${{ inputs.config }}
+        DIFFLER_STATS_OUTPUT: ${{ inputs.stats-output-path }}
+        DIFFLER_STATS_CACHE: ${{ inputs.stats-cache-path }}
+        DIFFLER_VOLATILE_CACHE: ${{ inputs.stats-volatile-cache-path }}
+        DIFFLER_BACKFILL: ${{ inputs.stats-backfill-mode }}
+        DIFFLER_PRIVATE: ${{ inputs.stats-include-private }}
       run: |
-        if [ -n "${{ inputs.username }}" ]; then
-          export DIFFLER_GITHUB_USERNAME="${{ inputs.username }}"
-        fi
+        set -euo pipefail
+        args=()
+        if [ -n "$DIFFLER_CONFIG" ]; then args+=(--config "$DIFFLER_CONFIG"); fi
+        if [ "$DIFFLER_PRIVATE" = "true" ]; then args+=(--include-private); fi
+        node "$DIFFLER_CLI" collect "${args[@]}" \
+          --output-path "$DIFFLER_STATS_OUTPUT" \
+          --cache-path "$DIFFLER_STATS_CACHE" \
+          --volatile-cache-path "$DIFFLER_VOLATILE_CACHE" \
+          --backfill-mode "$DIFFLER_BACKFILL"
 
-        node "$GITHUB_ACTION_PATH/dist-action/index.js" collect \
-          --config "${{ inputs.config }}" \
-          --output-path "${{ inputs.stats-output-path }}" \
-          --cache-path "${{ inputs.stats-cache-path }}" \
-          --volatile-cache-path "${{ inputs.stats-volatile-cache-path }}" \
-          --backfill-mode "${{ inputs.stats-backfill-mode }}" \
-          ${{ inputs.stats-include-private == 'true' && '--include-private' || '' }}
-
-    - name: Configure git identity
-      if: inputs.dry-run != 'true'
-      shell: bash
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-    - name: Render profile README
+    - name: Render profile README and inline renderer input
       id: render
       shell: bash
+      working-directory: ${{ github.workspace }}/${{ inputs.working-directory }}
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
+        DIFFLER_CLI: ${{ github.action_path }}/dist-action/index.js
+        DIFFLER_GITHUB_USERNAME: ${{ inputs.username }}
+        DIFFLER_TEMPLATE_DIRECTORY: ${{ inputs.template-dir }}
+        DIFFLER_CONFIG: ${{ inputs.config }}
+        DIFFLER_OUTPUT: ${{ inputs.output }}
+        DIFFLER_REMOTION_OUTPUT: ${{ inputs.remotion-output }}
+        DIFFLER_DRY_RUN: ${{ inputs.dry-run }}
+        DIFFLER_COMMIT_MESSAGE: ${{ inputs.commit-message }}
       run: |
-        if [ -n "${{ inputs.username }}" ]; then
-          export DIFFLER_GITHUB_USERNAME="${{ inputs.username }}"
+        set -euo pipefail
+        args=()
+        if [ -n "$DIFFLER_CONFIG" ]; then args+=(--config "$DIFFLER_CONFIG"); fi
+        node "$DIFFLER_CLI" render "${args[@]}" --output "$DIFFLER_OUTPUT"
+        paths=("$DIFFLER_OUTPUT")
+        if [ -n "$DIFFLER_REMOTION_OUTPUT" ]; then
+          node "$DIFFLER_CLI" export-remotion "${args[@]}" --output "$DIFFLER_REMOTION_OUTPUT"
+          paths+=("$DIFFLER_REMOTION_OUTPUT")
         fi
-
-        node "$GITHUB_ACTION_PATH/dist-action/index.js" render --config "${{ inputs.config }}" --output "${{ inputs.output }}"
-
-        if [ -n "${{ inputs.remotion-output }}" ]; then
-          echo "Generating remotion config..."
-          node "$GITHUB_ACTION_PATH/dist-action/index.js" export-remotion --config "${{ inputs.config }}" --output "${{ inputs.remotion-output }}"
-        fi
-
-        if [ "${{ inputs.dry-run }}" = "true" ]; then
+        if [ "$DIFFLER_DRY_RUN" = "true" ]; then
           echo "changed=false" >> "$GITHUB_OUTPUT"
           exit 0
         fi
-
-        git add "${{ inputs.output }}"
-        if [ -n "${{ inputs.remotion-output }}" ]; then
-          git add "${{ inputs.remotion-output }}"
+        if ! git diff --cached --quiet; then
+          echo "::error::Refusing to commit unrelated staged changes."
+          exit 1
         fi
-        git add .diffler/cache-stable.json 2>/dev/null || true
-        if [ "${{ inputs.collect-stats }}" = "true" ]; then
-          git add "${{ inputs.stats-output-path }}" 2>/dev/null || true
-          git add "${{ inputs.stats-cache-path }}" 2>/dev/null || true
-        fi
-
+        git add -- "${paths[@]}"
         if git diff --cached --quiet; then
           echo "changed=false" >> "$GITHUB_OUTPUT"
-          echo "No changes to commit."
         else
-          git commit -m "${{ inputs.commit-message }}"
+          git -c user.name='github-actions[bot]' \
+            -c user.email='github-actions[bot]@users.noreply.github.com' \
+            commit -m "$DIFFLER_COMMIT_MESSAGE"
           echo "changed=true" >> "$GITHUB_OUTPUT"
         fi
 
-    - name: Push changes
+    - name: Push generated files
       if: steps.render.outputs.changed == 'true' && inputs.dry-run != 'true'
       shell: bash
+      working-directory: ${{ github.workspace }}/${{ inputs.working-directory }}
       run: git push

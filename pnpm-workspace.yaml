@@ -1,9 +1,8 @@
 packages:
   - "packages/*"
-  - "examples/remotion-usage"
+  - "examples/*"
 
-settings:
-  autoInstallPeers: true
-  excludeLinksFromLockfile: false
-  onlyBuiltDependencies:
-    - esbuild
+autoInstallPeers: false
+excludeLinksFromLockfile: false
+onlyBuiltDependencies:
+  - esbuild

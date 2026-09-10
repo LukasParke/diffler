@@ -10,9 +10,19 @@ export default defineConfig({
   ],
   format: ['esm', 'cjs'],
   dts: true,
-  splitting: false,
+  // Share ThemeContext between root, /themes and /cards in BOTH module formats.
+  // Independent entry bundles create providers that cannot reach card consumers.
+  splitting: true,
   sourcemap: true,
   clean: true,
-  external: ['remotion', 'react', 'react-dom', 'zod'],
-  target: 'es2020',
+  external: [
+    '@lukasparke/diffler-schemas',
+    '@remotion/bundler',
+    '@remotion/renderer',
+    'remotion',
+    'react',
+    'react-dom',
+    'zod',
+  ],
+  target: 'es2022',
 });

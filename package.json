@@ -2,7 +2,7 @@
   "name": "diffler-monorepo",
   "version": "0.1.0",
   "private": true,
-  "description": "Monorepo for diffler CLI, stats-action engine, and remotion renderer",
+  "description": "GitHub stats collection, profile READMEs, and animated Remotion cards",
   "type": "module",
   "packageManager": "pnpm@10.34.5",
   "scripts": {
@@ -12,14 +12,18 @@
     "typecheck": "pnpm -r typecheck",
     "verify": "pnpm build && pnpm typecheck && pnpm test",
     "test:package": "node scripts/test-package.mjs",
-    "diffler": "pnpm --filter @lukasparke/diffler diffler",
-    "render": "pnpm --filter @lukasparke/diffler-remotion render"
+    "smoke:consumer": "node scripts/consumer-smoke.mjs",
+    "smoke:render": "node scripts/consumer-smoke.mjs --render",
+    "diffler": "node packages/diffler/dist/cli.js",
+    "render": "node packages/remotion/dist/render/cli.js",
+    "render:assets": "pnpm --filter @lukasparke/diffler-remotion render:all"
   },
   "devDependencies": {
     "typescript": "^5.8.3",
     "vitest": "^4.1.8"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.12.0",
+    "pnpm": "10.34.5"
   }
 }
